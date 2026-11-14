@@ -868,9 +868,9 @@
    "id": 17
   },
   {
-   "type": "timeseries",
+   "type": "stat",
    "title": "Fuzzball reads",
-   "description": "The longest gap between the exporter's reads of Fuzzball over the last 2 minutes. It reads every 30 s, so a healthy line sits near 30 s; a rise means job states and failures have stopped updating.",
+   "description": "Seconds since the exporter last read Fuzzball. It reads every 30 s plus however long the read takes, so anything under 90 s is current; red means job states and failures have stopped updating.",
    "datasource": {
     "type": "prometheus",
     "uid": "prometheus"
@@ -887,27 +887,21 @@
       "type": "prometheus",
       "uid": "prometheus"
      },
-     "expr": "max_over_time(simulaxon_exporter_fuzzball_age_seconds[2m])",
-     "legendFormat": "longest gap",
+     "expr": "simulaxon_exporter_fuzzball_age_seconds",
+     "legendFormat": "last read",
+     "instant": true,
      "refId": "A"
     }
    ],
    "fieldConfig": {
     "defaults": {
      "unit": "s",
-     "min": 0,
-     "custom": {
-      "lineWidth": 2,
-      "fillOpacity": 8,
-      "thresholdsStyle": {
-       "mode": "line+area"
-      }
-     },
+     "decimals": 0,
      "thresholds": {
       "mode": "absolute",
       "steps": [
        {
-        "color": "transparent",
+        "color": "green",
         "value": null
        },
        {
@@ -920,13 +914,17 @@
     "overrides": []
    },
    "options": {
-    "legend": {
-     "displayMode": "list",
-     "placement": "bottom"
+    "colorMode": "background",
+    "graphMode": "none",
+    "textMode": "value_and_name",
+    "reduceOptions": {
+     "calcs": [
+      "lastNotNull"
+     ],
+     "fields": "",
+     "values": false
     },
-    "tooltip": {
-     "mode": "single"
-    }
+    "orientation": "horizontal"
    },
    "id": 18
   }
