@@ -13,6 +13,8 @@ usage: SIMULAXON_DATA=/data python -m app_server.server [--host 0.0.0.0] [--port
   POST /api/runs/{name}/start                submits a run as a Fuzzball workflow; POST /api/runs/{name}/stop stops it
   POST /api/agent                            {dataset, stages, message, history} -> reply, tool calls, view to show (the planner)
   GET  /media/{path}                         a media file that some loaded sample points to; nothing else is served
+  GET  /api/dashboard                        runs with step times, GPU samples, planner counters and weights (metrics.py)
+  GET  /dashboard                            the dashboard on its own page
   GET  /api/startup                          the new-project screen: sample prompt, paper link, study images, dataset (startup.json)
   GET  /startup-files/{i}                    the i-th study image startup.json lists
 """
@@ -25,7 +27,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
-from . import agent_tools, loaders, runs, store, views
+from . import agent_tools, loaders, metrics, runs, store, views
 from .config import APP, DATA, PLANNER_MODEL, PLANNER_URL, ROOT, SOURCES, UI
 
 PORT = 8791
@@ -234,6 +236,18 @@ def media(path: str):
     return FileResponse(DATA / path)
 
 
+@app.get('/api/dashboard')
+def dashboard():
+    return {'now': __import__('time').time(), 'runs': metrics.run_steps(), 'gpu': metrics.gpu(), 'planner': metrics.planner(), 'weights': metrics.weights()}
+
+
+@app.get('/dashboard')
+def dashboard_page():
+    """The dashboard as its own link: the app's page, which opens on the dashboard at this path."""
+    if not (UI / 'index.html').exists(): raise HTTPException(404, 'the frontend is not built')
+    return FileResponse(UI / 'index.html')
+
+
 def _startup() -> dict:
     return json.load(open(APP / 'startup.json'))
 
@@ -254,6 +268,7 @@ def startup_file(i: int):
     return FileResponse(DATA / ims[i]['file'])
 
 
+metrics.start_sampler()
 if UI.exists(): app.mount('/', StaticFiles(directory=UI, html=True), name='ui')
 
 if __name__ == '__main__':
