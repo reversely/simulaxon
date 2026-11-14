@@ -107,6 +107,7 @@ class Queue:
         self.jobs: dict[str, Job] = {}
         self.q: queue.PriorityQueue = queue.PriorityQueue(); self.n = 0
         self.gpu = threading.Lock()
+        self.last_live, self.hold_s = 0.0, 3.0   # renders made ahead hold off this long after a fast or batch job, so its follow-up (a render's TRIBE read) goes first
         self.listeners: list = []
         self.remotes = remotes or {}; self.remote_wait_s = remote_wait_s
         self.remote_q: dict[str, queue.Queue] = {k: queue.Queue() for k in self.remotes}
@@ -156,14 +157,18 @@ class Queue:
                 m = by.get(j.job_id, {'error': 'no result from the remote runner'})
                 if 'error' in m: j.status, j.error = 'failed', m['error']
                 else: j.status, j.outputs = 'done', m['outputs']; self.cache[j.key] = m['outputs']
-                j.seconds = round(time.time() - t0, 3); self._emit(j); j.done.set()
+                j.seconds = round(time.time() - t0, 3); self._emit(j)
+                if j.lane in ('fast', 'batch'): self.last_live = time.time()
+                j.done.set()
 
     def _emit(self, j: Job):
         for f in self.listeners: f({'job_id': j.job_id, 'connector_id': j.connector_id, 'status': j.status, 'lane': j.lane, 'cached': j.cached, 'where': j.where})
 
     def _loop(self):
         while True:
-            _, _, jid = self.q.get(); j = self.jobs[jid]
+            pri, n, jid = self.q.get(); j = self.jobs[jid]
+            if pri == 2 and time.time() - self.last_live < self.hold_s:   # an ahead job waits while a preview or run is between its steps
+                self.q.put((pri, n, jid)); time.sleep(0.25); continue
             c = self.connectors[j.connector_id]
             lock = self.gpu if c.uses_gpu else threading.Lock()
             with lock:
@@ -179,7 +184,9 @@ class Queue:
                     else: j.status, j.outputs = 'done', msg['outputs']; self.cache[j.key] = msg['outputs']
                 except Exception as e:
                     j.status, j.error = 'failed', f'{type(e).__name__}: {e}'
-                j.seconds = round(time.time() - t0, 3); self._emit(j); j.done.set()
+                j.seconds = round(time.time() - t0, 3); self._emit(j)
+                if j.lane in ('fast', 'batch'): self.last_live = time.time()   # before done: the waiting preview's next step lands inside the hold
+                j.done.set()
 
     def _make_room(self, c: Connector):
         """Unload idle workers, least recently used first, until c fits. Runs inside the job loop, so every

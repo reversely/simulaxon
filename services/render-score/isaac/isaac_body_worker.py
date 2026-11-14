@@ -22,7 +22,7 @@ for line in sys.stdin:
         x = j['inputs']; t0 = time.time()
         scene.load(x['rec'], int(x['k']), x['motion_file'])
         out = scene.render(x['body'], x['motion'], str(Path(x['out_dir']) / f"{x['name']}.mp4"))
-        print(json.dumps({'job_id': j['job_id'], 'outputs': {**out, 'render_s': round(time.time() - t0, 1), 'revision': REVISION}}, default=str), flush=True)
+        print(json.dumps({'job_id': j['job_id'], 'outputs': {**out, 'render_s': round(time.time() - t0, 1), 'revision': REVISION[x['body']]}}, default=str), flush=True)
     except Exception as e:
         import traceback; traceback.print_exc(file=sys.stderr)
         print(json.dumps({'job_id': j['job_id'], 'error': f'{type(e).__name__}: {e}'}), flush=True)

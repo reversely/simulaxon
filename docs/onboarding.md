@@ -90,18 +90,18 @@ Code: [../services/render-score/](../services/render-score/).
 - It submits study workflows to Fuzzball with the token Fuzzball injects into every container (`FB_TOKEN`, `FB_API_HOST`). Each study it starts is recorded as its child: `fuzzball workflow list --parent <app-server workflow id>`.
 - Give it an endpoint (`fuzzball endpoint create simulaxon`, with `persistent: true` on the service), so the browser's URL survives redeploys.
 
-**Check:** `curl https://<endpoint>/api/datasets` returns the dataset list.
+**Check:** `curl https://<endpoint>/tools` lists the tools, 60 of them.
 
 ## 6. The browser app
 
 - Build `frontend/` with Vite and serve it from the app server. `server.py` already serves a built UI folder when one is present.
 - Or run `npm run dev` locally, with the proxy pointed at the endpoint.
 
-**Check:** the interface opens over HTTPS, lists the datasets, and the agent box answers through the planner.
+**Check:** the interface opens over HTTPS on the agent's chat; New project shows the examples playing; a message to the agent is answered through the planner.
 
 ## 7. One study, end to end
 
-From the app, start the observer study ([../studies/observer/](../studies/observer/)). The app server submits it as a workflow:
+Open for the owner: the app runs a project's clips through render-score, one job each, and has no route yet that submits the observer study as a Fuzzball workflow. The study runs as a workflow from its Fuzzfile ([../studies/observer/](../studies/observer/)):
 1. Moments and motions.
 2. A task array that renders 6 moments × 4 cells (two bodies, two motions).
 3. TRIBE on the 24 clips.
@@ -109,7 +109,7 @@ From the app, start the observer study ([../studies/observer/](../studies/observ
 5. Region maps.
 6. The study's dataset, written into the app.
 
-**Check:** 24 clips and 24 predictions under `/data/studies/observer`; the dataset opens in the app with a video and a TRIBE track on each sample.
+**Check:** 24 clips and 24 predictions under `/data/studies/observer`. In the app, the humanoid project (New project, A robot that moves like a person) runs the same 24 cells through render-score.
 
 **Baseline for the move:** the same 24 clips' predictions, against those computed before the move. Per-vertex r should be about 1.0, since the weights and inputs are the same.
 

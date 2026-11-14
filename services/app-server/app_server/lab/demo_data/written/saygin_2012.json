@@ -1,0 +1,188 @@
+{
+ "id": "saygin_2012",
+ "paper": "Saygin, Chaminade, Ishiguro, Driver and Frith 2012, Social Cognitive and Affective Neuroscience",
+ "url": "https://doi.org/10.1093/scan/nsr025",
+ "template": "look_and_motion",
+ "title": "Android look against motion, replayed",
+ "steps": [
+  {
+   "title": "Program the android",
+   "flow": "build",
+   "paper": "The paper programmed the android Repliee Q2 to perform everyday actions, some with an object, such as drinking from a cup or wiping a table, and some gestures, such as waving and nodding.",
+   "here": "Each moment is a real recorded social interaction, rebuilt in the scan of its room and seen from where the partner stood. This gives the human body robotic motion, the same poses joined at constant speed, to stand in for the android.",
+   "show": {
+    "project": "$p:project_1228bf61d1",
+    "view": "room"
+   },
+   "actions": [
+    {
+     "tool": "parameter_set",
+     "args": {
+      "project_id": "$p:project_1228bf61d1",
+      "name": "motion",
+      "value": "robotic"
+     }
+    }
+   ],
+   "wait": "preview",
+   "dwell_s": 10
+  },
+  {
+   "title": "Strip the robot",
+   "flow": "vary",
+   "paper": "For the robot, the paper filmed the same android with its skin and surface removed, so its machinery showed, performing exactly the same movements.",
+   "here": "This swaps the body for a Unitree G1 and keeps the robotic motion. The paper's robot was the android itself with its skin removed, but here the robot is a different machine.",
+   "show": {
+    "project": "$p:project_1228bf61d1",
+    "view": "room"
+   },
+   "actions": [
+    {
+     "tool": "parameter_set",
+     "args": {
+      "project_id": "$p:project_1228bf61d1",
+      "name": "body",
+      "value": "g1"
+     }
+    }
+   ],
+   "wait": "preview",
+   "dwell_s": 10
+  },
+  {
+   "title": "Film the human model",
+   "flow": "vary",
+   "paper": "The woman the android was modelled on watched each robot action and then performed it herself. All three agents were filmed in the same room against the same background, and every clip was turned to greyscale and cropped, with a faint fixation cross at its centre.",
+   "here": "This sets the motion back to recorded and the body back to human, so the body moves as the real person did, in the same room and from the same camera as the other cells. On the way it passes the G1 with recorded motion, a fourth cell the paper did not have.",
+   "show": {
+    "project": "$p:project_1228bf61d1",
+    "view": "room"
+   },
+   "actions": [
+    {
+     "tool": "parameter_set",
+     "args": {
+      "project_id": "$p:project_1228bf61d1",
+      "name": "motion",
+      "value": "recorded"
+     }
+    },
+    {
+     "tool": "parameter_set",
+     "args": {
+      "project_id": "$p:project_1228bf61d1",
+      "name": "body",
+      "value": "human"
+     }
+    }
+   ],
+   "wait": "preview",
+   "dwell_s": 12
+  },
+  {
+   "title": "Watch while fixating",
+   "flow": "run",
+   "paper": "Before scanning, people saw each clip once and were told which agent was a human and which a robot. In the scanner they kept their eyes on the cross while each clip was as likely to repeat the last one as to be new, and every so often they judged a written true-or-false statement.",
+   "here": "This switches to another moment, and TRIBE reads the new clip once from the partner's eye, with no briefing, no task and no repeats, so there is no drop on repeats to measure. The finished study already holds its reading of every moment in all four cells.",
+   "show": {
+    "project": "$p:project_1228bf61d1",
+    "view": "room"
+   },
+   "actions": [
+    {
+     "tool": "parameter_set",
+     "args": {
+      "project_id": "$p:project_1228bf61d1",
+      "name": "moment",
+      "value": "$option:0"
+     }
+    }
+   ],
+   "wait": "preview",
+   "dwell_s": 10
+  },
+  {
+   "title": "Parietal response",
+   "flow": "compare",
+   "paper": "Responses dropped on repeats across much of the brain, though primary visual cortex rose instead, and within those regions the paper tested whether the drop differed between agents. In three parietal peaks, the anterior intraparietal sulcus on both sides and a left superior intraparietal region, the drop was larger for the android than for the human and the robot.",
+   "here": "The app compares predicted response, not drops on repeats: this reads the anterior intraparietal area for the two cells where look and motion disagree, against the two where they agree. The paper's own split, the human body with robotic motion against the other two, is a separate analysis in the study.",
+   "show": {
+    "project": "$p:project_1228bf61d1",
+    "view": "data",
+    "region": "Anterior intraparietal area"
+   },
+   "read": {
+    "project": "$p:project_1228bf61d1",
+    "kind": "paired",
+    "region": "Anterior intraparietal area"
+   },
+   "dwell_s": 12
+  },
+  {
+   "title": "Near the body area",
+   "flow": "compare",
+   "paper": "In left lateral temporal cortex, at a peak matching the extrastriate body area, the drop was larger for the human and the android than for the robot.",
+   "here": "The app has no body area region, so this reads the lateral occipital region, which overlaps where the body area usually lies, with the same disagree-against-agree contrast. The human body against the G1, closer to the paper's split, is a separate analysis in the study.",
+   "show": {
+    "project": "$p:project_1228bf61d1",
+    "view": "data",
+    "region": "Lateral occipital"
+   },
+   "read": {
+    "project": "$p:project_1228bf61d1",
+    "kind": "paired",
+    "region": "Lateral occipital"
+   },
+   "dwell_s": 10
+  },
+  {
+   "title": "Low-level differences",
+   "flow": "challenge",
+   "paper": "Last, visual cortex on both sides responded more to the robot than to the other agents, which the authors put down to low-level visual differences.",
+   "here": "Beside every contrast, the study runs the same contrast on the clips' own motion energy and brightness, so a low-level difference shows next to the brain reading. This reads early visual cortex with the disagree-against-agree contrast.",
+   "show": {
+    "project": "$p:project_1228bf61d1",
+    "view": "data",
+    "region": "Early visual"
+   },
+   "read": {
+    "project": "$p:project_1228bf61d1",
+    "kind": "paired",
+    "region": "Early visual"
+   },
+   "dwell_s": 10
+  },
+  {
+   "title": "Motion by degrees",
+   "flow": "handoff",
+   "paper": "The authors read the android result as a larger prediction error from a human look that does not move like a human, and linked it to the uncanny valley while stating their data do not show a causal link. They called for computer animation that varies look and motion independently, and for time-resolved methods such as EEG or MEG.",
+   "here": "This gives the human body robotic motion again, with its keyframes spaced further apart, one step toward varying motion by degrees. Look still takes only two values here, a rendered human and a Unitree G1, not Repliee Q2 and the woman it was modelled on.",
+   "show": {
+    "project": "$p:project_1228bf61d1",
+    "view": "room"
+   },
+   "actions": [
+    {
+     "tool": "parameter_set",
+     "args": {
+      "project_id": "$p:project_1228bf61d1",
+      "name": "motion",
+      "value": "robotic"
+     }
+    },
+    {
+     "tool": "parameter_set",
+     "args": {
+      "project_id": "$p:project_1228bf61d1",
+      "name": "keyframe_s",
+      "value": 1.5
+     }
+    }
+   ],
+   "wait": "preview",
+   "dwell_s": 12
+  }
+ ],
+ "written_by": "agent",
+ "attempts": 1
+}
