@@ -6,6 +6,11 @@ usage: python3 exporter.py [--port 19100]
                  them to /data/log/metrics/gpu), and the state of every job in the team's running workflows
                  and every workflow that failed in the last FAIL_WINDOW_S seconds: the step that failed, Fuzzball's error
                  and the last lines of that step's log
+                 Each node the team uses: whether its node_exporter answers, memory available, load and the jobs on it,
+                 with one state per node (unreachable, memory pressure, in use, idle). Fuzzball's own node status is
+                 refused to workflow tokens, so the state comes from the node's own readings.
+                 Each step of the running workflows and of the study workflows of the last STUDY_WINDOW_S seconds as a
+                 state (waiting, running, finished, failed, canceled), and the size of each folder in /data/weights.
   GET /targets   Prometheus HTTP service discovery: every running service that serves its own /metrics (the planner's
                  vLLM), addressed as <service>.<workflow id>, which resolves from any workflow in the group
 
@@ -22,6 +27,17 @@ STALE_S = 60          # a GPU file not written for this long belongs to a job th
 REFRESH_S = 30
 FAIL_WINDOW_S = 24 * 3600
 SCRAPE = {'planner': 8000}   # service name -> port of its own Prometheus /metrics
+DATA = Path(os.environ.get('SIMULAXON_DATA', '/data'))
+# The team's nodes by host name, as `name=ip,...`; nodes that run the team's jobs are added as they appear.
+NODES = dict(x.split('=', 1) for x in os.environ.get('SIMULAXON_NODES', 'CIQ-CHI-SPARK25=192.168.99.34,CIQ-CHI-SPARK26=192.168.99.35').split(',') if '=' in x)
+NODE_NAMES = {ip: name for name, ip in NODES.items()}
+NODE_EXPORTER_PORT = 9100        # every Fuzzball compute node runs node_exporter there
+PRESSURE = 0.10                  # memory available below this share of the total counts as memory pressure
+NODE_STATES = {'unreachable': 0, 'memory pressure': 1, 'in use': 2, 'idle': 3}
+STEP_STATES = {'waiting': 0, 'running': 1, 'finished': 2, 'failed': 3, 'canceled': 4}
+STUDY_NAMES = set(os.environ.get('SIMULAXON_STUDIES', 'observer').split(','))
+STUDY_WINDOW_S = 6 * 3600
+WEIGHTS_EVERY_S = 600
 CLI_URL = 'https://ui.fb-hack.civilfritz.net/api/download/cli/linux/arm64'
 
 GPU = [('gpu_util_pct', 'simulaxon_gpu_utilization_percent', 'Share of time a kernel ran on the GPU (nvidia-smi).'),
@@ -30,8 +46,10 @@ GPU = [('gpu_util_pct', 'simulaxon_gpu_utilization_percent', 'Share of time a ke
        ('sm_clock_mhz', 'simulaxon_gpu_sm_clock_mhz', 'GPU SM clock.'),
        ('mem_used_bytes', 'simulaxon_job_memory_bytes', "The job's cgroup memory; the GB10 shares it with the GPU.")]
 
-_state = {'workflows': {}, 'jobs': [], 'targets': [], 'failures': [], 'updated': 0.0, 'error': ''}
+_state = {'workflows': {}, 'jobs': [], 'targets': [], 'failures': [], 'steps': [], 'nodes': [], 'weights': {}, 'weights_at': 0.0,
+          'updated': 0.0, 'error': ''}
 _failed: dict[str, list[dict]] = {}   # workflow id -> its failed steps; a finished workflow never changes
+_done_steps: dict[str, list[dict]] = {}   # finished study workflow id -> its steps; they never change
 _lock = threading.Lock()
 
 
@@ -79,6 +97,52 @@ def failed_steps(w: dict) -> list[dict]:
     return out
 
 
+def step_state(status: str) -> str:
+    s = status.replace('STAGE_STATUS_', '').lower()
+    return {'started': 'running', 'unspecified': 'waiting', 'pending': 'waiting'}.get(s, s if s in STEP_STATES else 'waiting')
+
+
+def workflow_steps(w: dict) -> list[dict]:
+    """Every job of a workflow, task-array tasks one by one, with its state and node."""
+    d = fb_json('workflow', 'describe', w['id']) or {}
+    st = [s for s in d.get('status', {}).get('stages', []) if s.get('kind') == 'STAGE_KIND_JOB']
+    arrays = {s['name'] for s in st if s.get('rank', 0) >= 1}
+    return [{'workflow': w['id'], 'workflow_name': w.get('name', ''), 'job': s['name'], 'task': str(s['rank']) if s['name'] in arrays else '',
+             'node': NODE_NAMES.get(ip := ((s.get('details') or {}).get('Host') or '').split(':')[0], ip), 'state': step_state(s.get('status', ''))}
+            for s in st if not (s['name'] in arrays and s.get('rank', 0) == 0)]
+
+
+def node_readings(jobs: list[dict]) -> list[dict]:
+    """Each node's node_exporter readings and the team's jobs running on it, with one state for the node."""
+    ips = dict(NODES)
+    for j in jobs:
+        if j['node'] and j['node'] not in ips.values(): ips[j['node']] = j['node']
+    out = []
+    for name, ip in sorted(ips.items()):
+        on = sorted(f"{j['workflow_name']}/{j['job']}{' task ' + j['task'] if j['task'] else ''}" for j in jobs if j['node'] == ip and j['status'] == 'started')
+        r = {'node': name, 'ip': ip, 'jobs': on, 'reachable': False}
+        try:
+            text = urllib.request.urlopen(f'http://{ip}:{NODE_EXPORTER_PORT}/metrics', timeout=5).read().decode()
+            v = {}
+            for line in text.splitlines():
+                for k in ('node_memory_MemTotal_bytes', 'node_memory_MemAvailable_bytes', 'node_load1'):
+                    if line.startswith(k + ' '): v[k] = float(line.split()[-1])
+            r.update(reachable=True, mem_total=v.get('node_memory_MemTotal_bytes'), mem_avail=v.get('node_memory_MemAvailable_bytes'), load1=v.get('node_load1'))
+        except Exception:
+            pass
+        ratio = r['mem_avail'] / r['mem_total'] if r.get('mem_total') and r.get('mem_avail') is not None else None
+        r['state'] = 'unreachable' if not r['reachable'] else 'memory pressure' if ratio is not None and ratio < PRESSURE else 'in use' if on else 'idle'
+        out.append(r)
+    return out
+
+
+def weights_sizes() -> dict[str, int]:
+    out = {}
+    for d in sorted(p for p in (DATA / 'weights').glob('*') if p.is_dir() and p.name not in ('hf',)):
+        out[d.name] = sum(f.stat().st_size for f in d.rglob('*') if f.is_file() and not f.is_symlink())
+    return out
+
+
 def refresh():
     """Running workflows, their jobs and services with node and status, the services Prometheus should scrape, and the
     workflows that failed in the last FAIL_WINDOW_S seconds."""
@@ -105,7 +169,18 @@ def refresh():
                 targets.append({'targets': [f"{s['name']}.{w['id']}:{SCRAPE[s['name']]}"],
                                 'labels': {'workflow': w['id'], 'workflow_name': wfs[w['id']], 'job_name': s['name'],
                                            'node': host.split(':')[0]}})
-    with _lock: _state.update(workflows=wfs, jobs=jobs, targets=targets, failures=failures, updated=time.time(), error='')
+    steps = []
+    for w in listed:   # study workflows: running ones fresh, finished ones once
+        if w.get('name') not in STUDY_NAMES or time.time() - ts(w.get('createTime')) > STUDY_WINDOW_S: continue
+        if 'STARTED' in str(w.get('status', '')): steps += workflow_steps(w)
+        else:
+            if w['id'] not in _done_steps: _done_steps[w['id']] = workflow_steps(w)
+            steps += _done_steps[w['id']]
+    nodes = node_readings(jobs)
+    weights, weights_at = _state['weights'], _state['weights_at']
+    if time.time() - weights_at > WEIGHTS_EVERY_S: weights, weights_at = weights_sizes(), time.time()
+    with _lock: _state.update(workflows=wfs, jobs=jobs, targets=targets, failures=failures, steps=steps, nodes=nodes, weights=weights,
+                              weights_at=weights_at, updated=time.time(), error='')
 
 
 def refresher():
@@ -162,6 +237,18 @@ def metrics() -> str:
             '# TYPE simulaxon_job_info gauge'] + [f"simulaxon_job_info{labels(**{k: j[k] for k in ('workflow', 'workflow_name', 'job', 'task', 'node', 'kind', 'status')})} 1" for j in st['jobs']]
     out += ['# HELP simulaxon_workflow_failure_timestamp_seconds When a step of a recently failed workflow failed, with the error and its log\'s last lines.',
             '# TYPE simulaxon_workflow_failure_timestamp_seconds gauge'] + [f"simulaxon_workflow_failure_timestamp_seconds{labels(**{k: f[k] for k in ('workflow', 'workflow_name', 'job', 'task', 'error', 'log_tail')})} {f['ended']:.0f}" for f in st['failures']]
+    out += ['# HELP simulaxon_node_state The node\'s state: 0 unreachable, 1 memory pressure, 2 in use, 3 idle; state names it.',
+            '# TYPE simulaxon_node_state gauge'] + [f"simulaxon_node_state{labels(node=n['node'], ip=n['ip'], state=n['state'], jobs=', '.join(n['jobs']) or 'none')} {NODE_STATES[n['state']]}" for n in st['nodes']]
+    for key, name, help_ in (('mem_avail', 'simulaxon_node_memory_available_bytes', 'Memory the node can still hand out (node_exporter MemAvailable). On the GB10 the GPU uses this memory.'),
+                             ('mem_total', 'simulaxon_node_memory_total_bytes', 'The node\'s memory, shared by CPU and GPU on the GB10.'),
+                             ('load1', 'simulaxon_node_load1', 'The node\'s one-minute load average.')):
+        out += [f'# HELP {name} {help_}', f'# TYPE {name} gauge'] + [f"{name}{labels(node=n['node'], ip=n['ip'])} {n[key]}" for n in st['nodes'] if n.get(key) is not None]
+    out += ['# HELP simulaxon_node_running_jobs The team\'s jobs and services running on the node.', '# TYPE simulaxon_node_running_jobs gauge'] + \
+           [f"simulaxon_node_running_jobs{labels(node=n['node'], ip=n['ip'])} {len(n['jobs'])}" for n in st['nodes']]
+    out += ['# HELP simulaxon_step_state A study step: 0 waiting, 1 running, 2 finished, 3 failed, 4 canceled.', '# TYPE simulaxon_step_state gauge'] + \
+           [f"simulaxon_step_state{labels(**{k: s[k] for k in ('workflow', 'workflow_name', 'job', 'task', 'node', 'state')})} {STEP_STATES[s['state']]}" for s in st['steps']]
+    out += ['# HELP simulaxon_weights_bytes Size of each folder in /data/weights.', '# TYPE simulaxon_weights_bytes gauge'] + \
+           [f"simulaxon_weights_bytes{labels(folder=k)} {v}" for k, v in st['weights'].items()]
     out += ['# HELP simulaxon_exporter_fuzzball_age_seconds Seconds since the Fuzzball state was last read.',
             '# TYPE simulaxon_exporter_fuzzball_age_seconds gauge', f"simulaxon_exporter_fuzzball_age_seconds {now - st['updated'] if st['updated'] else -1:.0f}",
             '# HELP simulaxon_exporter_fuzzball_error 1 when the last Fuzzball read failed.',
