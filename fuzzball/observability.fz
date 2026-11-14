@@ -63,18 +63,28 @@ services:
       /data:
         volume: data
         read-only: false
-    # The database runs on the container's disk (Prometheus does not support NFS). Every 10 minutes a snapshot is
-    # copied to /data/log/prometheus/snapshot, and a new container starts from it, so the history outlives restarts.
+    # The database runs on the container's disk (Prometheus does not support NFS). Every 10 minutes a snapshot is copied
+    # to the VAST volume as its own folder, /data/log/prometheus/snap-<name>; once it holds at least one block, the file
+    # `latest` is switched to it and older snapshots are removed, so a failed or empty copy never replaces a good one.
+    # A new container starts from the snapshot `latest` names (or the older single `snapshot` folder).
     command:
       - /bin/sh
       - -c
       - |
         D=/data/log/prometheus; T=/tmp/prometheus; mkdir -p $D $T
-        [ -d $D/snapshot ] && cp -a $D/snapshot/. $T/ && echo "restored $(ls $D/snapshot | wc -l) blocks from $D/snapshot"
+        L=$(cat $D/latest 2>/dev/null); SRC=$D/${L:-snapshot}
+        if ls $SRC/*/meta.json >/dev/null 2>&1; then cp -a $SRC/. $T/ && echo "restored $(ls $SRC | wc -l) blocks from $SRC"; else echo "no snapshot on $D: starting empty"; fi
         (while sleep 600; do
           s=$(wget -qO- --post-data= http://127.0.0.1:19090/api/v1/admin/tsdb/snapshot | sed -n 's/.*"name":"\([^"]*\)".*/\1/p')
-          [ -n "$s" ] || continue
-          rm -rf $D/snapshot.new && cp -a $T/snapshots/$s $D/snapshot.new && rm -rf $D/snapshot && mv $D/snapshot.new $D/snapshot
+          [ -n "$s" ] || { echo "snapshot: the API gave no snapshot"; continue; }
+          N=snap-$s
+          if cp -a $T/snapshots/$s $D/$N && [ "$(ls $D/$N/*/meta.json 2>/dev/null | wc -l)" -gt 0 ]; then
+            echo $N > $D/latest.tmp && mv $D/latest.tmp $D/latest
+            for old in $D/snap-* $D/snapshot $D/snapshot.new; do [ "$old" = "$D/$N" ] || rm -rf "$old" 2>/dev/null; done
+            echo "snapshot $N saved to $D: $(ls $D/$N | wc -l) blocks"
+          else
+            rm -rf $D/$N; echo "snapshot $s: copy to $D failed or empty; keeping $(cat $D/latest 2>/dev/null || echo snapshot)"
+          fi
           rm -rf $T/snapshots/$s
         done) &
         exec /bin/prometheus --config.file=/data/src/simulaxon/services/observability/prometheus.yml \
