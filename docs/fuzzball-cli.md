@@ -139,11 +139,13 @@ The command stays open after the copy finishes; stop it with Ctrl-C once the fil
 
 ## 9. Open the app
 
-The app's endpoint uses the cluster's private certificate authority, so a browser warns about it. A port-forward opens it at `http://127.0.0.1:18791` instead:
+The app's endpoint uses the cluster's private certificate authority, so a browser warns about it, and Fuzzball 4.3 has no persistent endpoints, so its URL changes with every new workflow. This script keeps the app at `http://127.0.0.1:18791` instead: it finds the running `simulaxon` workflow, forwards its app server, and forwards again within 30 s when the workflow is replaced or the forward drops.
 
 ```
-fuzzball workflow port-forward <workflow-id> app-server 18791:8791
+fuzzball/open-app.sh
 ```
+
+The dashboard is at `http://127.0.0.1:18791/dashboard`. A stable endpoint URL waits on Fuzzball 4.4 (`fuzzball endpoint create`).
 
 ## 10. Find out why a workflow failed
 
