@@ -27,7 +27,9 @@ jobs:
       cd /data/src/simulaxon/frontend
       npm ci --no-audit --no-fund
       npm run build
-      ls -la dist
+      rm -rf /data/app/dist.new && mkdir -p /data/app && cp -r dist /data/app/dist.new
+      rm -rf /data/app/dist && mv /data/app/dist.new /data/app/dist
+      ls -la /data/app/dist
 
 services:
   planner:
@@ -93,7 +95,8 @@ services:
         volume: data
     env:
       - SIMULAXON_DATA=/data
-      - SIMULAXON_UI=/data/src/simulaxon/frontend/dist
+      - SIMULAXON_UI=/data/app/dist
+      - HOME=/tmp
       - PLANNER_URL=http://planner:8000/v1
       - PLANNER_MODEL=nvidia/nemotron-3-super
       - FUZZBALL=/data/bin/fuzzball
