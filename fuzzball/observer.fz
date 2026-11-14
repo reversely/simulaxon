@@ -74,8 +74,10 @@ jobs:
     script: |
       #!/bin/bash
       set -e
-      mkdir -p $HOME && ln -sfn /data/studies/observer $HOME/data
-      export LD_PRELOAD=/lib/aarch64-linux-gnu/libgomp.so.1
+      mkdir -p $HOME/bin && ln -sfn /data/studies/observer $HOME/data
+      # The Isaac Sim image has no ffmpeg; the clips are encoded with the static build the TRIBE environment carries.
+      ln -sf $(/data/envs/tribe/bin/python -c "import imageio_ffmpeg; print(imageio_ffmpeg.get_ffmpeg_exe())") $HOME/bin/ffmpeg
+      export PATH=$HOME/bin:$PATH LD_PRELOAD=/lib/aarch64-linux-gnu/libgomp.so.1
       cd /data/src/simulaxon
       read REC K < <(/data/envs/isaac/bin/python -c "import json,os; m=json.load(open(os.environ['OBS_OUT']+'/moments.json'))['moments'][int(os.environ['FB_TASK_ID'])-1]; print(m['rec'], m['k'])")
       echo "moment $FB_TASK_ID: $REC $K"
