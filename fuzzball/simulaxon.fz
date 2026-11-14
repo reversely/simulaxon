@@ -53,6 +53,7 @@ services:
       - VLLM_NVFP4_GEMM_BACKEND=marlin
       - VLLM_FLASHINFER_ALLREDUCE_BACKEND=trtllm
       - VLLM_USE_FLASHINFER_MOE_FP4=0
+      - VLLM_ENGINE_READY_TIMEOUT_S=1800   # loading 80 GB from the volume alone takes about 9 minutes
     script: |
       #!/bin/sh
       (sh /data/src/simulaxon/fuzzball/gpu-log.sh $$ &)   # GPU readings and commands: fuzzball/gpu-usage.py
@@ -62,7 +63,7 @@ services:
         --host 0.0.0.0 --port 8000 \
         --async-scheduling --dtype auto --kv-cache-dtype fp8 \
         --tensor-parallel-size 1 --trust-remote-code \
-        --gpu-memory-utilization 0.85 \
+        --gpu-memory-utilization 0.75 \
         --enable-chunked-prefill --max-num-seqs 4 --max-model-len 65536 \
         --moe-backend marlin --mamba_ssm_cache_dtype float16 --quantization fp4 \
         --reasoning-parser-plugin "$M/super_v3_reasoning_parser.py" --reasoning-parser super_v3 \
