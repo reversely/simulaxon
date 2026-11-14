@@ -4,22 +4,22 @@
   table     one row per sample in a CSV or TSV: a column naming the media file, the other columns as fields,
             optional per-row array files as tracks
 
-Paths in a source are relative to the repository root. Every field records where it came from as "file#key".
+Paths in a source are relative to the data root (config.DATA, /data on the cluster). Every field records where it came from as "file#key".
 
-usage: python -m vcl.data.loaders backend/sources/<name>.json [...]
+usage: python -m app_server.loaders services/app-server/sources/<name>.json [...]
 """
 from __future__ import annotations
 import csv, json, re, subprocess, sys
 from pathlib import Path
 import numpy as np
 from . import store
+from .config import DATA
 
-ROOT = Path(__file__).resolve().parents[3]
 VIDEO, IMAGE = {'.mp4', '.mov', '.webm', '.mkv'}, {'.png', '.jpg', '.jpeg', '.webp'}
 
 
 def rel(p: Path) -> str:
-    return str(Path(p).resolve().relative_to(ROOT))
+    return str(Path(p).resolve().relative_to(DATA.resolve()))
 
 
 def media_type(p: Path) -> str:
@@ -57,7 +57,7 @@ def load_folders(src: dict) -> list[dict]:
     """One folder per sample (sample_glob may span levels, such as "*/c*"). Options: fields_file, extra_fields_files (read
     when present, such as results written later), media (one file or image sequence) or media_slices (several, each its
     own sample in the folder's group), tracks (an .npz), group_regex on the folder's path below root."""
-    root = ROOT / src['root']; rows = []
+    root = DATA / src['root']; rows = []
     g = re.compile(src['group_regex']) if src.get('group_regex') else None
     for d in sorted(p for p in root.glob(src['sample_glob']) if p.is_dir()):
         ff = d / src['fields_file']
@@ -128,17 +128,17 @@ def load_table(src: dict) -> list[dict]:
       require_media  drop rows whose media file does not exist
       tracks         [{name, file, format: npy | csv, time_column, rate_hz, offset_s}] per row
     """
-    f = ROOT / src['file']; rows = []; rp = src.get('media_name_replace')
+    f = DATA / src['file']; rows = []; rp = src.get('media_name_replace')
     for r, where in _rows(f):
         if any(r.get(k) != v for k, v in src.get('filter', {}).items()): continue
-        if src.get('media'): media = ROOT / _fmt(src['media'], r, rp)
-        else: media = next(iter((ROOT / src['media_root']).glob(_fmt(src.get('media_glob', '**/{%s}' % src['media_column']), r, rp))), None)
+        if src.get('media'): media = DATA / _fmt(src['media'], r, rp)
+        else: media = next(iter((DATA / src['media_root']).glob(_fmt(src.get('media_glob', '**/{%s}' % src['media_column']), r, rp))), None)
         if media is not None and not media.exists(): media = None
         if src.get('require_media') and media is None: continue
         fields = dict(r); sources = {k: f'{rel(f)}#{where}, {"key" if f.suffix == ".json" else "column"} {k}' for k in r}
         for t in src.get('tracks', []):
             raw_stem = Path(str(r[src['media_column']])).stem if src.get('media_column') else (media.stem if media else '')
-            tf = ROOT / _fmt(t['file'], {**r, 'stem': raw_stem})   # track names follow the row as written, not the media rewrite
+            tf = DATA / _fmt(t['file'], {**r, 'stem': raw_stem})   # track names follow the row as written, not the media rewrite
             if not tf.exists(): continue
             if t.get('format', 'npy') == 'csv':
                 cols = csv_track(tf, t['time_column'])
@@ -158,7 +158,7 @@ LOADERS = {'folders': load_folders, 'table': load_table}
 def load(source_file: Path, db=None):
     src = json.load(open(source_file)); db = db or store.connect()
     rows = LOADERS[src['loader']](src)
-    store.replace_dataset(db, src['name'], {**src, 'source_file': rel(source_file)}, rows)
+    store.replace_dataset(db, src['name'], {**src, 'source_file': source_file.name}, rows)
     sch = store.schema(rows)
     print(f"{src['name']}: {len(rows)} samples, {sum(r['media'] is not None for r in rows)} with media, {len(sch)} fields")
     for e in sch: print(f"  {e['path']:<28} {e['type']:<12} {e['count']}")

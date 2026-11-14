@@ -9,8 +9,9 @@ from __future__ import annotations
 import json
 from pathlib import Path
 import duckdb
+from .config import DATA
 
-DB = Path(__file__).resolve().parents[2] / 'data' / 'datasets.duckdb'
+DB = DATA / 'log' / 'datasets.duckdb'
 
 
 def connect(path: Path = DB):

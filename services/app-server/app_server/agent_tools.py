@@ -1,15 +1,14 @@
-"""MCP server for the agent: the same data API the panels use, nothing else.
+"""The agent's tools: the same data API the panels use, nothing else.
 
-usage (by the agent runtime): python -m vcl.data.agent_tools BASE_URL SHOW_FILE
-
-Reading tools call the running server over HTTP. view_show is the agent's only way to change the screen: it writes the
-dataset and stages it wants shown to SHOW_FILE, and the server hands them to the interface, where each stage is marked
-as added by the agent and can be removed like any other.
+The server's agent loop calls these with the planner's tool calls. Reading tools call the running server over HTTP at
+BASE. view_show is the agent's only way to change the screen: it writes the dataset and stages it wants shown to SHOW,
+and the server hands them to the interface, where each stage is marked as added by the agent and can be removed like
+any other. TOOLS describes each tool to the planner in the OpenAI function-calling format.
 """
 from __future__ import annotations
-import json, sys, urllib.parse, urllib.request
+import json, urllib.parse, urllib.request
 
-BASE, SHOW = sys.argv[1], sys.argv[2]
+BASE, SHOW = 'http://127.0.0.1:8791', ''   # set by the server before each conversation
 
 
 def _http(method: str, path: str, body=None):
@@ -77,12 +76,21 @@ def view_show(dataset: str, stages: list[dict], why: str, fields_on_tiles: list[
     return json.dumps({'shown': True, 'dataset': dataset, 'stages': len(stages)})
 
 
-def main():
-    from mcp.server.mcpserver import MCPServer
-    mcp = MCPServer('vcl-data')
-    for f in (datasets_list, dataset_schema, view_run, sample_get, track_summary, view_show): mcp.add_tool(f, name=f.__name__, description=f.__doc__)
-    mcp.run()
+_S = lambda **p: {'type': 'object', 'properties': p, 'required': list(p)}
+_STR = {'type': 'string'}
+_STAGES = {"type": "array", "items": {"type": "object"}, "description": "Stages, in the forms listed in view_run."}
+TOOLS = [
+    (datasets_list, _S()),
+    (dataset_schema, _S(dataset=_STR)),
+    (view_run, {**_S(dataset=_STR, stages=_STAGES), 'properties': {'dataset': _STR, 'stages': _STAGES, 'limit': {'type': 'integer'}}}),
+    (sample_get, _S(dataset=_STR, id=_STR)),
+    (track_summary, _S(dataset=_STR, id=_STR, path=_STR)),
+    (view_show, {**_S(dataset=_STR, stages=_STAGES, why=_STR),
+                 'properties': {'dataset': _STR, 'stages': _STAGES, 'why': _STR, 'fields_on_tiles': {'type': 'array', 'items': _STR}}}),
+]
+BY_NAME = {f.__name__: f for f, _ in TOOLS}
 
 
-if __name__ == '__main__':
-    main()
+def schemas() -> list[dict]:
+    """The tools in the OpenAI function-calling format."""
+    return [{'type': 'function', 'function': {'name': f.__name__, 'description': f.__doc__, 'parameters': p}} for f, p in TOOLS]

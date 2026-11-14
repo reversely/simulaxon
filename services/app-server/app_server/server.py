@@ -1,21 +1,21 @@
 """HTTP API and web UI for datasets of samples.
 
-usage: python -m vcl.data.server [--port 8791]
+usage: SIMULAXON_DATA=/data python -m app_server.server [--host 0.0.0.0] [--port 8791]
 
   GET  /api/datasets                         every dataset, how it was loaded, sample count
-  POST /api/datasets/load                    {source} -> loads or reloads a dataset from backend/sources/<file>.json
+  POST /api/datasets/load                    {source} -> loads or reloads a dataset from services/app-server/sources/<file>.json
   GET  /api/datasets/{name}                  its source description and schema (paths, types, counts)
   POST /api/datasets/{name}/view             {stages, offset, limit} -> samples in the view, count after each stage, facets
   GET  /api/datasets/{name}/samples/{id}     one sample: every field with the file and key it came from, its group
   GET  /api/datasets/{name}/samples/{id}/track?path=   a time track: time axis and values (wide tracks summarised, and said so)
   GET  /api/datasets/{name}/samples/{id}/track_full?path=   every column of a track as float32 bytes (the cortex view)
   GET  /api/runs                             every run: plan, steps, live state, log tail
-  POST /api/runs/{name}/start                starts or resumes a run in the server
-  POST /api/agent                            {dataset, stages, message, history} -> reply, tool calls, view to show
+  POST /api/runs/{name}/start                submits a run as a Fuzzball workflow; POST /api/runs/{name}/stop stops it
+  POST /api/agent                            {dataset, stages, message, history} -> reply, tool calls, view to show (the planner)
   GET  /media/{path}                         a media file that some loaded sample points to; nothing else is served
 """
 from __future__ import annotations
-import argparse, json
+import argparse, json, os, tempfile, urllib.request
 from pathlib import Path
 import numpy as np
 import uvicorn
@@ -23,9 +23,9 @@ from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
-from . import loaders, runs, store, views
+from . import agent_tools, loaders, runs, store, views
+from .config import DATA, PLANNER_MODEL, PLANNER_URL, ROOT, SOURCES, UI
 
-ROOT = Path(__file__).resolve().parents[3]; UI = ROOT / 'app' / 'dist'
 PORT = 8791
 WIDE = 32   # tracks with more columns than this are returned as mean and spread across columns
 app = FastAPI(); _db = store.connect()
@@ -48,14 +48,14 @@ def list_datasets():
 
 
 class Load(BaseModel):
-    source: str   # a source description under backend/sources/, e.g. backend/sources/so101_sim.json
+    source: str   # a source description in services/app-server/sources/, e.g. observer_demo.json
 
 
 @app.post('/api/datasets/load')
 def load(b: Load):
     """Loads or reloads a dataset from its source description, on the server's own connection (DuckDB allows one writer)."""
-    f = (ROOT / b.source).resolve()
-    if f.parent != (ROOT / 'backend' / 'sources').resolve() or not f.exists(): raise HTTPException(422, f'not a source description: {b.source}')
+    f = (SOURCES / Path(b.source).name).resolve()
+    if not f.exists(): raise HTTPException(422, f'not a source description: {b.source}')
     r = loaders.load(f, con())
     return {'name': json.load(open(f))['name'], 'samples': len(r), 'with_media': sum(x['media'] is not None for x in r), 'schema': store.schema(r)}
 
@@ -104,7 +104,7 @@ def track_array(name: str, sid: str, path: str):
     t = store.flatten(s['fields']).get(path) if s else None
     if not t or store.value_type(t) != 'track': raise HTTPException(404, f'no track {path} on {sid}')
     unit = next((x['source'] for x in store.datasets(con()) if x['name'] == name), {}).get('units', {}).get(path)
-    f = ROOT / t['file']
+    f = DATA / t['file']
     if t.get('format') == 'csv':
         import csv as _csv
         rows_ = list(_csv.DictReader(open(f)))
@@ -156,42 +156,49 @@ class Ask(BaseModel):
     history: list[dict] = []
 
 
+def _planner(messages: list[dict]) -> dict:
+    """One chat completion from the planner, with the data tools offered."""
+    body = {'model': PLANNER_MODEL, 'messages': messages, 'tools': agent_tools.schemas(), 'tool_choice': 'auto', 'temperature': 0.2}
+    req = urllib.request.Request(PLANNER_URL + '/chat/completions', data=json.dumps(body).encode(), headers={'Content-Type': 'application/json'})
+    with urllib.request.urlopen(req, timeout=600) as r: return json.loads(r.read())['choices'][0]['message']
+
+
 @app.post('/api/agent')
 def agent(b: Ask):
-    """One message to the agent: Claude Code in print mode with only the data tools (vcl/data/agent_tools.py).
-    Returns its reply, every tool call it made with its arguments, and the view it asked to show, if any."""
-    import os, subprocess, sys, tempfile
+    """One message to the agent: the planner (Nemotron on vLLM) in a tool-calling loop with only the data tools
+    (agent_tools.py). Returns its reply, every tool call it made with its arguments, and the view it asked to show, if any."""
     show = tempfile.NamedTemporaryFile('w', suffix='.json', delete=False); show.close(); os.unlink(show.name)
-    log = ROOT / 'backend' / 'data' / 'agent_tools.log'   # the tool server's own errors, so a failed start is visible
-    cfg = {'mcpServers': {'data': {'command': 'bash', 'args': ['-c', f'cd {ROOT / "backend"} && exec {sys.executable} -m vcl.data.agent_tools http://127.0.0.1:{PORT} {show.name} 2>>{log}'],
-                                   'env': {'PYTHONPATH': str(ROOT / 'backend')}}}}
-    with tempfile.NamedTemporaryFile('w', suffix='.json', delete=False) as f: json.dump(cfg, f); cfg_path = f.name
-    convo = ''.join(f"{'Person' if m.get('who') == 'person' else 'Agent'}: {m.get('text', '')}\n" for m in b.history[-10:])
-    prompt = (f'Conversation so far:\n{convo}\n' if convo else '') + f'Person: {b.message}'
+    agent_tools.BASE, agent_tools.SHOW = f'http://127.0.0.1:{PORT}', show.name
+    messages = [{'role': 'system', 'content': AGENT_SYSTEM.format(dataset=b.dataset, stages=json.dumps(b.stages))}]
+    messages += [{'role': 'user' if m.get('who') == 'person' else 'assistant', 'content': m.get('text', '')} for m in b.history[-10:]]
+    messages.append({'role': 'user', 'content': b.message})
+    calls, reply = [], ''
     try:
-        r = subprocess.run(['claude', '-p', prompt, '--mcp-config', cfg_path, '--strict-mcp-config', '--allowedTools', 'mcp__data',
-                            '--disallowedTools', 'Bash', 'Edit', 'Write', 'NotebookEdit', 'WebFetch', 'WebSearch', 'Agent', 'Read', 'Glob', 'Grep',
-                            '--append-system-prompt', AGENT_SYSTEM.format(dataset=b.dataset, stages=json.dumps(b.stages)),
-                            '--output-format', 'stream-json', '--verbose'], capture_output=True, text=True, timeout=600, cwd=str(ROOT))
-        calls, reply = [], ''
-        for line in r.stdout.splitlines():
-            try: ev = json.loads(line)
-            except json.JSONDecodeError: continue
-            if ev.get('type') == 'assistant':
-                for c in ev.get('message', {}).get('content', []):
-                    if c.get('type') == 'tool_use': calls.append({'tool': c['name'].replace('mcp__data__', ''), 'arguments': c.get('input', {})})
-            if ev.get('type') == 'result': reply = ev.get('result', '')
-        if r.returncode != 0 and not reply: raise HTTPException(502, f'agent failed: {(r.stderr or r.stdout)[-300:]}')
+        for _ in range(12):   # tool rounds before the agent must answer
+            try: msg = _planner(messages)
+            except OSError as e: raise HTTPException(502, f'planner unreachable at {PLANNER_URL}: {e}')
+            messages.append({k: v for k, v in msg.items() if k in ('role', 'content', 'tool_calls')})
+            if not msg.get('tool_calls'): reply = msg.get('content') or ''; break
+            for c in msg['tool_calls']:
+                name = c['function']['name']
+                try: args = json.loads(c['function'].get('arguments') or '{}')
+                except json.JSONDecodeError: args = {}
+                calls.append({'tool': name, 'arguments': args})
+                fn = agent_tools.BY_NAME.get(name)
+                try: out = fn(**args) if fn else json.dumps({'error': f'no tool {name}'})
+                except Exception as e: out = json.dumps({'error': str(e)})
+                messages.append({'role': 'tool', 'tool_call_id': c.get('id', name), 'content': out})
+        else:
+            reply = 'I stopped after 12 rounds of tool calls without an answer.'
         shown = json.load(open(show.name)) if os.path.exists(show.name) else None
         if shown: shown['stages'] = [{**s, 'by': 'agent'} for s in shown['stages']]
         return {'reply': reply.strip(), 'tool_calls': calls, 'show': shown}
     finally:
-        os.unlink(cfg_path)
         if os.path.exists(show.name): os.unlink(show.name)
 
 
 def _reload(source: str):
-    try: loaders.load(ROOT / source, con())
+    try: loaders.load(SOURCES / Path(source).name, con())
     except Exception as e: runs._log('reload', f'{source}: {e}')
 
 
@@ -200,11 +207,11 @@ def runs_list():
     """Every run: its plan and steps as written, its live state (status, per-step progress) and the last lines of its log."""
     def text(f): return (ROOT / f).read_text() if f and (ROOT / f).exists() else None
     def art(f):
-        p = ROOT / f
+        p = DATA / f
         return {'file': f, 'exists': p.exists(), 'content': json.load(open(p)) if p.exists() and p.suffix == '.json' else None}
     return [{**r, 'state': runs.state(r['name']), 'log': runs.log_tail(r['name'], 120), 'plan_text': text(r.get('plan_file')),
              'artifact_files': [art(f) for f in r.get('artifacts', [])],
-             'dataset_name': json.load(open(ROOT / r['dataset_source']))['name'] if r.get('dataset_source') and (ROOT / r['dataset_source']).exists() else None} for r in runs.definitions()]
+             'dataset_name': json.load(open(SOURCES / r['dataset_source']))['name'] if r.get('dataset_source') and (SOURCES / r['dataset_source']).exists() else None} for r in runs.definitions()]
 
 
 @app.post('/api/runs/{name}/start')
@@ -221,12 +228,12 @@ def runs_stop(name: str):
 @app.get('/media/{path:path}')
 def media(path: str):
     if not con().execute('select 1 from samples where media = ? limit 1', [path]).fetchone(): raise HTTPException(404, 'not a sample media file')
-    return FileResponse(ROOT / path)
+    return FileResponse(DATA / path)
 
 
 if UI.exists(): app.mount('/', StaticFiles(directory=UI, html=True), name='ui')
 
 if __name__ == '__main__':
-    a = argparse.ArgumentParser(); a.add_argument('--port', type=int, default=8791); p = a.parse_args()
+    a = argparse.ArgumentParser(); a.add_argument('--host', default='127.0.0.1'); a.add_argument('--port', type=int, default=8791); p = a.parse_args()
     PORT = p.port
-    uvicorn.run(app, host='127.0.0.1', port=p.port)
+    uvicorn.run(app, host=p.host, port=p.port)
