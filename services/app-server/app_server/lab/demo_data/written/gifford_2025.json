@@ -1,0 +1,157 @@
+{
+ "id": "gifford_2025",
+ "paper": "Gifford, Jastrzębowska, Singer and Cichy 2025, Nature Human Behaviour",
+ "url": "https://doi.org/10.1038/s41562-025-02252-z",
+ "template": "select_stimuli",
+ "title": "Driving two visual regions together or apart",
+ "steps": [
+  {
+   "title": "Model the brain first",
+   "flow": "build",
+   "paper": "The authors trained an fMRI encoding model for each participant on the Natural Scenes Dataset, covering early and higher visual areas. They then tested the models on a separate out-of-distribution image set.",
+   "here": "This app trains nothing. TRIBE, a ready-made brain model, predicts responses to scenes that Isaac renders, and early visual cortex stands in for V1 as an anatomical region.",
+   "show": {
+    "project": "$p:screen_v1_lo",
+    "view": "brain",
+    "region": "Early visual"
+   },
+   "dwell_s": 9
+  },
+  {
+   "title": "Predict responses to every image",
+   "flow": "run",
+   "paper": "The models generated in silico responses for every image in the dataset, for each participant. Each area's response was averaged across its voxels.",
+   "here": "The study scored every rendered item in both regions. The lateral occipital region stands in for V4.",
+   "show": {
+    "project": "$p:screen_v1_lo",
+    "view": "data",
+    "region": "Lateral occipital"
+   },
+   "dwell_s": 10
+  },
+  {
+   "title": "Find images that align",
+   "flow": "compare",
+   "paper": "For each pair of areas, a search over all the images looked for ones that aligned the two responses, driving both areas or suppressing both.",
+   "here": "The same search runs over the rendered items. These are the items that drive both regions up together.",
+   "show": {
+    "project": "$p:screen_v1_lo",
+    "view": "findings",
+    "condition": "align_up"
+   },
+   "read": {
+    "project": "$p:screen_v1_lo",
+    "kind": "selection",
+    "condition": "align_up"
+   },
+   "dwell_s": 10
+  },
+  {
+   "title": "Find images that disentangle",
+   "flow": "compare",
+   "paper": "The search also looked for images that disentangled the two areas, driving one while suppressing the other. The chosen images were compared against baseline images that were not optimized.",
+   "here": "These are the items that raise early visual cortex more than the lateral occipital region. The opposite set sits beside them in the same findings view.",
+   "show": {
+    "project": "$p:screen_v1_lo",
+    "view": "findings",
+    "condition": "a_over_b"
+   },
+   "read": {
+    "project": "$p:screen_v1_lo",
+    "kind": "selection",
+    "condition": "a_over_b"
+   },
+   "dwell_s": 10
+  },
+  {
+   "title": "Recheck under new conditions",
+   "flow": "challenge",
+   "paper": "The controlling images were checked across participants, so results held beyond the participant they were found for.",
+   "here": "The app has no other participants, so it pairs the items chosen each way and reruns them from a camera angle the search never saw. This is a held-out view, not a held-out brain.",
+   "show": {
+    "project": "$made:heldout",
+    "view": "findings",
+    "region": "Early visual"
+   },
+   "read": {
+    "project": "$made:heldout",
+    "kind": "paired",
+    "region": "Early visual"
+   },
+   "actions": [
+    {
+     "tool": "project_create",
+     "args": {
+      "template_id": "check_contrast",
+      "title": "Chosen items from a new camera angle",
+      "bindings": {
+       "a": "an item chosen for early visual cortex over the lateral occipital region",
+       "b": "an item chosen for the lateral occipital region over early visual cortex",
+       "region": "the early visual cortex"
+      },
+      "from_project_id": "$p:screen_v1_lo"
+     },
+     "as": "heldout"
+    },
+    {
+     "tool": "project_update",
+     "args": {
+      "project_id": "$made:heldout",
+      "pairs": "$pairs_from:$p:screen_v1_lo:a_over_b:b_over_a"
+     }
+    },
+    {
+     "tool": "parameter_set",
+     "args": {
+      "project_id": "$made:heldout",
+      "name": "yaw_deg",
+      "value": -30
+     }
+    },
+    {
+     "tool": "project_run",
+     "args": {
+      "project_id": "$made:heldout"
+     }
+    }
+   ],
+   "wait": "run",
+   "dwell_s": 12
+  },
+  {
+   "title": "Change the images, compare again",
+   "flow": "vary",
+   "paper": "The authors repeated the analyses with other image sets, and with encoding models trained on other data.",
+   "here": "The app cannot swap image sets, so it previews the same items in greyscale. That changes how the items look, not which items there are.",
+   "show": {
+    "project": "$p:screen_v1_lo",
+    "view": "samples"
+   },
+   "actions": [
+    {
+     "tool": "parameter_set",
+     "args": {
+      "project_id": "$p:screen_v1_lo",
+      "name": "colour",
+      "value": "greyscale"
+     }
+    }
+   ],
+   "wait": "preview",
+   "dwell_s": 9
+  },
+  {
+   "title": "Test in real brains",
+   "flow": "handoff",
+   "paper": "New participants viewed the V1-versus-V4 controlling images in the scanner, with both areas mapped for each person. Their measured responses were compared with what the models predicted.",
+   "here": "The app cannot scan anyone. It lists the chosen items and their sources so a lab can show them to real people.",
+   "show": {
+    "project": "$p:screen_v1_lo",
+    "view": "sources"
+   },
+   "dwell_s": 8
+  }
+ ],
+ "written_by": "agent",
+ "attempts": 2
+}

@@ -13,8 +13,8 @@ Neural experiments in simulated worlds. A world is built and rendered in Isaac S
 
 | Folder | What it is | In the picture |
 |---|---|---|
-| `frontend/` | The app interface: React and Vite, with the brain mesh assets | Browser app |
-| `services/app-server/` | FastAPI and DuckDB: datasets, runs, the agent route | App server, Node B |
+| `frontend/` | The app interface: React and Vite. Chats with the agent, projects, experiments, examples | Browser app |
+| `services/app-server/` | FastAPI and DuckDB: the lab's tools, runs, papers, datasets, the agent's chats | App server, Node B |
 | `services/render-score/` | Isaac Sim 6.2, Cosmos3 Nano and TRIBE v2 workers, to run as one container | render-score service, Node A |
 | `services/planner/` | Nemotron Super 120B (NVFP4), served by vLLM; configuration only, no code | Nemotron Super 120B, Node B |
 | `studies/observer/` | The first study: a humanoid's look and motion, read by TRIBE as the observer's cortex | Submitted by the app server as a workflow |

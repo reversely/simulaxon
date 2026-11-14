@@ -93,26 +93,27 @@ Code: [../services/render-score/](../services/render-score/).
 
 ## 5. The app server on Node B
 
-- Run FastAPI and DuckDB, from [../services/app-server/](../services/app-server/), as service `app-server` in the same Fuzzfile.
-- The DuckDB log lives at `/data/log`.
-- It calls `http://planner` for the agent and `http://render-score` for previews.
+- Run the lab server (`python -m app_server.lab.serve`, FastAPI and DuckDB), from [../services/app-server/](../services/app-server/), as service `app-server` in the same Fuzzfile, on `0.0.0.0:8791`.
+- Its home is `SIMULAXON_HOME=/data`, laid out as [wiring-prompt.md](wiring-prompt.md) section 2 lists (`/data/backend/data`, `/data/feasibility`), and its store is `/data/log/lab.duckdb`. An empty store opens the app on the agent's chat.
+- Its agent runs on the planner: Nemotron in a tool-calling loop over the lab's tools (`app_server/lab/planner_agent.py`), since the cluster has no Claude Code. It calls `http://render-score` for previews.
+- Its Dashboard link, `/dashboard`, opens the cluster dashboard in Grafana (`fuzzball/observability.fz`, opened with `sh fuzzball/grafana.sh`).
 - It submits study workflows to Fuzzball with the token Fuzzball injects into every container (`FB_TOKEN`, `FB_API_HOST`). Each study it starts is recorded as its child: `fuzzball workflow list --parent <app-server workflow id>`.
 - Give it a workflow endpoint (`type: subdomain`, `scope: group`). Fuzzball 4.3 has no persistent endpoints, so the URL changes with each new workflow: `fuzzball workflow endpoints <workflow-id>`. The endpoint's certificate comes from the cluster's private CA, so a browser warns; `fuzzball workflow port-forward <workflow-id> app-server 18791:8791` opens the app at `http://127.0.0.1:18791` without it.
 
-**Check:** `curl http://127.0.0.1:18791/api/datasets` through the port-forward returns the dataset list.
+**Check:** `curl http://127.0.0.1:18791/tools` through the port-forward lists the tools, 60 of them, and `curl -I http://127.0.0.1:18791/dashboard` redirects to Grafana.
 
 ## 6. The browser app
 
-- Build `frontend/` with Vite and serve it from the app server. `server.py` already serves a built UI folder when one is present.
+- Build `frontend/` with Vite and serve it from the app server. `lab/serve.py` serves the built UI folder named by `SIMULAXON_UI` when one is present.
 - Or run `npm run dev` locally, with the proxy pointed at the endpoint.
 
 The `build-ui` job in `simulaxon.fz` builds it into `/data/app/dist`, outside the source tree, so refreshing the code on the volume leaves the running app's UI in place.
 
-**Check:** the interface opens, lists the datasets, and the agent box answers through the planner.
+**Check:** the interface opens on the agent's chat; New project shows the examples; a message to the agent is answered through the planner; Dashboard in the header opens Grafana.
 
 ## 7. One study, end to end
 
-From the app, start the observer study ([../studies/observer/](../studies/observer/)). The app server submits it as a workflow:
+The app runs a project's clips through render-score, one job each. The observer study itself runs as a Fuzzball workflow: `POST /api/runs/observer/start` on the app server submits it (`runs.py`, defined in `services/app-server/runs/observer.json`), and Grafana shows its jobs. It runs from its Fuzzfile ([../studies/observer/](../studies/observer/)):
 1. Moments and motions.
 2. A task array that renders 6 moments × 4 cells (two bodies, two motions).
 3. TRIBE on the 24 clips.
@@ -120,7 +121,7 @@ From the app, start the observer study ([../studies/observer/](../studies/observ
 5. Region maps.
 6. The study's dataset, written into the app.
 
-**Check:** 24 clips and 24 predictions under `/data/studies/observer`; the dataset opens in the app with a video and a TRIBE track on each sample.
+**Check:** 24 clips and 24 predictions under `/data/studies/observer`. In the app, the humanoid project (New project, A robot that moves like a person) runs the same 24 cells through render-score.
 
 **Baseline for the move:** the same 24 clips' predictions, against those computed before the move. Per-vertex r should be about 1.0, since the weights and inputs are the same.
 

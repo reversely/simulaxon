@@ -1,0 +1,175 @@
+{
+ "id": "pramod_2022",
+ "paper": "Pramod, Cohen, Tenenbaum and Kanwisher 2022, eLife",
+ "url": "https://elifesciences.org/articles/71736",
+ "template": "possible_impossible",
+ "title": "Physical stability in the brain, replayed",
+ "steps": [
+  {
+   "title": "Find the physics regions",
+   "flow": "build",
+   "paper": "People watched block towers from a moving camera and either predicted where each tower would fall or counted its blue and yellow blocks. Comparing the physics task with the colour task picked out frontoparietal regions in each person.",
+   "here": "The app has no task localizer. It uses a named atlas region instead, so this opens the intraparietal sulcus, which lies within that frontoparietal territory.",
+   "show": {
+    "project": "$p:falls",
+    "view": "brain",
+    "region": "Intraparietal sulcus"
+   },
+   "dwell_s": 10
+  },
+  {
+   "title": "Matched pairs of scenes",
+   "flow": "vary",
+   "paper": "The paper used photos of stable and unstable versions of three kinds of scene: objects, people, and people with animals. It used a CNN to choose images whose stability could not be read from early visual features.",
+   "here": "The app uses matched clips of a falling object that either lands or stops in mid-air. Both clips are the same until contact, which stands in for the low-level matching. Its contrast is an impossible event, not an unstable one, and swapping the object shows that the pairing holds for every item.",
+   "show": {
+    "project": "$p:falls",
+    "view": "samples"
+   },
+   "actions": [
+    {
+     "tool": "parameter_set",
+     "args": {
+      "project_id": "$p:falls",
+      "name": "item",
+      "value": "$option:0"
+     }
+    }
+   ],
+   "wait": "preview",
+   "dwell_s": 10
+  },
+  {
+   "title": "Watch with no physics task",
+   "flow": "run",
+   "paper": "In the scanner, people kept their eyes on a fixation point and pressed a key when an image repeated. They were never asked about stability.",
+   "here": "TRIBE predicts brain responses with no task at all, so nobody is judging the event here either. This step copies the finished study, takes its first eight pairs and runs them.",
+   "show": {
+    "project": "$made:replay",
+    "view": "room"
+   },
+   "actions": [
+    {
+     "tool": "project_create",
+     "args": {
+      "template_id": "possible_impossible",
+      "title": "Stability replay: parietal response to a mid-air stop",
+      "bindings": {
+       "region": "the intraparietal sulcus",
+       "event": "a falling object stops in mid-air",
+       "a": "stops in mid-air",
+       "b": "lands",
+       "n_items": 8,
+       "drop_m": 0.4,
+       "gap_m": 0.08,
+       "restitution": 0.35
+      },
+      "from_project_id": "$p:falls"
+     },
+     "as": "replay"
+    },
+    {
+     "tool": "project_update",
+     "args": {
+      "project_id": "$made:replay",
+      "pairs": "$pairs_first:$p:falls:8"
+     }
+    },
+    {
+     "tool": "project_run",
+     "args": {
+      "project_id": "$made:replay"
+     }
+    }
+   ],
+   "wait": "run",
+   "dwell_s": 12
+  },
+  {
+   "title": "Physics network response",
+   "flow": "compare",
+   "paper": "The paper compared voxel patterns within and across stability conditions and scenario types in the frontoparietal regions. It also compared their average response to unstable and stable scenes.",
+   "here": "The app compares the predicted response to each matched pair in the intraparietal sulcus. It gives one average per clip, not voxel patterns.",
+   "show": {
+    "project": "$made:replay",
+    "view": "data",
+    "region": "Intraparietal sulcus"
+   },
+   "read": {
+    "project": "$made:replay",
+    "kind": "paired",
+    "region": "Intraparietal sulcus"
+   },
+   "dwell_s": 12
+  },
+  {
+   "title": "Ventral and early visual areas",
+   "flow": "compare",
+   "paper": "The paper ran the same comparisons in ventral temporal cortex, primary visual cortex and the lateral occipital complex.",
+   "here": "This reads the same pairs in the fusiform gyrus, the app's nearest match to ventral temporal cortex. Early visual and lateral occipital are also in the region list.",
+   "show": {
+    "project": "$made:replay",
+    "view": "data",
+    "region": "Fusiform gyrus"
+   },
+   "read": {
+    "project": "$made:replay",
+    "kind": "paired",
+    "region": "Fusiform gyrus"
+   },
+   "dwell_s": 10
+  },
+  {
+   "title": "Motion area check",
+   "flow": "compare",
+   "paper": "The paper looked at motion area MT, including on the people-with-animals scenes, and read its response as a sign of predicted motion.",
+   "here": "MT is not in the app's region list, so this reads the lateral occipitotemporal sulcus, the nearest listed region. The app's clips really do move, while the paper's photos were still.",
+   "show": {
+    "project": "$made:replay",
+    "view": "data",
+    "region": "Lateral occipitotemporal sulcus"
+   },
+   "read": {
+    "project": "$made:replay",
+    "kind": "paired",
+    "region": "Lateral occipitotemporal sulcus"
+   },
+   "dwell_s": 10
+  },
+  {
+   "title": "Controls for other explanations",
+   "flow": "challenge",
+   "paper": "The paper used the people-with-animals scenes to control for peril and attention. It also checked eye movements, ratings of how interesting each image was, and how hard the stability judgement was.",
+   "here": "A model has no eyes or attention to check. In their place, this previews a different violation, an object that bounces and then hovers, on the finished study without running it.",
+   "show": {
+    "project": "$p:falls",
+    "view": "samples"
+   },
+   "actions": [
+    {
+     "tool": "parameter_set",
+     "args": {
+      "project_id": "$p:falls",
+      "name": "outcome",
+      "value": "hovers_bouncing"
+     }
+    }
+   ],
+   "wait": "preview",
+   "dwell_s": 10
+  },
+  {
+   "title": "Sources and next steps",
+   "flow": "handoff",
+   "paper": "The authors read their results as consistent with forward physical simulation, and called that evidence preliminary.",
+   "here": "This opens the sources behind the replay so the viewer can check how the app's version differs from the paper's.",
+   "show": {
+    "project": "$made:replay",
+    "view": "sources"
+   },
+   "dwell_s": 8
+  }
+ ],
+ "written_by": "agent",
+ "attempts": 2
+}

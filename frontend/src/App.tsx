@@ -1,87 +1,618 @@
-import { useEffect, useState } from 'react'
-import { api, type Dataset, type Stage, type ViewResult } from './api'
-import { Fields } from './Fields'
-import { Grid } from './Grid'
-import { Inspector } from './Inspector'
-import { Agent, type Msg } from './Agent'
-import { Runs } from './Runs'
-import { ViewBar } from './ViewBar'
-import { NewProject } from './NewProject'
-import { Dashboard } from './Dashboard'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { call, fmt, regionLabel, PLAN_NAMES, ROLE_NAMES, type AnalysisItem, type MapRow, type Project, type Region, type Row, type Sample, type Template, regionInText } from './api'
+import { DotStrip, MiniInterval, SignedBars, TimeCourse } from './charts'
+import { FindingsView, SearchView, SourcesView } from './views'
+import { WorldPanel, type Param, type Preview, type PreviewEvent } from './world'
+import { LiveWorkspace, type Job } from './live'
+import { DemoBar, NarrationMsg, type DemoInfo, type DemoState, type Narration } from './demo'
+import { SelectionView } from './selection'
+import { SessionDock, Chat, type SessionInfo } from './agent'
+type Example = { id: string; title: string; what: string; source: string; doi: string | null; goal: string; media: string[]; project_id: string | null; here: string }
+import { ExperimentSetup, ExperimentRoom, ReportedCard, OriginChip, type Setup, type Reported } from './experiment'
 
-// The frame: datasets, the view bar, fields, samples and the inspector. Everything shown comes from the API. The
-// dataset, stages, shown fields and selected sample live in the address, so any screen can be reopened exactly.
+type View = 'room' | 'samples' | 'brain' | 'search' | 'data' | 'findings' | 'sources' | 'agent'
+const WIDE: View[] = ['search', 'data', 'findings', 'sources', 'agent']
+type Unit = { key: string; label: string; variants: Row<Sample>[]; labels: string[] }
+const VIEWS: [View, string][] = [['room', 'Room'], ['samples', 'Samples'], ['brain', 'Brain'], ['search', 'Search'], ['data', 'Data'], ['findings', 'Findings'], ['sources', 'Sources']]
+const ANALYSIS_NAMES: Record<string, string> = { paired: 'Difference per region', items_needed: 'Pairs needed', time_course: 'Response by second', per_object: 'Effect of each object' }
+const VIEW_NAMES: Record<string, string> = { left: 'Left', right: 'Right', ventral: 'Underside', posterior: 'Back' }
 
-type Loc = { d?: string; stages: Stage[]; shown: string[]; sel: string | null; view?: 'data' | 'runs' | 'dashboard' }
-const readLoc = (): Loc => { try { return { stages: [], shown: [], sel: null, ...JSON.parse(decodeURIComponent(location.hash.slice(1))) } } catch { return { stages: [], shown: [], sel: null } } }
-
-export default function App() {
-  if (location.pathname === '/dashboard') return <Dashboard standalone />   // the dashboard's own link
-  return <Lab />
+/** The region a project leads with, from its own results: the largest paired effect, the first selection region,
+ * the region where objects move the cortex most, or the first region read. Never a fixed name. */
+function headlineRegion(a: AnalysisItem[], s: Row<Sample>[], P?: Project): string {
+  const res = (k: string) => a.find(x => x.analysis.data.kind === k)
+  const read = [...(res('paired')?.result?.data.regions ?? []).map((r: Region) => r.region), ...Object.keys(s[0]?.data.readout ?? {})]
+  const own = [...((P as any)?.setup?.reported ?? []).map((r: Reported) => r.region), String((P?.bindings as any)?.region ?? '').trim().toLowerCase().replace(/^the\s+/, '')]
+  for (const o of own) { const hit = read.find(n => n.toLowerCase() === String(o).toLowerCase()); if (hit) return hit }
+  const paired = res('paired')?.result?.data.regions?.[0]?.region
+  if (paired) return paired
+  const sel = res('selection')?.analysis.data.regions?.[0]
+  if (sel) return sel
+  const objs: any[] = res('per_object')?.result?.data.objects ?? []
+  if (objs.length) { const regs = Object.keys(objs[0].regions); return regs.sort((x, y) => objs.reduce((t, o) => t + Math.abs(o.regions[y]), 0) - objs.reduce((t, o) => t + Math.abs(o.regions[x]), 0))[0] }
+  return Object.keys(s[0]?.data.readout ?? {})[0] ?? ''
 }
 
-function Lab() {
-  const [all, setAll] = useState<Dataset[]>([])
-  const [loc, setLoc] = useState<Loc>(readLoc)
-  const [v, setV] = useState<ViewResult | null>(null)
-  const [err, setErr] = useState('')
-  const [busy, setBusy] = useState(false)
-  const [msgs, setMsgs] = useState<Msg[]>([])
-  const [tab, setTab] = useState<'agent' | 'sample'>('agent')
-  const [fresh, setFresh] = useState(() => !location.hash)   // a first open shows the new-project screen
-  const [queued, setQueued] = useState<string | undefined>()
-  useEffect(() => { setTab(loc.sel ? 'sample' : 'agent') }, [loc.sel])   // no sample selected: never leave an empty Sample tab open
-  const name = loc.d ?? all[0]?.name
-  const ds = all.find(d => d.name === name)
-  const go = (p: Partial<Loc>) => setLoc(l => ({ ...l, ...p }))
-  useEffect(() => { history.replaceState(null, '', '#' + encodeURIComponent(JSON.stringify({ ...loc, d: name }))) }, [loc, name])
-  useEffect(() => { api.datasets().then(setAll).catch(e => setErr(String(e.message))) }, [])
+export default function App() {
+  const [templates, setTemplates] = useState<Template[]>([])
+  const [projects, setProjects] = useState<Row<Project>[]>([]); const [projectsLoaded, setProjectsLoaded] = useState(false)
+  const [pid, setPid] = useState<string | null>(() => new URLSearchParams(location.search).get('project'))
+  const [samples, setSamples] = useState<Row<Sample>[]>([])
+  const [analyses, setAnalyses] = useState<AnalysisItem[]>([])
+  const [steps, setSteps] = useState<any[]>([])
+  const [view, setView] = useState<View>(() => (new URLSearchParams(location.search).get('view') as View) || 'room')
+  const [region, setRegion] = useState('')   // set from the first project's own results; a person's or a demo's choice carries over
+  const [unitIdx, setUnitIdx] = useState(0)
+  const [variant, setVariant] = useState(0)
+  const [sheet, setSheet] = useState<null | 'templates'>(null)
+  const [switcher, setSwitcher] = useState(false)
+  const [loading, setLoading] = useState(false)
+  const [params, setParams] = useState<Row<Param>[]>([])
+  const [previews, setPreviews] = useState<Row<Preview>[]>([])
+  const [assets, setAssets] = useState<Record<string, any>>({})
+  const [pev, setPev] = useState<Record<string, PreviewEvent>>({})
+  const [jobs, setJobs] = useState<Job[]>([])
+  const [demo, setDemo] = useState<DemoState>({ demo: null, step: 0, status: 'idle' })
+  const [narr, setNarr] = useState<Narration[]>([])
+  const [demos, setDemos] = useState<DemoInfo[]>([])
+  const [writeErr, setWriteErr] = useState<Record<string, string>>({})
+  const [runProg, setRunProg] = useState<Record<string, { done: number; total: number; stage?: string; error?: string }>>({})
+  const [offline, setOffline] = useState(false)   // the server is restarting or down: say so instead of failing quietly
+  const follow = useRef<{ unit?: number } | null>(null)
+  const [showCond, setShowCond] = useState<string | undefined>()   // what a demo step asks a view to display
+  useEffect(() => { call<DemoInfo[]>('demo_list').then(setDemos); call<DemoState>('demo_get').then(d => d.demo && setDemo(d)) }, [])
+  const [machine, setMachine] = useState<{ agent: string; world_node: string; brain_node: string } | null>(null)
+  const [widen, setWiden] = useState(false)
+  const [sessions, setSessions] = useState<SessionInfo[]>([]); const [openSession, setOpenSession] = useState<string | null>(null); const [sessionTick, setSessionTick] = useState(0)
+  const loadSessions = () => fetch('/agent/sessions').then(r => r.json()).then(setSessions).catch(() => {})
+  useEffect(() => { if (sheet === 'templates') call<Example[]>('example_list').then(setExamples).catch(() => {}) }, [sheet])
+  useEffect(() => { loadSessions(); call<Record<string, { done: number; total: number; stage?: string }>>('run_list').then(p => setRunProg(r => ({ ...p, ...r }))).catch(() => {}) }, [])
+  const demoRegion = useRef<{ pid: string; region: string } | null>(null)
+  const projRef = useRef<Row<Project>[]>([])
+  const [examples, setExamples] = useState<Example[]>([])
+  const lastCentre = useRef<View>('room')
+  useEffect(() => { const go = () => call('machine_get').then(setMachine).catch(() => {}); go(); const t = setInterval(go, 8000); return () => clearInterval(t) }, [])
+  useEffect(() => { if (!WIDE.includes(view)) lastCentre.current = view }, [view])
+  useEffect(() => { const k = (e: KeyboardEvent) => { if (e.key === 'Escape' && WIDE.includes(view)) setView(lastCentre.current) }; addEventListener('keydown', k); return () => removeEventListener('keydown', k) }, [view])
+
+  const refreshProjects = useCallback(async () => {
+    const [t, p] = await Promise.all([call<Template[]>('template_list'), call<Row<Project>[]>('project_list')])
+    setTemplates(t); setProjects(p); setProjectsLoaded(true)
+    if ((!pid || !p.some(x => x.id === pid)) && p.length) setPid(p[0].id)
+  }, [pid])
+  useEffect(() => { refreshProjects() }, [refreshProjects])
+
+  const loadProject = useCallback(async (id: string, quiet = false) => {
+    if (!quiet) setLoading(true)
+    const [s, a, st, pr, pv, as] = await Promise.all([call<Row<Sample>[]>('sample_list', { project_id: id }), call<AnalysisItem[]>('analysis_list', { project_id: id }), call<any[]>('step_list', { limit: 60 }),
+      call<Row<Param>[]>('parameter_list', { project_id: id }), call<Row<Preview>[]>('preview_list', { project_id: id }), call<Record<string, any>>('asset_list', { project_id: id }).catch(() => ({}))])
+    setSamples(s); setAnalyses(a); setSteps(st); setParams(pr); setPreviews(pv); setAssets(as); setLoading(false)
+    const P = projRef.current.find(x => x.id === id)?.data; const shown = demoRegion.current?.pid === id ? demoRegion.current.region : null
+    if (!quiet) demoRegion.current = null
+    const names = [...((a.find(x => x.analysis.data.kind === 'paired')?.result?.data.regions ?? []) as Region[]).map(r => r.region), ...Object.keys(s[0]?.data.readout ?? {})]
+    // a project opens on its own region (the one its question or paper names); a demo's choice wins; a quiet reload keeps the person's
+    setRegion(r => shown ?? (quiet && r && names.includes(r) ? r : headlineRegion(a, s, P)) ?? r)
+    if (follow.current?.unit != null) { setUnitIdx(follow.current.unit); follow.current = null }
+  }, [])
   useEffect(() => {
-    if (!name) return
-    let live = true   // a slower, older response must never replace a newer one
-    setBusy(true); setErr('')
-    api.view(name, loc.stages).then(r => { if (live) { setV(r); setBusy(false) } }).catch(e => { if (live) { setErr(String(e.message)); setBusy(false) } })
-    return () => { live = false }
-  }, [name, JSON.stringify(loc.stages)])
-  const [wide, setWide] = useState(false)   // the sample expanded over the fields and grid, as FiftyOne's sample modal
-  const selSample = v?.samples.find(s => s.id === loc.sel)
-  const wideOn = wide && tab === 'sample' && !!loc.sel
-  return <div className={`frame${wideOn ? ' wide' : ''}`}>
-    <header className="top">
-      <span className="brand">Visual Cortex Lab</span>
-      <div className="seg" role="tablist">
-        <button role="tab" aria-selected={loc.view !== 'runs'} onClick={() => go({ view: 'data' })}>Data</button>
-        <button role="tab" aria-selected={loc.view === 'runs'} onClick={() => go({ view: 'runs' })}>Runs</button>
-        <button role="tab" aria-selected={loc.view === 'dashboard'} onClick={() => go({ view: 'dashboard' })}>Dashboard</button>
-      </div>
-      {(loc.view ?? 'data') === 'data' && <select value={name ?? ''} onChange={e => setLoc({ d: e.target.value, stages: [], shown: [], sel: null })} aria-label="Dataset">
-        {all.map(d => <option key={d.name} value={d.name}>{d.name}, {d.samples.toLocaleString()} samples</option>)}
-      </select>}
-      <button className="btn" onClick={() => setFresh(true)}>New project</button>
-      {busy && <span className="ink2">Updating</span>}
-      {err && <span className="flag">{err}</span>}
-    </header>
-    {loc.view === 'dashboard' ? <Dashboard /> : loc.view === 'runs' ? <Runs onOpenDataset={n => { setAll(a => a); api.datasets().then(setAll); setLoc({ d: n, stages: [], shown: [], sel: null, view: 'data' }) }} /> : <>
-    {v && <ViewBar trail={v.trail} stages={loc.stages} fields={v.schema} onRemove={i => go({ stages: loc.stages.filter((_, k) => k !== i) })} onAdd={s => go({ stages: [...loc.stages, s] })} />}
-    <div className={`body${wideOn ? ' wide' : ''}`}>
-      {v && <Fields schema={v.schema} facets={v.facets} shown={loc.shown} onToggleShown={p => go({ shown: loc.shown.includes(p) ? loc.shown.filter(x => x !== p) : [...loc.shown, p] })}
-        onAdd={s => go({ stages: [...loc.stages, s] })} />}
-      {v ? <Grid samples={v.samples} count={v.count} shown={loc.shown} schema={v.schema} selected={loc.sel} onSelect={id => go({ sel: id })} /> : <main className="grid empty"><p className="ink2">Loading</p></main>}
-      <div className="right">
-        <div className="tabs" role="tablist">
-          <button role="tab" aria-selected={tab === 'agent'} onClick={() => setTab('agent')}>Agent</button>
-          <button role="tab" aria-selected={tab === 'sample'} onClick={() => setTab('sample')} disabled={!loc.sel}>{loc.sel ? `Sample ${loc.sel}` : 'Sample'}</button>
+    if (!pid) return
+    setUnitIdx(0); setVariant(0); setSamples([]); setAnalyses([]); setParams([]); setPreviews([]); loadProject(pid)   // never pair a project with another's rows
+    call('preview_search', { project_id: pid }).catch(() => {})   // choice options render in the background, so picking one answers from cache
+    const u = new URL(location.href); u.searchParams.set('project', pid); history.replaceState(null, '', u)
+  }, [pid, loadProject])
+  useEffect(() => { const u = new URL(location.href); u.searchParams.set('view', view); history.replaceState(null, '', u) }, [view])
+  const live = useRef({ pid, refreshProjects, loadProject }); live.current = { pid, refreshProjects, loadProject }
+  useEffect(() => {   // one event socket for the page's life, so no event is lost when the project changes; reconnects if dropped
+    let ws: WebSocket; let closed = false
+    const open = () => { ws = new WebSocket(`${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/events`); ws.onmessage = onMsg
+      ws.onopen = () => { setOffline(false); live.current.refreshProjects(); call('run_list').then(p => setRunProg(r => ({ ...r, ...p }))).catch(() => {}) }
+      ws.onclose = () => { if (!closed) { setOffline(true); setTimeout(open, 1000) } } }
+    const onMsg = (m: MessageEvent) => {
+      const { pid, refreshProjects, loadProject } = live.current
+      let msg: any = {}; try { msg = JSON.parse(m.data) } catch { /* plain event */ }
+      if (msg.session) { setSessionTick(k => k + 1); loadSessions(); if (msg.stage === 'project' || msg.stage === 'turn_done' || msg.stage === 'ended') refreshProjects(); return }   // the agent's long run: its own view updates
+      if (msg.fetch) { loadSessions(); return }
+      if (msg.job) { const j = { ...msg.job, t: Date.now() }; setJobs(js => [j, ...js.filter(x => x.key !== j.key)].slice(0, 40)); return }
+      if (msg.run && msg.done) { setRunProg(r => ({ ...r, [msg.run]: { done: msg.done, total: msg.total } })); return }
+      if (msg.run && msg.stage === 'failed') { setRunProg(r => ({ ...r, [msg.run]: { done: 0, total: 0, stage: 'failed', error: msg.error } as any })); live.current.refreshProjects(); return }
+      if (msg.run && msg.stage === 'comparing') { setRunProg(r => ({ ...r, [msg.run]: { ...(r[msg.run] ?? { done: 0, total: 0 }), stage: 'comparing' } })); return }
+      if (msg.demo_writing) { call<DemoInfo[]>('demo_list').then(setDemos); setWriteErr(e => ({ ...e, [msg.demo_writing]: msg.stage === 'failed' ? msg.error : '' })); return }
+      if ('demo' in msg && 'status' in msg) {
+        call<DemoState>('demo_get').then(setDemo)
+        if (msg.show?.project) { setPid(msg.show.project); if (msg.show.view) setView(msg.show.view); if (msg.show.region) { setRegion(msg.show.region); demoRegion.current = { pid: msg.show.project, region: msg.show.region } } follow.current = { unit: msg.show.unit }; setShowCond(msg.show.condition); if (msg.narration && !msg.narration.reading) document.querySelector('.centre')?.scrollTo({ top: 0, behavior: 'smooth' }) }
+        if (msg.narration) setNarr(ns => [...ns.filter(n => !(n.demo === msg.demo && n.step === msg.step)), { demo: msg.demo, step: msg.step, ...msg.narration }])
+        if (msg.status === 'idle') setNarr([])
+        return
+      }
+      if (msg.preview) {   // a finished preview changes only the previews: reload those, not the whole project
+        setPev(e => {   // a render made ahead finishing must not clear the room's own preview, still under way
+          const cur = e[msg.preview]
+          if (msg.ahead && cur && cur.key !== msg.key && !['done', 'failed'].includes(cur.stage)) return e
+          return { ...e, [msg.preview]: msg }
+        })
+        if ((msg.stage === 'done' || msg.stage === 'failed') && msg.preview === pid) call<Row<Preview>[]>('preview_list', { project_id: pid }).then(setPreviews)
+        return
+      }
+      if (msg.tool === 'parameter_update' || msg.tool === 'preview_create') {   // a control moved: its row and the step that moved it
+        if (pid) Promise.all([call<Row<Param>[]>('parameter_list', { project_id: pid }), call<any[]>('step_list', { limit: 60 })]).then(([pr, st]) => { setParams(pr); setSteps(st) })
+        return
+      }
+      refreshProjects(); if (pid) loadProject(pid, true)
+    }
+    open()
+    return () => { closed = true; ws.close() }
+  }, [])
+
+  projRef.current = projects
+  const project = projects.find(p => p.id === pid) ?? null
+  const P = project?.data
+  const template = templates.find(t => t.id === P?.template_id)
+  const byKind = (k: string) => analyses.find(a => a.analysis.data.kind === k)
+  const paired = byKind('paired'); const perObject = byKind('per_object'); const needed = byKind('items_needed'); const course = byKind('time_course')
+
+  const units: Unit[] = useMemo(() => {
+    if (P?.plan === 'leave_one_out') {
+      const ref = samples.find(s => s.data.unit === 'full'); if (!ref) return []
+      return samples.filter(s => s !== ref).map(s => ({ key: s.data.unit, label: s.data.label, variants: [ref, s], labels: ['Full room', `Room without ${s.data.label}`] }))
+    }
+    const g = new Map<string, Row<Sample>[]>()
+    samples.forEach(s => g.set(s.data.unit, [...(g.get(s.data.unit) ?? []), s]))
+    return [...g.entries()].map(([k, v]) => ({ key: k, label: v.length === 2 && v[0].data.label !== v[1].data.label ? `${v[0].data.label} and ${v[1].data.label}` : v[0].data.label, variants: v, labels: v.map(x => x.data.condition) }))
+  }, [samples, P?.plan])
+  const diff = (u: Unit, r = region) => (u.variants[0].data.readout[r] ?? 0) - (u.variants[1]?.data.readout[r] ?? 0)
+  const unit = units[Math.min(unitIdx, Math.max(0, units.length - 1))]
+  const regionsPaired: Region[] = paired?.result?.data.regions ?? []
+  const regionNames = regionsPaired.length ? regionsPaired.map(r => r.region) : Object.keys(samples[0]?.data.readout ?? {})
+  const objects: any[] = perObject?.result?.data.objects ?? []
+  const pickUnitByKey = (k: string) => { const i = units.findIndex(u => u.key === k); if (i >= 0) { setUnitIdx(i); setVariant(P?.plan === 'leave_one_out' ? 1 : 0) } }
+  const flowNow = P?.status === 'Draft' ? 'build' : P?.status === 'Running' ? 'run' : view === 'brain' || view === 'room' ? 'compare' : view === 'samples' ? 'run' : 'compare'
+
+  const projectChat = sessions.find(x => x.project_id === pid)?.id ?? null   // the newest chat about this project
+  async function send(text: string, mode: 'discuss' | 'through' = 'discuss') {
+    if (!pid || !text.trim()) return
+    const opts = (body: unknown) => ({ method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+    if (projectChat) await fetch(`/agent/sessions/${projectChat}/message`, opts({ text, mode }))
+    else await fetch('/agent/sessions', opts({ text, mode, project_id: pid }))
+    loadSessions()
+  }
+
+  async function createFromTemplate(t: Template, title: string, bindings: Record<string, string>, from?: string) {
+    const row = await call<Row<Project>>('project_create', { template_id: t.id, title, bindings, from_project_id: from ?? null })
+    await refreshProjects(); setSheet(null); setPid(row.id); setView('room')
+  }
+
+  const reloadWorld = () => { if (pid) Promise.all([call<Row<Param>[]>('parameter_list', { project_id: pid }), call<Row<Preview>[]>('preview_list', { project_id: pid })]).then(([pr, pv]) => { setParams(pr); setPreviews(pv) }) }   // a control change touches only the world
+
+  const runsNow = projects.filter(p => p.data.status === 'Running').map(p => ({ id: p.id, title: p.data.title, done: runProg[p.id]?.done ?? 0, total: runProg[p.id]?.total ?? 0, stage: runProg[p.id]?.stage }))
+
+  function chipsFor(): { label: string; run: () => void }[] {
+    if (!P) return []
+    if (P.status === 'Running') return []
+    if (P.status !== 'Done') return [P.plan === 'experiment' ? { label: 'Ask the agent to check it', run: () => send(`Check this experiment against its paper before it runs: ${P.question}`) }
+      : { label: 'Ask the agent to build it', run: () => send(`Build and run this project: ${P.question}`) }]
+    const out: { label: string; run: () => void }[] = []
+    if (view !== 'brain') out.push({ label: 'Show the brain', run: () => setView('brain') })
+    if ((P as any).search && view !== 'search') out.push({ label: 'How were the items chosen?', run: () => setView('search') })
+    const sibs = projects.filter(p => p.data.template_id === P.template_id && p.id !== pid && p.data.status === 'Done')
+    if (sibs.length && view !== 'findings') out.push({ label: 'Compare with the other runs', run: () => setView('findings') })
+    out.push({ label: `Why is the ${regionLabel(region).toLowerCase()} the headline?`, run: () => send(`Why is ${region} shown first, and which region has the largest effect in this project?`) })
+    if (template?.controls[0]) out.push({ label: 'What should challenge this next?', run: () => send(`Which control from this template would challenge this project most, what would it take to run, and what would each outcome mean?`) })
+    return out.slice(0, 4)
+  }
+
+  const sheetEl = sheet === 'templates' && <TemplateSheet examples={examples} onOpenProject={id => { setSheet(null); setPid(id); setView('room') }}
+        onGoal={goal => fetch('/agent/sessions', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text: goal, mode: 'discuss' }) }).then(r => r.json()).then(s => { setSheet(null); loadSessions(); setOpenSession(s.id); setView('agent') })}
+        onChat={() => { setSheet(null); setOpenSession(null); setView('agent') }} templates={templates} demos={demos} writeErr={writeErr} onWrite={id => call('demo_create', { seed_id: id }).then(() => call<DemoInfo[]>('demo_list').then(setDemos))} onClose={() => setSheet(null)} onCreate={createFromTemplate}
+        onPlay={id => { setSheet(null); setNarr([]); call<DemoState>('demo_run', { demo_id: id }).then(setDemo) }} />
+
+  // no project yet, as on a fresh install: the agent's chat and New project, never a spinner that waits for nothing
+  if (!project || !P) return <div className="frame">
+    <header className="top"><span className="brand">Simulaxon</span><button className="btn" onClick={() => setSheet('templates')}>New project</button>
+      <a className="btn" href="/dashboard" target="_blank" rel="noreferrer">Dashboard</a>
+      {offline && <span className="chip flag" role="status">Reconnecting to the lab server</span>}</header>
+    {!projectsLoaded ? <div className="centre"><span className="spin" /></div>
+      : <div className="body chatonly"><main className="col centre"><div className="chatwide"><h1 className="q">{sessions.find(x => x.id === openSession)?.goal ?? 'New chat with the agent'}</h1>
+        <Chat sid={openSession} live={sessionTick} onStarted={id => { setOpenSession(id); loadSessions() }} onOpenProject={id => { setPid(id); setView('room') }} /></div></main></div>}
+    {sheetEl}
+  </div>
+
+  return (
+    <div className="frame">
+      <header className="top">
+        <span className="brand">Simulaxon</span>
+        <div className="switch">
+          <button onClick={() => setSwitcher(s => !s)} aria-haspopup="menu" aria-expanded={switcher}><span>{P.title}</span><span aria-hidden>▾</span></button>
+          {switcher && <div className="menu" role="menu" onMouseLeave={() => setSwitcher(false)}>
+            {projects.map(p => <button key={p.id} role="menuitem" className={p.id === pid ? 'on' : ''} onClick={() => { setPid(p.id); setSwitcher(false) }}>
+              <span>{p.data.title}<div className="sub">{templates.find(t => t.id === p.data.template_id)?.title}</div></span>
+              <span className={`chip ${p.data.status === 'Running' ? 'flag' : ''}`}>{p.data.status}</span>
+            </button>)}
+          </div>}
         </div>
-        {name && <div hidden={tab !== 'agent'} className="tabbody"><Agent dataset={name} stages={loc.stages} msgs={msgs} setMsgs={setMsgs} queued={queued} onQueuedSent={() => setQueued(undefined)}
-          onShow={(d, s, f) => setLoc(l => ({ ...l, d, stages: s, sel: null, shown: f.length ? f : l.shown }))} /></div>}
-        {tab === 'sample' && loc.sel && name && <Inspector dataset={name} id={loc.sel} schema={v?.schema ?? []} onClose={() => { go({ sel: null }); setTab('agent'); setWide(false) }} wide={wide} onWide={setWide} shown={loc.shown}
-          computed={selSample?.computed_sources && Object.keys(selSample.computed_sources).length ? { fields: selSample.fields, sources: selSample.computed_sources } : undefined} />}
+        <button className="btn" onClick={() => setSheet('templates')}>New project</button>
+        <a className="btn" href="/dashboard" target="_blank" rel="noreferrer">Dashboard</a>
+        {machine && <div className="status" aria-label="Machine status">
+          <span>Agent: {machine.agent}</span>
+          <span><span className={`dot ${machine.world_node !== 'Idle' ? 'busy' : ''}`} />World node {machine.world_node === 'Idle' ? 'idle' : machine.world_node}</span>
+          <span><span className={`dot ${machine.brain_node !== 'Idle' ? 'busy' : ''}`} />Brain node {machine.brain_node === 'Idle' ? 'idle' : machine.brain_node}</span>
+        </div>}
+        {offline && <span className="chip flag" role="status">Reconnecting to the lab server</span>}
+        <nav className="tabs">{VIEWS.map(([v, n]) => <button key={v} className={`tab ${view === v ? 'on' : ''}`} onClick={() => setView(v)}>{n}</button>)}</nav>
+      </header>
+
+      <div className={`body ${widen ? 'wideconvo' : ''} ${view === 'agent' ? 'chatonly' : ''}`}>
+        {view !== 'agent' && <aside className="col left">
+          <Conversation P={P} pid={pid!} template={template} flowNow={flowNow} steps={steps} narr={demo.demo ? narr.filter(n => n.demo === demo.demo) : []} widen={widen} onWiden={() => setWiden(w => !w)}
+            chips={chipsFor()} onUndo={async id => { await call('step_undo', { step_id: id }); refreshProjects(); loadProject(pid!) }}
+            sid={projectChat} live={sessionTick} onStarted={() => loadSessions()} onOpenProject={id => { setPid(id); setView('room') }} />
+        </aside>}
+
+        <main className={`col centre ${WIDE.includes(view) ? 'span2' : ''}`}>
+          {(demo.demo && demo.status !== 'idle' || jobs.length > 0 || sessions.length > 0 || runsNow.length > 0) && <div className="dock">
+            <SessionDock sessions={sessions} onOpen={id => { setOpenSession(id); setView('agent') }} onStop={id => fetch(`/agent/sessions/${id}/stop`, { method: 'POST' }).then(loadSessions)} />
+            <DemoBar state={demo.status === 'done' && (demo as any).show?.project !== pid ? { ...demo, status: 'idle' } : demo} onControl={a => call<DemoState>('demo_update', { action: a }).then(setDemo)} />
+            <LiveWorkspace jobs={jobs} runs={runsNow} onOpen={id => { setPid(id); setView('room') }} />
+          </div>}
+          {view === 'agent' ? <div className="chatwide"><h1 className="q">{sessions.find(x => x.id === openSession)?.goal ?? 'New chat with the agent'}</h1>
+            <Chat sid={openSession} live={sessionTick} onStarted={id => { setOpenSession(id); loadSessions() }} onOpenProject={id => { setPid(id); setView('room') }} /></div> : <>
+          <div>
+            <h1 className="q">{P.question}</h1>
+            <div className="bar" style={{ marginTop: 8 }}>
+              <span className="ink2">{template?.title}</span>
+              <span className="chip">{PLAN_NAMES[P.plan] ?? P.plan}</span>
+              <span className={`chip ${P.status === 'Running' ? 'flag' : ''}`}>{P.status}</span>
+              {P.counts && P.status === 'Done' && <span className="ink2 num">{P.counts.clips} clips</span>}
+            </div>
+          </div>
+          {loading ? <span className="spin" /> : P.status !== 'Done' && view !== 'room' ? (['samples', 'brain', 'data'].includes(view) && <Pending view={view} P={P} onSetup={() => setView('room')} />)
+            : P.status !== 'Done' && P.plan === 'experiment' && (P as any).setup ? <ExperimentSetup setup={(P as any).setup as Setup} paper={(P as any).paper}
+              running={P.status === 'Running'} progress={runProg[pid!]} onRun={() => call('project_run', { project_id: pid }).then(() => refreshProjects())} onAsk={text => send(text)} />
+            : P.status !== 'Done' ? <>{(P as any).world && <WorldPanel pid={pid!} world={(P as any).world} script={(P as any).script} params={params} previews={previews} assets={assets}
+              event={pev[pid!]} steps={steps} region={region} onChanged={reloadWorld} />}
+              <NotRun P={P} template={template} progress={runProg[pid!]} onAsk={() => send(`Build and run this project: ${P.question}`)} onRun={(P as any).pairs || (P as any).units ? () => call('project_run', { project_id: pid }).then(() => refreshProjects()) : undefined} /></> : <>
+            {view === 'room' && P.plan === 'selection' && byKind('selection')?.result && <SelectionView result={byKind('selection')!.result!.data} regions={byKind('selection')!.analysis.data.regions} samples={samples} condition={showCond} />}
+            {view === 'room' && (P as any).world && <WorldPanel pid={pid!} world={(P as any).world} script={(P as any).script} params={params} previews={previews} assets={assets}
+              event={pev[pid!]} steps={steps} region={region} onChanged={reloadWorld} />}
+
+            {view === 'room' && P.plan === 'experiment' && <ExperimentRoom pid={pid!} samples={samples as any} idx={unitIdx} setIdx={setUnitIdx} region={region} onS={(P as any).setup?.trial?.on_s} />}
+            {view === 'room' && unit && P.plan !== 'selection' && P.plan !== 'experiment' && <h2 className="section-title">The run, {P.counts?.clips} clips</h2>}
+            {view === 'room' && unit && P.plan !== 'selection' && P.plan !== 'experiment' && <RoomView P={P} template={template} unit={unit} units={units} unitIdx={unitIdx} setUnitIdx={i => { setUnitIdx(i); setVariant(P.plan === 'leave_one_out' ? 1 : 0) }} variant={variant} setVariant={setVariant}
+              region={region} diff={diff} objects={objects} onPickObject={pickUnitByKey} paired={regionsPaired.find(r => r.region === region)} />}
+            {view === 'samples' && <SamplesView samples={samples} region={region} units={units} isaac={!!(P as any).world} onOpen={(u, v) => { setUnitIdx(u); setVariant(v); setView('room') }} />}
+            {view === 'brain' && <BrainView P={P} unit={unit} variant={variant} objects={objects} analyses={analyses} course={course} region={region} />}
+            {view === 'data' && <DataView units={units} regions={regionNames} onOpen={i => { setUnitIdx(i); setView('room') }} />}
+          </>}
+          {view === 'search' && <SearchView search={(P as any).search} />}
+          {view === 'findings' && <FindingsView P={P} pid={pid!} projects={projects} region={region} analysesFor={id => call('analysis_list', { project_id: id })} onOpen={id => { setPid(id) }} onAsk={send} />}
+          {view === 'sources' && <SourcesView />}
+          </>}
+          {WIDE.includes(view) && <div className="muted">Escape returns to the {lastCentre.current}</div>}
+        </main>
+
+        {!WIDE.includes(view) && <aside className="col right">
+          <Inspector P={P} pid={pid!} template={template} projects={projects} paired={paired} needed={needed} objects={objects} perObject={perObject} region={region} setRegion={setRegion}
+            unit={unit} diff={diff} units={units} samples={samples} onFork={(c) => template && createFromTemplate(template, `${P.title}, ${c.toLowerCase()}`, { ...(P.bindings as Record<string, string>), control: c }, pid!)}
+            onOpenProject={setPid} onPickObject={k => { pickUnitByKey(k); setView('room') }} template_analyses={template?.analyses ?? []} analyses={analyses} />
+        </aside>}
       </div>
+
+      <footer className="prov" aria-label="Provenance">
+        {P.provenance?.length ? (P.plan === 'experiment' && (P as any).setup ? [...P.provenance.slice(0, -1), ((P as any).setup.regions as string[]).map(regionLabel).join(', ')] : P.provenance).map((s, i) => <span key={i} style={{ display: 'contents' }}>{i > 0 && <span className="arrow">→</span>}<span>{s}</span></span>) : <span>Nothing has run in this project yet</span>}
+      </footer>
+
+      {sheetEl}
+    </div>
+  )
+}
+
+function Conversation({ P, pid, template, flowNow, steps, narr, onUndo, widen, onWiden, chips, sid, live, onStarted, onOpenProject }: {
+  P: Project; pid: string; template?: Template; flowNow: string; steps: any[]; narr: Narration[]; onUndo: (id: string) => void; widen: boolean; onWiden: () => void
+  chips: { label: string; run: () => void }[]; sid: string | null; live: number; onStarted: (id: string) => void; onOpenProject: (pid: string) => void
+}) {
+  const [code, setCode] = useState<string | null>(null)
+  const mine = steps.slice(-6)
+  const header = <>
+    <div className="msg me"><div className="who">Question</div>{P.question}</div>
+    {template && <div className="msg">
+      <div className="who">Agent</div>
+      <div style={{ marginBottom: 8 }}>I started this from the template <b>{template.title}</b>. Here is how it runs.</div>
+      {template.walkthrough.map(w => <div key={w.flow} className={`flowline ${w.flow === flowNow ? 'now' : ''}`}><b>{w.flow_name}</b><span className="ink2">{w.text}</span></div>)}
+    </div>}
+    {P.note && <div className="msg"><div className="who">Agent</div>{P.note}</div>}
+    {narr.map(n => <NarrationMsg key={n.step} n={n} />)}
+  </>
+  const footer = mine.length > 0 && <div className="msg">
+    <div className="who">Steps</div>
+    <div className="steps">
+      {mine.map(s => <div key={s.step_id}>
+        <div className="step"><span><code>{s.tool}</code> by {s.actor}</span><span className="bar" style={{ gap: 6 }}>
+          <button className="btn" onClick={() => setCode(code === s.step_id ? null : s.step_id)} aria-expanded={code === s.step_id}>Code</button>
+          {s.tool !== 'step_undo' && !s.undoes && <button className="btn" onClick={() => onUndo(s.step_id)}>Undo</button>}</span></div>
+        {code === s.step_id && <pre className="codebox">{`${s.tool}(${JSON.stringify(JSON.parse(s.args || '{}'), null, 1)})`}</pre>}
+      </div>)}
+    </div>
+  </div>
+  return <Chat sid={sid} projectId={pid} live={live} compact={!widen} header={header} footer={footer} onStarted={onStarted} onOpenProject={onOpenProject}
+    chips={[...chips.slice(0, 3), { label: widen ? 'Narrow' : 'Widen', run: onWiden }]} />
+}
+
+/** A tab of a project that hasn't finished: what will appear here, and how far the run has got. */
+function Pending({ view, P, onSetup }: { view: string; P: Project; onSetup: () => void }) {
+  const what = view === 'brain' ? 'Brain maps appear' : view === 'samples' ? 'Every trial appears' : 'The table of results appears'
+  return <div className="empty" style={{ textAlign: 'left' }}>
+    <div className="mid" style={{ marginBottom: P.status === 'Running' ? 0 : 6 }}>{what} here when the run is done.</div>
+    {P.status !== 'Running' && <><p className="ink2" style={{ marginTop: 0 }}>Not run yet.</p><button className="btn" onClick={onSetup}>Open the set-up</button></>}
+  </div>
+}
+
+function NotRun({ P, template, onAsk, onRun, progress }: { P: Project; template?: Template; onAsk: () => void; onRun?: () => void; progress?: { done: number; total: number; stage?: string } }) {
+  return <div className="empty" style={{ textAlign: 'left' }}>
+    <div className="mid" style={{ marginBottom: 6 }}>{P.status === 'Running' ? 'Running now' : 'Not run yet'}</div>
+    <p className="ink2" style={{ marginTop: 0 }}>{P.status === 'Running' ? (progress?.stage === 'comparing' ? 'Every clip is through TRIBE. Comparing the cells and drawing the maps.' : progress ? `${progress.done} of ${progress.total} clips through Isaac and TRIBE. Results appear when all are done.` : 'Results appear here when every clip has been through TRIBE.') : `${PLAN_NAMES[P.plan] ?? P.plan} plan from the template ${template?.title}.`}</p>
+    {P.status === 'Running' && progress && <div className="fbar" style={{ maxWidth: 420 }}><span style={{ width: `${100 * progress.done / progress.total}%` }} /></div>}
+    {P.status === 'Running' && progress?.stage === 'comparing' && <span className="ink2"><span className="spin" /> Comparing</span>}
+    {P.status === 'Draft' && <div className="bar">{onRun && <button className="btn primary" onClick={onRun}>Run {(P as any).units ? (P as any).units.length * (template?.cells?.length ?? 1) : ((P as any).pairs?.length ?? 0) * 2} clips</button>}<button className={onRun ? 'btn' : 'btn primary'} onClick={onAsk}>Ask the agent to build it</button></div>}
+  </div>
+}
+
+function RoomView({ P, template, unit, units, unitIdx, setUnitIdx, variant, setVariant, region, diff, objects, onPickObject, paired }: {
+  P: Project; template?: Template; unit: Unit; units: Unit[]; unitIdx: number; setUnitIdx: (i: number) => void; variant: number; setVariant: (v: number) => void
+  region: string; diff: (u: Unit, r?: string) => number; objects: any[]; onPickObject: (k: string) => void; paired?: Region
+}) {
+  const isLoo = P.plan === 'leave_one_out'; const [mode, setMode] = useState<'frame' | 'clip'>(template?.stimulus === 'motion' ? 'clip' : 'frame')
+  const [boxes, setBoxes] = useState(true); const [hoverBox, setHoverBox] = useState<string | null>(null)
+  const s = unit.variants[Math.min(variant, unit.variants.length - 1)].data
+  const noun = template?.unit_noun ?? 'unit'; const unitWord = noun[0].toUpperCase() + noun.slice(1)
+  const showBoxes = isLoo && boxes && variant === 0
+  return <>
+    <div className="stage runstage">
+      {mode === 'clip' && s.clip ? <video key={s.clip} src={s.clip} autoPlay loop muted playsInline /> : s.image ? <img src={s.image} alt={s.label} /> : <div className="empty">No frame</div>}
+      <span className="stageorigin"><OriginChip o={(s as any).origin ?? { kind: 'isaac', label: 'Rendered in Isaac Sim' }} /></span>
+      {showBoxes && <svg viewBox="0 0 832 480" preserveAspectRatio="none">
+        {objects.map(o => { const [x0, y0, x1, y1] = o.bbox_px; return <rect key={o.object} className={`box ${o.object === unit.key ? 'sel' : ''}`} x={x0} y={y0} width={x1 - x0} height={y1 - y0} rx={4}
+          onMouseEnter={() => setHoverBox(o.object)} onMouseLeave={() => setHoverBox(null)} onClick={() => onPickObject(o.object)} /> })}
+      </svg>}
+      {showBoxes && objects.filter(o => o.object === hoverBox || o.object === unit.key).map(o => <div key={o.object} className="boxlabel" style={{ left: `${(o.bbox_px[0] + o.bbox_px[2]) / 2 / 8.32}%`, top: `${o.bbox_px[1] / 4.8}%` }}>{o.label} <span className="num">{fmt(o.regions[region])}</span></div>)}
+    </div>
+    <div className="bar">
+      <div className="seg" role="group" aria-label="Variant">{unit.labels.map((l, i) => <button key={i} className={variant === i ? 'on' : ''} onClick={() => setVariant(i)}>{l}</button>)}</div>
+      {unit.variants.some(v => v.data.clip) && <div className="seg" role="group" aria-label="Frame or clip"><button className={mode === 'frame' ? 'on' : ''} onClick={() => setMode('frame')}>Frame</button><button className={mode === 'clip' ? 'on' : ''} onClick={() => setMode('clip')}>Clip</button></div>}
+      {isLoo && <div className="seg" role="group" aria-label="Object outlines"><button className={boxes ? 'on' : ''} onClick={() => setBoxes(true)}>Outlines</button><button className={!boxes ? 'on' : ''} onClick={() => setBoxes(false)}>No outlines</button></div>}
+      <span style={{ marginLeft: 'auto' }} className="bar">
+        <button className="btn" aria-label="Previous" disabled={unitIdx <= 0} onClick={() => setUnitIdx(unitIdx - 1)}>‹</button>
+        <span className="num ink2">{unitWord} {unitIdx + 1} of {units.length}</span>
+        <button className="btn" aria-label="Next" disabled={unitIdx >= units.length - 1} onClick={() => setUnitIdx(unitIdx + 1)}>›</button>
+      </span>
+    </div>
+    <div className="headline">
+      <span className="big">{fmt(diff(unit))}</span>
+      <span className="ink2">{unit.labels[0]} minus {(unit.labels[1] ?? 'the reference').toLowerCase()} in the {regionInText(region)}, this {(template?.unit_noun ?? 'unit')}</span>
+    </div>
+    <div className="card">
+      <h3>{isLoo ? `Every object in the ${regionInText(region)}` : `Every ${unitWord.toLowerCase()} in the ${regionInText(region)}`}</h3>
+      {isLoo
+        ? <SignedBars items={objects.map(o => ({ key: o.object, label: o.label, value: o.regions[region], note: `${(o.share_of_frame * 100).toFixed(1)}% of the frame` })).sort((a, b) => b.value - a.value)} selected={unit.key} onPick={onPickObject} />
+        : paired && <DotStrip values={units.map(u => diff(u))} labels={units.map(u => u.label)} mean={paired.value} interval={paired.interval_95} selected={unitIdx} onPick={setUnitIdx} />}
+      {!isLoo && paired && <div className="ink2 num">Mean {fmt(paired.value)}, interval {fmt(paired.interval_95[0])} to {fmt(paired.interval_95[1])}, {paired.units_positive} of {paired.n} above zero</div>}
+    </div>
+  </>
+}
+
+function SamplesView({ samples, region, units, isaac, onOpen }: { samples: Row<Sample>[]; region: string; units: Unit[]; isaac: boolean; onOpen: (u: number, v: number) => void }) {
+  const [sort, setSort] = useState<'order' | 'high' | 'low'>('order'); const [group, setGroup] = useState<string>('All')
+  const conds = ['All', ...new Set(samples.map(s => s.data.condition))]
+  let list = samples.filter(s => group === 'All' || s.data.condition === group)
+  if (sort !== 'order') list = [...list].sort((a, b) => (sort === 'high' ? -1 : 1) * ((a.data.readout[region] ?? 0) - (b.data.readout[region] ?? 0)))
+  const locate = (s: Row<Sample>) => { for (let i = 0; i < units.length; i++) { const v = units[i].variants.findIndex(x => x.id === s.id); if (v >= 0) return [i, v]; } return [0, 0] }
+  return <>
+    <div className="bar">
+      <div className="seg" role="group" aria-label="Condition">{conds.map(c => <button key={c} className={group === c ? 'on' : ''} onClick={() => setGroup(c)}>{c}</button>)}</div>
+      <div className="seg" role="group" aria-label="Sort"><button className={sort === 'order' ? 'on' : ''} onClick={() => setSort('order')}>In order</button><button className={sort === 'high' ? 'on' : ''} onClick={() => setSort('high')}>Highest first</button><button className={sort === 'low' ? 'on' : ''} onClick={() => setSort('low')}>Lowest first</button></div>
+      <span className="ink2 num">{list.length} samples, {region}</span>
+    </div>
+    <div className="grid">
+      {list.map(s => <button key={s.id} className="tile" onClick={() => { const [u, v] = locate(s); onOpen(u, v) }}>
+        {s.data.image && <img src={s.data.image.startsWith('/files/') ? '/thumb/' + s.data.image.slice(7) : s.data.image} alt={s.data.label} loading="lazy" />}
+        <div className="cap"><span>{s.data.label}</span><span className="num">{fmt(s.data.readout[region])}</span><span className="ink2">{s.data.label.startsWith(s.data.condition) ? '' : s.data.condition}</span><OriginChip o={(s.data as any).origin ?? (isaac ? { kind: 'isaac', label: 'Rendered in Isaac Sim' } : null)} /></div>
+      </button>)}
+    </div>
+  </>
+}
+
+function BrainView({ P, unit, variant, objects, analyses, course, region }: { P: Project; unit?: Unit; variant: number; objects: any[]; analyses: AnalysisItem[]; course?: AnalysisItem; region: string }) {
+  const contrastId = analyses.find(a => a.result?.data.map_id)?.result?.data.map_id as string | undefined
+  const isLoo = P.plan === 'leave_one_out'
+  const objMapId = isLoo ? objects.find(o => o.object === unit?.key)?.map_id : undefined
+  const [which, setWhich] = useState<'project' | 'unit'>('project')
+  const [map, setMap] = useState<MapRow | null>(null); const [busy, setBusy] = useState(false)
+  const sample = unit?.variants[Math.min(variant, (unit?.variants.length ?? 1) - 1)]
+  useEffect(() => {
+    let live = true; setBusy(true)
+    const go = async () => {
+      let row: Row<MapRow> | null = null
+      if (which === 'project' && contrastId) row = await call('neural_map_get', { map_id: contrastId })
+      else if (which === 'unit' && isLoo && objMapId) row = await call('neural_map_get', { map_id: objMapId })
+      else if (which === 'unit' && sample) row = await call('neural_map_create', { sample_id: sample.id })
+      if (live) { setMap(row?.data ?? null); setBusy(false) }
+    }
+    go().catch(() => live && setBusy(false)); return () => { live = false }
+  }, [which, contrastId, objMapId, sample?.id, isLoo])
+  const unitTitle = isLoo ? `Without ${unit?.label}` : sample?.data.label
+  const tc = course?.result?.data.regions.find((r: any) => r.region === region)
+  return <>
+    <div className="bar">
+      <div className="seg" role="group" aria-label="Which map">
+        <button className={which === 'project' ? 'on' : ''} onClick={() => setWhich('project')}>{isLoo ? 'Full room' : 'Whole project'}</button>
+        <button className={which === 'unit' ? 'on' : ''} onClick={() => setWhich('unit')}>{isLoo ? `Effect of ${unit?.label}` : `This sample: ${unitTitle}`}</button>
+      </div>
+      {busy && <span className="ink2"><span className="spin" /> Drawing the map</span>}
+    </div>
+    {map && <>
+      <div className="headline"><span className="mid">{map.title}</span><span className="legend">{map.kind === 'contrast' ? <>Lower <span className="ramp" /> Higher</> : <>Low <span className="ramp single" /> High</>}</span></div>
+      <div className="brains">{Object.entries(map.views).map(([v, url]) => <figure key={v}><img src={`/files/${url}`} alt={`${map.title}, ${VIEW_NAMES[v] ?? v}`} /><figcaption>{VIEW_NAMES[v] ?? v}</figcaption></figure>)}</div>
+      <div className="ink2">TRIBE v2 prediction for an average viewer, over the seconds the stimulus is on screen.</div>
+    </>}
+    {tc && <div className="card"><h3>Response by second, {region}</h3><TimeCourse a={tc.a} b={tc.b} labels={course!.analysis.data.labels} window={course!.analysis.data.window_s} /></div>}
+  </>
+}
+
+function DataView({ units, regions, onOpen }: { units: Unit[]; regions: string[]; onOpen: (i: number) => void }) {
+  const [sortBy, setSortBy] = useState<string | null>(null); const [dir, setDir] = useState(-1)
+  const rows = units.map((u, i) => ({ i, u, vals: Object.fromEntries(regions.map(r => [r, (u.variants[0].data.readout[r] ?? 0) - (u.variants[1]?.data.readout[r] ?? 0)])) }))
+  if (sortBy) rows.sort((a, b) => dir * (a.vals[sortBy] - b.vals[sortBy]))
+  const head = (r: string) => <th key={r} onClick={() => { setDir(sortBy === r ? -dir : -1); setSortBy(r) }} aria-sort={sortBy === r ? (dir < 0 ? 'descending' : 'ascending') : 'none'}>{r}{sortBy === r ? (dir < 0 ? ' ↓' : ' ↑') : ''}</th>
+  const csv = () => {
+    const lines = [['unit', 'compared', ...regions].join(','), ...rows.map(r => [JSON.stringify(r.u.label), JSON.stringify(r.u.labels.join(' minus ')), ...regions.map(x => r.vals[x].toFixed(5))].join(','))]
+    const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([lines.join('\n')], { type: 'text/csv' })); a.download = 'differences.csv'; a.click()
+  }
+  return <>
+    <div className="bar"><span className="ink2">Difference per unit and region, {units[0]?.labels[0]} minus {(units[0]?.labels[1] ?? 'the reference').toLowerCase()}. Click a column to sort, a row to open it.</span><button className="btn" style={{ marginLeft: 'auto' }} onClick={csv}>Download CSV</button></div>
+    <div className="tablewrap"><table className="data"><thead><tr><th>Unit</th><th>Compared</th>{regions.map(head)}</tr></thead>
+      <tbody>{rows.map(r => <tr key={r.u.key} onClick={() => onOpen(r.i)} style={{ cursor: 'pointer' }}><td>{r.u.label}</td><td className="ink2">{r.u.labels.join(' minus ')}</td>{regions.map(x => <td key={x}>{fmt(r.vals[x])}</td>)}</tr>)}</tbody></table></div>
+  </>
+}
+
+function Inspector({ P, pid, template, projects, paired, needed, objects, perObject, region, setRegion, unit, diff, samples, onFork, onOpenProject, template_analyses, analyses, onPickObject }: {
+  P: Project; pid: string; template?: Template; projects: Row<Project>[]; paired?: AnalysisItem; needed?: AnalysisItem; objects: any[]; perObject?: AnalysisItem
+  region: string; setRegion: (r: string) => void; unit?: Unit; diff: (u: Unit, r?: string) => number; units: Unit[]; samples: Row<Sample>[]
+  onFork: (control: string) => void; onOpenProject: (id: string) => void; template_analyses: string[]; analyses: AnalysisItem[]; onPickObject: (k: string) => void
+}) {
+  const regs: Region[] = paired?.result?.data.regions ?? []
+  const cur = regs.find(r => r.region === region)
+  const need = (needed?.result?.data.regions ?? []).find((r: any) => r.region === region)
+  const scale = Math.max(...regs.flatMap(r => r.interval_95.map(Math.abs)), 1e-6)
+  const siblings = projects.filter(p => p.data.template_id === P.template_id && p.id !== pid)
+  const obj = objects.find(o => o.object === unit?.key)
+  const bundle = () => {
+    const out = { project: P, results: { paired: paired?.result?.data, items_needed: needed?.result?.data, per_object: perObject?.result?.data },
+      stimuli: samples.map(s => ({ unit: s.data.unit, condition: s.data.condition, label: s.data.label, image: s.data.image, clip: s.data.clip })),
+      note: 'TRIBE v2 predictions for an average viewer. Screening, not measured brains.' }
+    const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([JSON.stringify(out, null, 1)], { type: 'application/json' })); a.download = `${pid}_handoff.json`; a.click()
+  }
+  const reported = analyses.flatMap(a => (a.result?.data.reported ?? []) as Reported[])
+  return <>
+    {P.status === 'Done' && <ReportedCard items={reported} />}
+    {P.status === 'Done' && cur && <div className="card">
+      <h3 title={region}>{regionLabel(region)}</h3>
+      <div className="big" style={{ color: 'var(--ink)' }}>{fmt(cur.value)}</div>
+      <div className="ink2 num">Interval {fmt(cur.interval_95[0])} to {fmt(cur.interval_95[1])}</div>
+      <div className="ink2 num">{cur.units_positive != null ? `${cur.units_positive} of ${cur.n} above zero` : Object.entries(cur.n as any).map(([c, n]) => `${n} ${c}`).join(', ') + ' trials'}</div>
+      {(cur as any).shuffled_labels_95 && <div className="ink2 num">Labels shuffled: {fmt((cur as any).shuffled_labels_95[0])} to {fmt((cur as any).shuffled_labels_95[1])}</div>}
+      {cur.area_rank_pct != null && <div className="ink2 num">Above {cur.area_rank_pct}% of the cortex's 360 areas</div>}
+      {cur.vjepa_random_map != null && <div className="ink2 num">Same contrast from the video features, no brain mapping: {fmt(cur.vjepa_random_map)}</div>}
+      {!reported.some(r => r.region === region) && <div className="muted" style={{ marginTop: 6 }}>No prediction recorded before the run</div>}
+    </div>}
+    {P.status === 'Done' && obj && <div className="card">
+      <h3>{obj.label}</h3>
+      <div className="big">{fmt(obj.regions[region])}</div>
+      <div className="ink2">Full room minus the room without it, {region}</div>
+      <div className="kv" style={{ marginTop: 10 }}><span className="k">Share of the frame</span><span className="num">{(obj.share_of_frame * 100).toFixed(1)}%</span>
+        <span className="k">Change across the cortex</span><span className="num">{obj.whole_cortex.toFixed(3)}</span></div>
+      {obj.description && <p className="ink2" style={{ marginBottom: 0 }}>{obj.description}</p>}
+      {perObject?.result?.data.size_correlation != null && <p className="muted" style={{ marginBottom: 0 }}>Across objects, change across the cortex and share of the frame correlate at r {perObject.result.data.size_correlation.toFixed(2)}.</p>}
+    </div>}
+    {P.status === 'Done' && <div className="card">
+      <h3>{!regs.length && unit ? `${unit.label} by region` : 'Regions'}</h3>
+      <div className="rows">{(regs.length ? regs : Object.keys(samples[0]?.data.readout ?? {}).map(r => ({ region: r }) as any)).map((r: any) =>
+        <button key={r.region} className={`rowbtn ${r.region === region ? 'on' : ''}`} onClick={() => setRegion(r.region)}>
+          <span title={r.region}>{regionLabel(r.region)}</span>
+          <span className="num" style={{ textAlign: 'right' }}>{fmt(r.value ?? (unit ? diff(unit, r.region) : null))}</span>
+          {r.interval_95 ? <MiniInterval value={r.value} interval={r.interval_95} scale={scale} /> : <span />}
+        </button>)}
+      </div>
+      <div className="muted" style={{ marginTop: 8 }}>Brain areas from two standard atlases, in TRIBE's own units</div>
+    </div>}
+    {P.status === 'Done' && paired?.result?.data.baselines && <div className="card">
+      <h3>Baselines</h3>
+      <div className="rows">{paired.result.data.baselines.map((b: any) => <div key={b.name} className="rowbtn" style={{ cursor: 'default' }}>
+        <span>{b.name}<span className="ink2" style={{ display: 'block', fontSize: 14 }}>{b.units}</span></span><span className="num" style={{ textAlign: 'right', gridColumn: '2 / 4' }}>{fmt(b.value)}<span className="ink2" style={{ display: 'block', fontSize: 14 }}>{fmt(b.interval_95[0])} to {fmt(b.interval_95[1])}</span></span></div>)}</div>
+      <div className="muted" style={{ marginTop: 8 }}>The same contrast on the whole cortex and on the clips themselves</div>
+    </div>}
+    {need && <div className="card"><h3>Hand off</h3>
+      <div className="kv"><span className="k">{(template?.unit_noun ?? 'unit')[0].toUpperCase() + (template?.unit_noun ?? 'unit').slice(1)}s needed, {region}</span><span className="mid">{need.pairs_needed ?? 'None'}</span></div>
+      <div className="muted" style={{ marginTop: 4 }}>For 80% power at this effect and spread, in TRIBE</div>
+      <ul className="list" style={{ marginTop: 8 }}>{template?.handoff.map(h => <li key={h}><span>{h}</span></li>)}</ul>
+      <button className="btn" style={{ marginTop: 8 }} onClick={bundle}>Download bundle</button>
+    </div>}
+    {!need && P.status === 'Done' && <div className="card"><h3>Hand off</h3><ul className="list">{template?.handoff.map(h => <li key={h}><span>{h}</span></li>)}</ul><button className="btn" style={{ marginTop: 8 }} onClick={bundle}>Download bundle</button></div>}
+    {(P as any).scene && <SceneCard scene={(P as any).scene} selected={unit?.key} onPick={onPickObject} />}
+    {!template && P.status !== 'Done' && <div className="card"><h3>Results</h3><div className="ink2">After the run: TRIBE beside the paper's result, with baselines.</div></div>}
+    {template && <>
+    <div className="card"><h3>Analyses</h3>
+      <ul className="list">{template_analyses.map(k => { const a = analyses.find(x => x.analysis.data.kind === k); return <li key={k}><span>{a?.analysis.data.title ?? ANALYSIS_NAMES[k] ?? k}</span><span className="ink2">{a?.result ? (a.stale ? 'Out of date' : 'Done') : 'Not run'}</span></li> })}</ul>
+    </div>
+    <div className="card"><h3>Challenge</h3>
+      <ul className="list">{template?.controls.map(c => <li key={c}><span>{c}</span><button className="btn" onClick={() => onFork(c)}>Fork</button></li>)}</ul>
+      {siblings.length > 0 && <><div className="ink2" style={{ margin: '10px 0 4px' }}>Same template</div><ul className="list">{siblings.map(s => <li key={s.id}><button className="tab" style={{ padding: 0, textAlign: 'left' }} onClick={() => onOpenProject(s.id)}>{s.data.title}</button><span className="chip">{s.data.status}</span></li>)}</ul></>}
+    </div>
+    <div className="card"><h3>Parameters</h3>
+      <ul className="list">{P.parameters.map(p => <li key={p.name}><span><span>{p.name.replace(/_/g, ' ')}</span><div className="ink2" style={{ fontSize: 14 }}>{ROLE_NAMES[p.role] ?? p.role}</div></span><span className="num" style={{ textAlign: 'right' }}>{String(p.value)}{p.unit ? ` ${p.unit}` : ''}</span></li>)}</ul>
     </div></>}
-    {fresh && <NewProject onClose={() => setFresh(false)}
-      onOpenDataset={d => { setFresh(false); setLoc({ d, stages: [], shown: [], sel: null, view: 'data' }) }}
-      onStart={(goal, d) => { setFresh(false); setLoc({ d, stages: [], shown: [], sel: null, view: 'data' }); setTab('agent'); setQueued(goal) }} />}
-    <footer className="prov">{loc.view === 'runs' ? <span className="ink3">Runs are defined in backend/runs/ and run by the server; their state and logs are in backend/data/runs/</span> : ds ? <>
-      <span>{ds.source.about}</span><span className="ink3">Loaded {ds.loaded_at.slice(0, 16)} by the {ds.source.loader} loader from {ds.source.source_file}</span></> : null}</footer>
+  </>
+}
+
+function TemplateSheet({ examples, onOpenProject, onGoal, onChat, templates, demos, writeErr, onWrite, onClose, onCreate, onPlay }: { examples: Example[]; onOpenProject: (id: string) => void; onGoal: (goal: string) => void; onChat: () => void; templates: Template[]; demos: DemoInfo[]; writeErr: Record<string, string>; onWrite: (id: string) => void; onClose: () => void; onCreate: (t: Template, title: string, b: Record<string, string>) => void; onPlay: (id: string) => void }) {
+  const [pick, setPick] = useState<Template | null>(null); const [vals, setVals] = useState<Record<string, string>>({}); const [title, setTitle] = useState('')
+  const blanks = pick ? [...new Set([...pick.question.matchAll(/\{(\w+)\}/g)].map(m => m[1]))] : []
+  return <div className="overlay" onClick={onClose}>
+    <div className="sheet" onClick={e => e.stopPropagation()} role="dialog" aria-label="New project">
+      <div className="bar"><h2>New project</h2><button className="btn" style={{ marginLeft: 'auto' }} onClick={onClose}>Close</button></div>
+      {!pick ? <>
+        <div className="bar" style={{ alignItems: 'flex-end' }}>
+          <div style={{ flex: 1 }}><h2 className="q" style={{ fontSize: 30 }}>Examples</h2><p className="ink2" style={{ margin: '6px 0 0' }}>Classic experiments, set up and ready to run or change. Brain responses are predicted by TRIBE v2, Meta's model of the human brain.</p></div>
+          <button className="btn primary" onClick={onChat}>New chat</button>
+        </div>
+        <div className="excards">{examples.map(e => <article key={e.id} className="excard">
+          <div className="pics">{e.media.map(src => src.endsWith('.mp4') ? <video key={src} src={src} autoPlay muted loop playsInline preload="metadata" aria-label={`${e.title}, the stimulus`} /> : <img key={src} src={src} alt="" />)}</div>
+          <div className="exbody">
+            <h3>{e.title}</h3>
+            <div>{e.what}</div>
+            <div className="ink2">{e.doi ? <a href={`https://doi.org/${e.doi}`} target="_blank" rel="noreferrer">{e.source}</a> : e.source}</div>
+            <div className="here"><span>{e.here}</span>{e.project_id ? <button className="btn primary" onClick={() => onOpenProject(e.project_id!)}>Open</button> : <button className="btn" onClick={() => onGoal(e.goal)}>Start with the agent</button>}</div>
+          </div>
+        </article>)}</div>
+        <h2 style={{ marginTop: 28 }}>Templates</h2>
+        <p className="ink2">Start from a template. Every template runs the same six steps: build a world, choose what varies, run, compare, challenge, hand off.</p>
+        <div className="cards">{templates.map(t => <div key={t.id} className="tcard">
+          <h3>{t.title}</h3>
+          <div className="qq">{t.question.replace(/\{(\w+)\}/g, '…')}</div>
+          <div className="ink2">{t.blurb}</div>
+          <div className="bar"><span className="chip">{PLAN_NAMES[t.plan]}</span><span className="ink2 num">{t.projects} {t.projects === 1 ? 'project' : 'projects'}</span></div>
+          <button className="btn primary" style={{ marginTop: 'auto' }} onClick={() => { setPick(t); setTitle(''); setVals({}) }}>Use template</button>
+        </div>)}</div>
+        <h2 style={{ marginTop: 28 }}>Paper demos</h2>
+        <p className="ink2">The agent reads a paper, writes its steps with the templates above, and replays it in the paper's order. Every render and reading is real.</p>
+        <div className="cards">{demos.map(d => <div key={d.id} className="tcard">
+          <h3>{d.title ?? d.paper}</h3><a className="ink2" href={d.url} target="_blank" rel="noreferrer">{d.paper}</a>
+          {d.written ? <ol className="ministeps">{d.steps.map((s, i) => <li key={i}>{s.title}</li>)}</ol> : <span className="ink2">{d.writing ? <><span className="spin" /> The agent is reading the paper and writing the steps</> : 'Not written yet'}</span>}
+          {writeErr[d.id] && <span className="chip flag">{writeErr[d.id]}</span>}
+          <div className="bar"><span className="chip">{templates.find(t => t.id === d.template)?.title}</span>{d.written && <span className="ink2">Written by the agent</span>}</div>
+          <div className="bar" style={{ marginTop: 'auto' }}>
+            {d.written && !d.missing_projects?.length && <button className="btn primary" onClick={() => onPlay(d.id)}>Play</button>}
+            {d.missing_projects?.length ? <span className="chip flag">Its study was deleted</span> : null}
+            <button className={d.written && !d.missing_projects?.length ? 'btn' : 'btn primary'} disabled={d.writing} onClick={() => onWrite(d.id)}>{d.written ? 'Write again' : 'Write with the agent'}</button>
+          </div>
+        </div>)}</div>
+      </> : <div style={{ maxWidth: 620, display: 'flex', flexDirection: 'column', gap: 14, marginTop: 14 }}>
+        <div className="mid">{pick.title}</div>
+        <div className="q" style={{ fontSize: 22 }}>{pick.question.replace(/\{(\w+)\}/g, (_, k) => vals[k] || '…')}</div>
+        <label className="field"><span>Project name</span><input value={title} onChange={e => setTitle(e.target.value)} /></label>
+        {blanks.map(b => <label key={b} className="field"><span>{b === 'a' ? 'First condition' : b === 'b' ? 'Second condition' : b.replace(/_/g, ' ').replace(/^./, c => c.toUpperCase())}</span><input value={vals[b] ?? ''} onChange={e => setVals(v => ({ ...v, [b]: e.target.value }))} /></label>)}
+        <div className="bar"><button className="btn" onClick={() => setPick(null)}>Back</button><button className="btn primary" disabled={!title.trim() || blanks.some(b => !vals[b]?.trim())} onClick={() => onCreate(pick, title.trim(), vals)}>Create project</button></div>
+      </div>}
+    </div>
+  </div>
+}
+
+function SceneCard({ scene, selected, onPick }: { scene: { room: string; objects: { path: string; label: string; collection: string; placed_on: string; tested: boolean }[] }; selected?: string; onPick: (k: string) => void }) {
+  const [q, setQ] = useState('')
+  const groups = new Map<string, typeof scene.objects>()
+  scene.objects.filter(o => !q || o.label.toLowerCase().includes(q.toLowerCase())).forEach(o => groups.set(o.collection, [...(groups.get(o.collection) ?? []), o]))
+  return <div className="card"><h3>Objects in the {scene.room} <span className="ink2 num">{scene.objects.length}</span></h3>
+    <input className="search" aria-label="Search objects" placeholder={`Search ${scene.objects.length} objects`} value={q} onChange={e => setQ(e.target.value)} />
+    <div style={{ maxHeight: 300, overflow: 'auto', marginTop: 8 }}>{[...groups.entries()].map(([g, os]) => <div key={g}>
+      <div className="ink2" style={{ margin: '8px 0 2px' }}>{g} <span className="num">{os.length}</span></div>
+      <ul className="list">{os.map(o => <li key={o.path}>{o.tested ? <button className={`tab ${o.path === selected ? 'on' : ''}`} style={{ padding: '2px 6px', textAlign: 'left' }} onClick={() => onPick(o.path)}>{o.label}</button> : <span>{o.label}</span>}
+        <span className="ink2">{o.tested ? 'Tested' : `On ${o.placed_on || 'floor'}`}</span></li>)}</ul></div>)}</div>
   </div>
 }

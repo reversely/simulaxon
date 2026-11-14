@@ -1,0 +1,208 @@
+{
+ "id": "khosla_2022",
+ "paper": "Khosla, Ratan Murty and Kanwisher 2022, Current Biology",
+ "url": "https://cbmm.mit.edu/publications/highly-selective-response-food-human-visual-cortex-revealed-hypothesis-free-voxel",
+ "template": "check_contrast",
+ "title": "Replaying the food response in visual cortex",
+ "steps": [
+  {
+   "title": "Brain responses to photographs",
+   "flow": "build",
+   "paper": "The authors recorded fMRI responses while people viewed a large set of complex photographs.",
+   "here": "The app has no scanner. Isaac renders paired scenes and TRIBE predicts the brain's response to each one.",
+   "show": {
+    "project": "$p:food_vs_shape",
+    "view": "samples"
+   },
+   "dwell_s": 8
+  },
+  {
+   "title": "Decomposing without a hypothesis",
+   "flow": "build",
+   "paper": "They split the voxel responses into their main components using a data-driven method that started from no hypothesis.",
+   "here": "The app does not run that decomposition. It reads named brain regions instead, so it can only test a category someone has already chosen.",
+   "show": {
+    "project": "$p:food_vs_shape",
+    "view": "brain",
+    "region": "Fusiform gyrus"
+   },
+   "dwell_s": 9
+  },
+  {
+   "title": "Known categories come back",
+   "flow": "compare",
+   "paper": "The method recovered components already known to respond to faces, places, bodies and words, which served as a check on it.",
+   "here": "The app checks its own pipeline the same way, with a finished study comparing faces against vases of the same size.",
+   "show": {
+    "project": "$p:faces_vs_vases",
+    "view": "brain",
+    "region": "Fusiform gyrus"
+   },
+   "read": {
+    "project": "$p:faces_vs_vases",
+    "kind": "paired",
+    "region": "Fusiform gyrus"
+   },
+   "dwell_s": 9
+  },
+  {
+   "title": "A food component appears",
+   "flow": "compare",
+   "paper": "They found an unexpected component that responded selectively to images of food and had its own anatomical layout.",
+   "here": "The app reads one ventral region for food against objects of the same shape. Food was chosen in advance here, not discovered.",
+   "show": {
+    "project": "$p:food_vs_shape",
+    "view": "brain",
+    "region": "Fusiform gyrus"
+   },
+   "read": {
+    "project": "$p:food_vs_shape",
+    "kind": "paired",
+    "region": "Fusiform gyrus"
+   },
+   "dwell_s": 10
+  },
+  {
+   "title": "Could colour explain it?",
+   "flow": "vary",
+   "paper": "They tested whether low- and mid-level features such as colour, shape and texture could account for the food component's responses.",
+   "here": "This step previews the colour-matched study in greyscale, so Isaac re-renders it and TRIBE reads it again. It is only a preview and the finished study is not re-run.",
+   "show": {
+    "project": "$p:food_vs_colour",
+    "view": "room",
+    "region": "Fusiform gyrus"
+   },
+   "read": {
+    "project": "$p:food_vs_colour",
+    "kind": "paired",
+    "region": "Fusiform gyrus"
+   },
+   "actions": [
+    {
+     "tool": "parameter_set",
+     "args": {
+      "project_id": "$p:food_vs_colour",
+      "name": "colour",
+      "value": "greyscale"
+     }
+    }
+   ],
+   "wait": "preview",
+   "dwell_s": 10
+  },
+  {
+   "title": "Matched-stimulus control run",
+   "flow": "run",
+   "paper": "They ran high-throughput tests and control experiments with matched stimuli, using a computational model of the component.",
+   "here": "This step copies the colour-matched study, switches it to greyscale and runs a few pairs. TRIBE plays the part of the computational model.",
+   "show": {
+    "project": "$made:grey_food",
+    "view": "data",
+    "region": "Fusiform gyrus"
+   },
+   "read": {
+    "project": "$made:grey_food",
+    "kind": "paired",
+    "region": "Fusiform gyrus"
+   },
+   "actions": [
+    {
+     "tool": "project_create",
+     "args": {
+      "template_id": "check_contrast",
+      "title": "Food against colour-matched objects, greyscale",
+      "bindings": {
+       "a": "food",
+       "b": "an object of the same colour",
+       "region": "the ventral visual regions",
+       "match_on": "colour"
+      },
+      "from_project_id": "$p:food_vs_colour"
+     },
+     "as": "grey_food"
+    },
+    {
+     "tool": "parameter_set",
+     "args": {
+      "project_id": "$made:grey_food",
+      "name": "colour",
+      "value": "greyscale"
+     }
+    },
+    {
+     "tool": "project_update",
+     "args": {
+      "project_id": "$made:grey_food",
+      "pairs": "$pairs_first:$p:food_vs_colour:8"
+     }
+    },
+    {
+     "tool": "project_run",
+     "args": {
+      "project_id": "$made:grey_food"
+     }
+    }
+   ],
+   "wait": "run",
+   "dwell_s": 12
+  },
+  {
+   "title": "Registered, then replicated",
+   "flow": "challenge",
+   "paper": "They registered their methods and hypotheses before testing, then repeated the findings in held-out participants and in a new dataset.",
+   "here": "The app has no new people or new datasets. As a weaker stand-in, it re-runs the shape-matched pairs from a camera angle the study never used.",
+   "show": {
+    "project": "$made:new_view",
+    "view": "data",
+    "region": "Fusiform gyrus"
+   },
+   "read": {
+    "project": "$made:new_view",
+    "kind": "paired",
+    "region": "Fusiform gyrus"
+   },
+   "actions": [
+    {
+     "tool": "project_create",
+     "args": {
+      "template_id": "check_contrast",
+      "title": "Food against shape-matched objects, new camera",
+      "bindings": {
+       "a": "food",
+       "b": "an object of the same shape",
+       "region": "the ventral visual regions",
+       "match_on": "shape"
+      },
+      "from_project_id": "$p:food_vs_shape"
+     },
+     "as": "new_view"
+    },
+    {
+     "tool": "parameter_set",
+     "args": {
+      "project_id": "$made:new_view",
+      "name": "yaw_deg",
+      "value": -40
+     }
+    },
+    {
+     "tool": "project_update",
+     "args": {
+      "project_id": "$made:new_view",
+      "pairs": "$pairs_first:$p:food_vs_shape:8"
+     }
+    },
+    {
+     "tool": "project_run",
+     "args": {
+      "project_id": "$made:new_view"
+     }
+    }
+   ],
+   "wait": "run",
+   "dwell_s": 11
+  }
+ ],
+ "written_by": "agent",
+ "attempts": 1
+}

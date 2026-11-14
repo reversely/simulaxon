@@ -1,41 +1,47 @@
-// The data API (backend/vcl/data/server.py). The interface is a function of what these return: nothing here names a
-// dataset, a field or an experiment.
+export type Row<T = any> = { kind: string; id: string; version: number; data: T; step_id: string }
 
-export type Unit = string | Record<string, string> | null | undefined
-export type Field = { path: string; type: string; types: string[]; count: number; unit?: Unit; description?: string | null }
-export type Stage = Record<string, any> & { stage: string }
-export type TrailStep = { stage: string; text: string; count: number; note?: string }
-export type Facet = { count: number; missing: number; kind: string; min?: number; max?: number; edges?: number[]; hist?: number[]; values?: [string, number][]; distinct?: number }
-export type Sample = { id: string; group: string | null; slice: string | null; media: string | null; media_type: string | null; fields: Record<string, any>; computed_sources?: Record<string, string> }
-export type Dataset = { name: string; source: Record<string, any>; loaded_at: string; samples: number }
-export type ViewResult = { count: number; trail: TrailStep[]; schema: Field[]; facets: Record<string, Facet>; samples: Sample[] }
-export type SampleFull = Sample & { sources: Record<string, string>; group_members: { id: string; slice: string | null; media: string | null; media_type: string | null; fields?: Record<string, any> }[] }
-export type Track = { time_s: number[]; columns: string[]; values: number[][]; summary: string | null; band: boolean; caption?: string; unit?: Unit; source: string }
-
-const j = async (r: Response) => { if (!r.ok) throw new Error((await r.json().catch(() => ({}))).detail || r.statusText); return r.json() }
-const ds = (n: string) => `/api/datasets/${encodeURIComponent(n)}`
-
-export const api = {
-  datasets: (): Promise<Dataset[]> => fetch('/api/datasets').then(j),
-  view: (name: string, stages: Stage[], offset = 0, limit = 120): Promise<ViewResult> =>
-    fetch(`${ds(name)}/view`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ stages, offset, limit }) }).then(j),
-  sample: (name: string, id: string): Promise<SampleFull> => fetch(`${ds(name)}/samples/${encodeURIComponent(id)}`).then(j),
-  track: (name: string, id: string, path: string): Promise<Track> => fetch(`${ds(name)}/samples/${encodeURIComponent(id)}/track?path=${encodeURIComponent(path)}`).then(j),
+export async function call<T = any>(tool: string, args: Record<string, unknown> = {}, actor = 'person'): Promise<T> {
+  const r = await fetch(`/tools/${tool}`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Actor': actor }, body: JSON.stringify(args) })
+  const j = await r.json()
+  if (!r.ok) throw new Error(typeof j.detail === 'string' ? j.detail : JSON.stringify(j.detail))
+  return j.result as T
 }
 
-/** A unit as text: one unit, or for a track whose columns differ, the unit of one column. */
-export const unitOf = (u: Unit, column?: string): string => !u ? '' : typeof u === 'string' ? u : column ? u[column] ?? '' : ''
-export const unitLabel = (u: Unit): string => !u ? '' : typeof u === 'string' ? u : 'units per column'
-
-export const mediaUrl = (p: string) => '/media/' + p.split('/').map(encodeURIComponent).join('/')
-
-export function fmt(v: any): string {
-  if (v === null || v === undefined) return 'missing'
-  if (typeof v === 'number') return Number.isInteger(v) ? String(v) :   // no digit grouping: whole numbers are often ids
-    Math.abs(v) >= 1e6 ? v.toExponential(3) : Math.abs(v) >= 1000 ? v.toFixed(1) : v.toPrecision(4).replace(/(\.\d*?)0+$/, '$1').replace(/\.$/, '')
-  if (typeof v === 'boolean') return v ? 'true' : 'false'
-  if (Array.isArray(v)) return '[' + v.map(fmt).join(', ') + ']'
-  if (typeof v === 'object' && v._kind === 'track') return `track, ${v.shape.join(' × ')}${v.rate_hz ? `, ${v.rate_hz} Hz` : ''}`
-  if (typeof v === 'object') return JSON.stringify(v)
-  return String(v)
+export type Region = { region: string; value: number; interval_95: [number, number]; n: number; units_positive: number; per_unit: number[]; pairs_needed: number | null; area_rank_pct?: number | null; vjepa_random_map?: number | null }
+export type Project = {
+  title: string; question: string; template_id: string; bindings: Record<string, unknown>; plan: string; status: string
+  parameters: { name: string; type: string; role: string; value: unknown; unit?: string }[]
+  provenance: string[]; note: string; counts?: Record<string, number>; hero?: string; forked_from?: string | null
 }
+export type Sample = { project_id: string; index: number; unit: string; condition: string; label: string; image: string | null; clip: string | null; readout: Record<string, number> }
+export type Template = {
+  id: string; title: string; question: string; blurb: string; plan: string; projects: number; unit_noun: string; stimulus: 'still' | 'motion' | 'video'
+  parameters: Project['parameters']; analyses: string[]; controls: string[]; handoff: string[]
+  walkthrough: { flow: string; flow_name: string; text: string }[]
+  cells?: { id: string; label: string; values: Record<string, string> }[]   // factorial templates: every unit in every cell
+}
+export type AnalysisItem = { analysis: Row; result: Row | null; stale: boolean }
+export type MapRow = { title: string; kind: string; views: Record<string, string>; vmax: number }
+
+/** A brain area's standard full name, so no code reaches a reader without one: HCP-MMP1 codes as TRIBE reports them, an
+ * L_ or R_ prefix as left or right; names that are already words pass through. */
+const AREA_NAMES: Record<string, string> = {
+  V1: 'Primary visual cortex', V2: 'Visual area 2', V3: 'Visual area 3', V4: 'Visual area 4', V3A: 'Visual area 3A', V6: 'Visual area 6',
+  MT: 'Middle temporal motion area', MST: 'Medial superior temporal area', FFC: 'Fusiform face area', VVC: 'Ventral visual complex',
+  PHA1: 'Parahippocampal area 1', PHA2: 'Parahippocampal area 2', PHA3: 'Parahippocampal area 3', 'Place area': 'Parahippocampal place area',
+  LO1: 'Lateral occipital area 1', LO2: 'Lateral occipital area 2', LO3: 'Lateral occipital area 3', AIP: 'Anterior intraparietal area',
+  STV: 'Superior temporal visual area', TPOJ1: 'Temporal, parietal and occipital junction 1', A1: 'Primary auditory cortex', '4': 'Primary motor cortex',
+}
+export const regionLabel = (r: string): string => {
+  if (AREA_NAMES[r]) return AREA_NAMES[r]
+  const m = r.match(/^([LR])_(.+)$/)
+  if (m && AREA_NAMES[m[2]]) return `${m[1] === 'L' ? 'Left' : 'Right'} ${AREA_NAMES[m[2]].replace(/^./, c => c.toLowerCase())}`
+  return r
+}
+/** A region's plain name inside a sentence: the full name in lower case, or the word itself. */
+export const regionInText = (r: string) => { const l = regionLabel(r); return l === r ? inText(r) : l.replace(/^./, c => c.toLowerCase()) }
+/** A region's name inside a sentence: words in lower case, atlas codes such as FFC or V1 kept as they are. */
+export const inText = (r: string) => /^[LR]?_?[A-Z0-9][A-Za-z0-9_-]*$/.test(r) && /[A-Z]{2}|\d/.test(r) ? r : r.toLowerCase()
+export const fmt = (v: number | null | undefined, d = 3) => v == null || Number.isNaN(v) ? 'None' : (v > 0 ? '+' : v < 0 ? '−' : '') + Math.abs(v).toFixed(d)
+export const PLAN_NAMES: Record<string, string> = { matched: 'Matched pairs', leave_one_out: 'Leave one out', adaptive: 'Adaptive search', selection: 'Selection', grid: 'Grid', random: 'Random', factorial: 'Two by two', experiment: 'Experiment' }
+export const ROLE_NAMES: Record<string, string> = { manipulated: 'Manipulated', matched: 'Matched', fixed: 'Fixed', randomized: 'Randomized', measured: 'Measured', split: 'Split' }

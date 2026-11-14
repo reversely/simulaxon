@@ -91,17 +91,19 @@ services:
       cpu:
         cores: 4
       memory:
-        size: 4GiB
+        size: 8GiB   # the lab server loads pandas, SciPy and nilearn beside DuckDB
     mounts:
       /data:
         volume: data
     env:
       - SIMULAXON_DATA=/data
+      - SIMULAXON_HOME=/data   # backend/data (files, fetched datasets, chats) and feasibility/ (runs, indexes) under it
       - SIMULAXON_UI=/data/app/dist
       - HOME=/tmp
       - PLANNER_URL=http://planner:8000/v1
       - PLANNER_MODEL=nvidia/nemotron-3-super
       - FUZZBALL=/data/bin/fuzzball
+      - GRAFANA_URL=http://localhost:13000   # where the app's Dashboard link goes: Grafana through sh fuzzball/grafana.sh
     script: |
       #!/bin/sh
       set -e
@@ -116,7 +118,9 @@ services:
       PY
       pip install --no-cache-dir -q -r /data/src/simulaxon/services/app-server/requirements.txt
       cd /data/src/simulaxon/services/app-server
-      exec python -m app_server.server --host 0.0.0.0 --port 8791
+      # The lab server (app_server/lab/serve.py): the tools, the event stream, the UI, and the cluster dashboard at /dashboard.
+      # Its agent runs on the planner (lab/planner_agent.py), since the cluster has no Claude Code.
+      exec python -m app_server.lab.serve --host 0.0.0.0 --port 8791 --db /data/log/lab.duckdb
     network:
       ports:
         - name: web
@@ -129,8 +133,8 @@ services:
           scope: group
     readiness-probe:
       http-get:
-        path: /api/datasets
+        path: /tools
         port: 8791
-      initial-delay-seconds: 20
+      initial-delay-seconds: 30
       period-seconds: 10
-      failure-threshold: 30
+      failure-threshold: 60   # the first start installs about 300 MB of packages

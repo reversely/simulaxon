@@ -1,0 +1,148 @@
+{
+ "id": "pramod_2022",
+ "title": "Physical stability in the dorsal stream",
+ "template": "possible_impossible",
+ "paper": "Pramod, Cohen, Tenenbaum and Kanwisher 2022, eLife",
+ "url": "https://elifesciences.org/articles/71736",
+ "steps": [
+  {
+   "title": "Define the regions first",
+   "flow": "build",
+   "paper": "A physics localizer, predicting where a block tower falls against judging its colours, defined frontoparietal regions in each person before the test.",
+   "here": "TRIBE has no task, so the regions are anatomical: the intraparietal sulcus and superior parietal gyrus.",
+   "show": {
+    "project": "$p:falls",
+    "view": "brain",
+    "region": "Intraparietal sulcus"
+   },
+   "dwell_s": 9
+  },
+  {
+   "title": "Unstable against stable",
+   "flow": "compare",
+   "paper": "Frontoparietal regions responded more to unstable scenes than to stable ones.",
+   "here": "The same fall, ending on the counter or stopping in mid-air with nothing holding it.",
+   "show": {
+    "project": "$p:falls",
+    "view": "room",
+    "region": "Intraparietal sulcus",
+    "unit": 0
+   },
+   "read": {
+    "project": "$p:falls",
+    "kind": "paired",
+    "region": "Intraparietal sulcus"
+   },
+   "dwell_s": 10
+  },
+  {
+   "title": "The ventral pathway",
+   "flow": "compare",
+   "paper": "The ventral visual pathway held no stability information that generalised across scenarios.",
+   "here": "The same contrast read in the fusiform gyrus.",
+   "show": {
+    "project": "$p:falls",
+    "view": "room",
+    "region": "Fusiform gyrus"
+   },
+   "read": {
+    "project": "$p:falls",
+    "kind": "paired",
+    "region": "Fusiform gyrus"
+   },
+   "dwell_s": 9
+  },
+  {
+   "title": "Change the outcome live",
+   "flow": "vary",
+   "paper": "Stability is the only thing that differs between conditions.",
+   "here": "The agent sets the outcome control; Isaac renders the fall and TRIBE reads it.",
+   "show": {
+    "project": "$p:falls",
+    "view": "room",
+    "region": "Intraparietal sulcus"
+   },
+   "actions": [
+    {
+     "tool": "parameter_set",
+     "args": {
+      "project_id": "$p:falls",
+      "name": "outcome",
+      "value": "$option:0"
+     }
+    }
+   ],
+   "wait": "preview",
+   "dwell_s": 5
+  },
+  {
+   "title": "Match the motion",
+   "flow": "challenge",
+   "paper": "Low-level differences were tested across scenarios and against image-trained networks.",
+   "here": "The landing clip keeps bouncing while the hover is still. The control hovers with the same bounces, so only support differs.",
+   "actions": [
+    {
+     "tool": "project_create",
+     "as": "motion",
+     "args": {
+      "template_id": "possible_impossible",
+      "title": "Falling objects that bounce on air",
+      "bindings": {
+       "region": "visual cortex",
+       "event": "a falling object bounces on air",
+       "a": "bounces on air",
+       "b": "lands",
+       "n_items": 8,
+       "drop_m": 0.4,
+       "gap_m": 0.08,
+       "restitution": 0.35,
+       "control": "Matched motion"
+      },
+      "from_project_id": "$p:falls"
+     }
+    },
+    {
+     "tool": "project_update",
+     "args": {
+      "project_id": "$made:motion",
+      "labels": [
+       "Bounces on air",
+       "Lands"
+      ],
+      "pairs": "$swap_outcome:$p:falls:hovers:hovers_bouncing"
+     }
+    },
+    {
+     "tool": "project_run",
+     "args": {
+      "project_id": "$made:motion"
+     }
+    }
+   ],
+   "show": {
+    "project": "$made:motion",
+    "view": "room",
+    "region": "Intraparietal sulcus"
+   },
+   "wait": "run",
+   "read": {
+    "project": "$made:motion",
+    "kind": "paired",
+    "region": "Intraparietal sulcus"
+   },
+   "dwell_s": 10
+  },
+  {
+   "title": "Across items",
+   "flow": "handoff",
+   "paper": "The stability signal generalised across scenario types.",
+   "here": "Each item is one scenario. The table sorts items by the effect in the intraparietal sulcus.",
+   "show": {
+    "project": "$made:motion",
+    "view": "data",
+    "region": "Intraparietal sulcus"
+   },
+   "dwell_s": 10
+  }
+ ]
+}

@@ -1,0 +1,168 @@
+{
+ "id": "khosla_2022",
+ "title": "Food in the ventral visual stream",
+ "template": "check_contrast",
+ "paper": "Khosla, Ratan Murty and Kanwisher 2022, Current Biology",
+ "url": "https://cbmm.mit.edu/publications/highly-selective-response-food-human-visual-cortex-revealed-hypothesis-free-voxel",
+ "steps": [
+  {
+   "title": "Known categories first",
+   "flow": "build",
+   "paper": "Before reporting food, the decomposition of responses in the Natural Scenes Dataset had to recover the known components for faces, places, bodies and words.",
+   "here": "A known effect on this pipeline: busts against vases of the same height.",
+   "show": {
+    "project": "$p:faces_vs_vases",
+    "view": "brain",
+    "region": "Fusiform gyrus"
+   },
+   "read": {
+    "project": "$p:faces_vs_vases",
+    "kind": "paired",
+    "region": "Fusiform gyrus"
+   },
+   "dwell_s": 9
+  },
+  {
+   "title": "Food against matched objects",
+   "flow": "compare",
+   "paper": "The food component responded more to images of food than to other objects.",
+   "here": "Twenty foods against objects of the same colour, each on the same counter, framed to the same size.",
+   "show": {
+    "project": "$p:food_vs_colour",
+    "view": "room",
+    "region": "Fusiform gyrus",
+    "unit": 0
+   },
+   "read": {
+    "project": "$p:food_vs_colour",
+    "kind": "paired",
+    "region": "Fusiform gyrus"
+   },
+   "dwell_s": 9
+  },
+  {
+   "title": "Swap the item, watch the brain",
+   "flow": "vary",
+   "paper": "Each image is one condition; the response is read per image.",
+   "here": "The agent changes the item control. Isaac renders it and TRIBE reads it, beside the world.",
+   "show": {
+    "project": "$p:food_vs_colour",
+    "view": "room",
+    "region": "Fusiform gyrus"
+   },
+   "actions": [
+    {
+     "tool": "parameter_set",
+     "args": {
+      "project_id": "$p:food_vs_colour",
+      "name": "item",
+      "value": "$option:1"
+     }
+    }
+   ],
+   "wait": "preview",
+   "dwell_s": 5
+  },
+  {
+   "title": "Shape as the alternative",
+   "flow": "challenge",
+   "paper": "Colour, shape and texture were tested as alternative explanations and did not account for the food response.",
+   "here": "The same foods against objects of the same shape.",
+   "show": {
+    "project": "$p:food_vs_shape",
+    "view": "findings",
+    "region": "Fusiform gyrus"
+   },
+   "read": {
+    "project": "$p:food_vs_shape",
+    "kind": "paired",
+    "region": "Fusiform gyrus"
+   },
+   "dwell_s": 10
+  },
+  {
+   "title": "Greyscale",
+   "flow": "challenge",
+   "paper": "The food response held when the images were shown in greyscale.",
+   "here": "The colour-matched set again, rendered with the colour control set to greyscale.",
+   "actions": [
+    {
+     "tool": "project_create",
+     "as": "grey",
+     "args": {
+      "template_id": "check_contrast",
+      "title": "Food against colour-matched objects, greyscale",
+      "bindings": {
+       "a": "food",
+       "b": "an object of the same colour",
+       "region": "the ventral visual regions",
+       "match_on": "colour",
+       "control": "Greyscale"
+      },
+      "from_project_id": "$p:food_vs_colour"
+     }
+    },
+    {
+     "tool": "parameter_set",
+     "args": {
+      "project_id": "$made:grey",
+      "name": "colour",
+      "value": "greyscale"
+     }
+    },
+    {
+     "tool": "project_run",
+     "args": {
+      "project_id": "$made:grey"
+     }
+    }
+   ],
+   "show": {
+    "project": "$made:grey",
+    "view": "room",
+    "region": "Fusiform gyrus"
+   },
+   "wait": "run",
+   "read": {
+    "project": "$made:grey",
+    "kind": "paired",
+    "region": "Fusiform gyrus"
+   },
+   "dwell_s": 9
+  },
+  {
+   "title": "The item without its scene",
+   "flow": "challenge",
+   "paper": "The images were natural photographs, so every food was seen in its own scene.",
+   "here": "The agent sets the Focus control to the item only; the counter and board become grey, and TRIBE reads the item alone.",
+   "show": {
+    "project": "$p:food_vs_colour",
+    "view": "room"
+   },
+   "actions": [
+    {
+     "tool": "parameter_set",
+     "args": {
+      "project_id": "$p:food_vs_colour",
+      "name": "focus",
+      "value": "item_only"
+     }
+    }
+   ],
+   "wait": "preview",
+   "dwell_s": 8
+  },
+  {
+   "title": "Weigh the evidence",
+   "flow": "handoff",
+   "paper": "The conclusion rests on the effect surviving every control.",
+   "here": "Every run from this template side by side, as a share of this project's effect.",
+   "show": {
+    "project": "$made:grey",
+    "view": "findings",
+    "region": "Fusiform gyrus"
+   },
+   "dwell_s": 12
+  }
+ ]
+}

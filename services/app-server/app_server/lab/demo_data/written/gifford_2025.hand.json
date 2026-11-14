@@ -1,0 +1,135 @@
+{
+ "id": "gifford_2025",
+ "title": "Driving two regions together or apart",
+ "template": "select_stimuli",
+ "paper": "Gifford, Jastrzębowska, Singer and Cichy 2025, Nature Human Behaviour",
+ "url": "https://doi.org/10.1038/s41562-025-02252-z",
+ "steps": [
+  {
+   "title": "Screen in the model",
+   "flow": "run",
+   "paper": "Encoding models predicted responses of two visual areas to all 73,000 images of the Natural Scenes Dataset, far more than were shown in the scanner.",
+   "here": "Every stimulus rendered on the counter so far, read by TRIBE in early visual cortex and the lateral occipital region.",
+   "show": {
+    "project": "$p:screen_v1_lo",
+    "view": "samples",
+    "region": "Early visual"
+   },
+   "dwell_s": 8
+  },
+  {
+   "title": "Align and disentangle",
+   "flow": "compare",
+   "paper": "Images were selected that drive both areas up or down together, or one up while the other goes down.",
+   "here": "The five stimuli that best meet each condition, with each region's readouts put on a common scale.",
+   "show": {
+    "project": "$p:screen_v1_lo",
+    "view": "room",
+    "region": "Early visual",
+    "condition": "align_up"
+   },
+   "read": {
+    "project": "$p:screen_v1_lo",
+    "kind": "selection",
+    "condition": "align_up"
+   },
+   "dwell_s": 11
+  },
+  {
+   "title": "Against a baseline",
+   "flow": "challenge",
+   "paper": "Each condition was tested against images chosen without optimisation.",
+   "here": "Each condition against 10,000 random sets of five.",
+   "show": {
+    "project": "$p:screen_v1_lo",
+    "view": "room",
+    "region": "Early visual",
+    "condition": "a_over_b"
+   },
+   "read": {
+    "project": "$p:screen_v1_lo",
+    "kind": "selection",
+    "condition": "a_over_b"
+   },
+   "dwell_s": 10
+  },
+  {
+   "title": "Validate on new data",
+   "flow": "challenge",
+   "paper": "The selected images were shown to new participants in a new fMRI experiment.",
+   "here": "TRIBE has one average viewer, so new data means a view the screen never saw: the selected stimuli rendered again from a 40 degree camera angle.",
+   "actions": [
+    {
+     "tool": "project_create",
+     "as": "validate",
+     "args": {
+      "template_id": "check_contrast",
+      "title": "Selected stimuli from a new camera angle",
+      "bindings": {
+       "a": "a stimulus selected to drive both regions",
+       "b": "one selected to quiet both",
+       "region": "early visual and lateral occipital",
+       "match_on": "selection rank",
+       "control": "Held-out camera"
+      },
+      "from_project_id": "$p:screen_v1_lo"
+     }
+    },
+    {
+     "tool": "project_update",
+     "args": {
+      "project_id": "$made:validate",
+      "labels": [
+       "Both high",
+       "Both low"
+      ],
+      "pairs": "$pairs_from:$p:screen_v1_lo:align_up:align_down"
+     }
+    },
+    {
+     "tool": "parameter_set",
+     "args": {
+      "project_id": "$made:validate",
+      "name": "yaw_deg",
+      "value": 40
+     }
+    },
+    {
+     "tool": "project_run",
+     "args": {
+      "project_id": "$made:validate"
+     }
+    }
+   ],
+   "show": {
+    "project": "$made:validate",
+    "view": "room",
+    "region": "Early visual"
+   },
+   "wait": "run",
+   "read": {
+    "project": "$made:validate",
+    "kind": "paired",
+    "region": "Early visual"
+   },
+   "dwell_s": 10
+  },
+  {
+   "title": "Hand off",
+   "flow": "handoff",
+   "paper": "The relationships found in the model were then checked in people's brains.",
+   "here": "The selected stimuli, their predicted effects and the validation run go into the hand-off bundle.",
+   "show": {
+    "project": "$made:validate",
+    "view": "room",
+    "region": "Lateral occipital"
+   },
+   "read": {
+    "project": "$made:validate",
+    "kind": "paired",
+    "region": "Lateral occipital"
+   },
+   "dwell_s": 10
+  }
+ ]
+}

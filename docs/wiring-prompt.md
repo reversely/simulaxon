@@ -6,32 +6,37 @@ Give the prompt below, unchanged, to a coding agent that has this repo checked o
 Wire Simulaxon so that it runs as drawn in docs/image.png. Read README.md, docs/image.png and docs/onboarding.md first. Change wiring only: paths, calls, launch and Fuzzfiles. Do not change how the frontend looks.
 
 1. Frontend (frontend/)
-   - vite.config.ts proxies /api and /media to http://127.0.0.1:8791. Point both at the app server, either as a service on the cluster or through the endpoint while developing.
+   - vite.config.ts proxies /tools, /events (WebSocket), /agent, /datasets, /files, /out and /thumb to LAB_API, default http://127.0.0.1:8790. Point LAB_API at the app server, as a service on the cluster or through the endpoint while developing.
    - It calls these routes, which must keep working:
-     GET /api/datasets
-     POST /api/datasets/load
-     GET /api/datasets/{name}
-     POST /api/datasets/{name}/view
-     GET /api/datasets/{name}/samples/{sid}
-     GET /api/datasets/{name}/samples/{sid}/track
-     GET /api/datasets/{name}/samples/{sid}/track_full
-     POST /api/agent
-     GET /api/runs
-     POST /api/runs/{name}/start
-     POST /api/runs/{name}/stop
-     GET /media/{path}
-     the static files /brain/fsaverage5.json and /brain/fsaverage5.bin
+     GET /tools                                   every tool, with its resource and verb
+     POST /tools/{name}                           one tool call: JSON arguments, header X-Actor: person
+     WebSocket /events                            one message per store write, run progress and job progress
+     POST /agent/sessions                         a new chat: {text, mode: discuss or through, project_id?}
+     GET /agent/sessions?project_id=              chats, optionally one project's
+     GET /agent/sessions/{sid}                    one chat's turns, replies and tool calls
+     POST /agent/sessions/{sid}/message           the person's next message: {text, mode}
+     POST /agent/sessions/{sid}/stop
+     POST /datasets/upload?name=&dataset_id=      a file a person adds in a chat, raw body
+     GET /files/{path}, /out/{path}, /thumb/{path}  stimuli, clips, renders and thumbnails
 
-2. App server (services/app-server/app_server/; it was the package vcl.data)
-   - server.py: ROOT = parents[3] and UI = ROOT/app/dist. Serve the built frontend from frontend/dist. Resolve data paths under /data, and media under /data.
-   - server.py, POST /api/agent: it runs `claude -p` with an MCP config that starts `python -m vcl.data.agent_tools`. Replace that with a tool-calling loop against the planner's OpenAI-compatible API at http://planner/v1. Use the same tools as agent_tools.py, the same AGENT_SYSTEM prompt, and the same reply shape: {reply, tool_calls, show}.
-   - store.py: DB = parents[2]/data/datasets.duckdb. Move it to /data/log/datasets.duckdb.
-   - loaders.py: sources are read relative to ROOT. Read them relative to /data. The one source kept is sources/observer_demo.json.
-   - runs.py: it runs the commands in backend/runs/*.json as local subprocesses. Submit each run as a Fuzzball workflow with the injected FB_TOKEN and FB_API_HOST (`fuzzball workflow start <fuzzfile>`); report status from `fuzzball workflow describe`; stop with `fuzzball workflow stop`.
-   - Run it as the service app-server in fuzzball/simulaxon.fz: FastAPI under uvicorn, /data mounted, a persistent endpoint named simulaxon.
+2. App server (services/app-server/app_server/; it was the packages vcl and vcl.lab in the research repo)
+   - home.py: SIMULAXON_HOME, default /data, holds backend/data and feasibility/. Lay them out under /data, or point each use of HOME at its own /data folder:
+     backend/data/files      stimuli, trial clips, example clips, papers' text, uploads (served at /files)
+     backend/data/fetched    datasets the agent fetches; datasets.py keeps 60 GB of disk free (FLOOR_GB)
+     backend/data/sessions   chats with the agent, one JSON file each
+     feasibility/tribev2-src TRIBE's source, read by regions.py for the HCP and Destrieux atlases
+     feasibility/indexes     the asset and scene search indexes (search.py, records.py)
+     feasibility/out         finished runs and scenes (served at /out)
+     feasibility/data/had    the person fit's result, read by examples.py
+   - lab/serve.py --db: the DuckDB store. Put it at /data/log/lab.duckdb. Start it as `PYTHONPATH=services/app-server python -m app_server.lab.serve --port 8790 --db /data/log/lab.duckdb`. It serves frontend/dist at / once the frontend is built.
+   - lab/preview.py: the queue starts the warm workers itself, from HOME/backend/workers with each worker's own Python (Isaac, TRIBE, Cosmos). Send each job to render-score's HTTP front instead (section 3), with the same inputs and outputs, and keep the queue's lanes: fast for previews, batch for runs, ahead for renders made in advance.
+   - lab/runner.py and lab/experiment.py run a project's clips as threads in the app server, each clip one job on that queue; they need no change once the queue reaches render-score.
+   - lab/sessions.py, lab/agent.py and lab/demo_writer.py run `claude -p` with an MCP config that starts `python -m app_server.lab.mcp_proxy <base url>`, which exposes every /tools tool. Replace that with a tool-calling loop against the planner's OpenAI-compatible API at http://planner/v1. Use the same tools, the same SYSTEM prompts, and the same session record (turns with reply and tool_calls), so the app shows chats unchanged.
+   - lab/papers.py and lab/datasets.py reach OpenAlex, Europe PMC, arXiv, OpenNeuro, OSF, Zenodo, Figshare, GitHub and Hugging Face: the service needs outbound HTTPS.
+   - Run it as the service app-server in fuzzball/simulaxon.fz: uvicorn, /data mounted, a persistent endpoint named simulaxon.
 
 3. render-score (services/render-score/)
-   - One container: Isaac Sim 6.2, the Cosmos framework at c3a2e37, TRIBE v2 at af58661, and the three warm workers. Each worker reads JSON lines on stdin and answers one JSON line per job; jobs.py is their queue.
+   - One container: Isaac Sim 6.2, the Cosmos framework at c3a2e37, TRIBE v2 at af58661, and the warm workers (isaac/ body and scene, cosmos/, tribe/). Each worker reads JSON lines on stdin and answers one JSON line per job; jobs.py is their queue, the same file as app_server/jobs.py.
    - Drop jobs.py's Modal remote lane and its memory juggling: Fuzzball sizes the container.
    - Add a small HTTP front named render-score: a scene goes in; render (isaac/), restyle (cosmos/), predict (tribe/); the paths of the chunk and prediction files under /data come out.
    - tribe/tribe_worker.py: it imports fast_tribe from parents[2]/feasibility, with cache parents[2]/feasibility/cache_fast. Import it from tribe/; put the cache at /data/weights.
@@ -53,14 +58,14 @@ Wire Simulaxon so that it runs as drawn in docs/image.png. Read README.md, docs/
      - analyse, then maps, then app_dataset
      - retry on node loss
      - outputs written to /data/studies/observer
-   - The app server starts it through POST /api/runs/{name}/start.
+   - The app has no route yet that starts it; that is open for the owner. Start it with `fuzzball workflow start fuzzball/observer.fz`.
 
 6. Placement
    - render-score on Node A; planner and app-server on Node B, through node annotations requested in resource.annotations.
 
 Done when:
 - every check in docs/onboarding.md passes, steps 3 to 7;
-- the browser shows the observer study's dataset;
+- the app opens on the agent's chat, and New project shows the examples playing;
 - the agent box answers through the planner;
 - `fuzzball workflow list --parent <app-server workflow id>` lists the study run.
 Report each check with its output.
