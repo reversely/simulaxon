@@ -182,3 +182,24 @@ select, input { background: var(--raise); border: 1px solid var(--rule-strong); 
 .gates { list-style: none; padding: 0; margin: 4px 0; display: grid; gap: 4px; }
 .gates li.pass b { color: var(--accent); } .gates li.fail b { color: var(--flag); }
 .res .split { margin: 8px 0 14px; display: grid; gap: 6px; }
+
+/* new-project screen */
+.modal-back { position: fixed; inset: 0; background: rgb(0 0 0 / .6); display: grid; grid-template-columns: minmax(0, 1fr); justify-items: center; align-items: start; overflow: auto; padding: 48px 16px; z-index: 20; }
+.modal { width: min(1100px, 100%); background: var(--panel); border: 1px solid var(--rule-strong); border-radius: 12px; padding: 28px 32px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; }
+.modal > *, .np-refs > * { min-width: 0; }
+.np-refs a { overflow-wrap: anywhere; }
+.modal-head { display: flex; justify-content: space-between; align-items: center; }
+.modal h2 { margin: 0; font-size: 26px; }
+.modal h3 { margin: 8px 0 0; font-size: 18px; }
+.modal p { margin: 0; }
+.modal .goal { font: inherit; color: inherit; background: var(--raise); border: 1px solid var(--rule-strong); border-radius: 8px; padding: 10px 12px; resize: vertical; width: 100%; }
+.np-actions { display: flex; gap: 8px; }
+.np-refs { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 24px; border-top: 1px solid var(--rule); padding-top: 12px; }
+.np-refs section { display: grid; gap: 6px; align-content: start; }
+.np-refs a, .linkish { color: var(--ink); text-decoration: underline; text-underline-offset: 3px; }
+.linkish { background: none; border: 0; padding: 0; cursor: pointer; text-align: left; font: inherit; }
+.np-images { grid-column: 1 / -1; }
+.thumbs { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; }
+.thumbs a { display: grid; gap: 6px; text-decoration: none; font-size: 14px; }
+.thumbs img { width: 100%; aspect-ratio: 16 / 10; object-fit: cover; border-radius: 6px; border: 1px solid var(--rule); background: var(--ground); }
+@media (max-width: 720px) { .modal { padding: 20px 16px; } .np-refs { grid-template-columns: 1fr; } }

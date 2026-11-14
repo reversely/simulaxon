@@ -6,6 +6,7 @@ import { Inspector } from './Inspector'
 import { Agent, type Msg } from './Agent'
 import { Runs } from './Runs'
 import { ViewBar } from './ViewBar'
+import { NewProject } from './NewProject'
 
 // The frame: datasets, the view bar, fields, samples and the inspector. Everything shown comes from the API. The
 // dataset, stages, shown fields and selected sample live in the address, so any screen can be reopened exactly.
@@ -21,6 +22,8 @@ export default function App() {
   const [busy, setBusy] = useState(false)
   const [msgs, setMsgs] = useState<Msg[]>([])
   const [tab, setTab] = useState<'agent' | 'sample'>('agent')
+  const [fresh, setFresh] = useState(() => !location.hash)   // a first open shows the new-project screen
+  const [queued, setQueued] = useState<string | undefined>()
   useEffect(() => { setTab(loc.sel ? 'sample' : 'agent') }, [loc.sel])   // no sample selected: never leave an empty Sample tab open
   const name = loc.d ?? all[0]?.name
   const ds = all.find(d => d.name === name)
@@ -47,6 +50,7 @@ export default function App() {
       {loc.view !== 'runs' && <select value={name ?? ''} onChange={e => setLoc({ d: e.target.value, stages: [], shown: [], sel: null })} aria-label="Dataset">
         {all.map(d => <option key={d.name} value={d.name}>{d.name}, {d.samples.toLocaleString()} samples</option>)}
       </select>}
+      <button className="btn" onClick={() => setFresh(true)}>New project</button>
       {busy && <span className="ink2">Updating</span>}
       {err && <span className="flag">{err}</span>}
     </header>
@@ -61,12 +65,15 @@ export default function App() {
           <button role="tab" aria-selected={tab === 'agent'} onClick={() => setTab('agent')}>Agent</button>
           <button role="tab" aria-selected={tab === 'sample'} onClick={() => setTab('sample')} disabled={!loc.sel}>{loc.sel ? `Sample ${loc.sel}` : 'Sample'}</button>
         </div>
-        {name && <div hidden={tab !== 'agent'} className="tabbody"><Agent dataset={name} stages={loc.stages} msgs={msgs} setMsgs={setMsgs}
+        {name && <div hidden={tab !== 'agent'} className="tabbody"><Agent dataset={name} stages={loc.stages} msgs={msgs} setMsgs={setMsgs} queued={queued} onQueuedSent={() => setQueued(undefined)}
           onShow={(d, s, f) => setLoc(l => ({ ...l, d, stages: s, sel: null, shown: f.length ? f : l.shown }))} /></div>}
         {tab === 'sample' && loc.sel && name && <Inspector dataset={name} id={loc.sel} schema={v?.schema ?? []} onClose={() => { go({ sel: null }); setTab('agent'); setWide(false) }} wide={wide} onWide={setWide} shown={loc.shown}
           computed={selSample?.computed_sources && Object.keys(selSample.computed_sources).length ? { fields: selSample.fields, sources: selSample.computed_sources } : undefined} />}
       </div>
     </div></>}
+    {fresh && <NewProject onClose={() => setFresh(false)}
+      onOpenDataset={d => { setFresh(false); setLoc({ d, stages: [], shown: [], sel: null, view: 'data' }) }}
+      onStart={(goal, d) => { setFresh(false); setLoc({ d, stages: [], shown: [], sel: null, view: 'data' }); setTab('agent'); setQueued(goal) }} />}
     <footer className="prov">{loc.view === 'runs' ? <span className="ink3">Runs are defined in backend/runs/ and run by the server; their state and logs are in backend/data/runs/</span> : ds ? <>
       <span>{ds.source.about}</span><span className="ink3">Loaded {ds.loaded_at.slice(0, 16)} by the {ds.source.loader} loader from {ds.source.source_file}</span></> : null}</footer>
   </div>
