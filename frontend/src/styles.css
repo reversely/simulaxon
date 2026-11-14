@@ -47,6 +47,7 @@ input, select, textarea { font: inherit; color: inherit; }
 .tab.on { color: var(--ink); background: none; border-color: transparent; border-radius: 0; box-shadow: inset 0 -2px 0 var(--sel); }
 .btn { background: var(--raise); border: 1px solid var(--rule-strong); border-radius: 8px; padding: 7px 14px; white-space: nowrap; }
 .btn:hover { border-color: #565a62; }
+a.btn { color: inherit; text-decoration: none; }   /* a link styled as a button, such as Dashboard in the header */
 .btn.primary { background: var(--ink); color: #111; border-color: var(--ink); font-weight: 600; }
 .btn:disabled { opacity: 0.45; cursor: default; }
 .chip { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--rule-strong); border-radius: 999px; padding: 1px 10px; font-size: 14px; color: var(--ink-2); white-space: nowrap; }
@@ -411,3 +412,4 @@ aside.left .convo { mask-image: linear-gradient(to bottom, transparent 0, #000 1
 aside.left .convo { padding-bottom: 28px; }
 .live .runnow .fbar { display: inline-block; flex: none; }
 .live .runnow .num { white-space: nowrap; }
+

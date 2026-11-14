@@ -1,0 +1,32 @@
+version: v4
+# Onboarding step 1 check: mount the team volume at /data and the organizers'
+# shared datasets volume read-only, then list both.
+volumes:
+  data:
+    use: team13
+    name: simulaxon-data
+  shared:
+    use: shared
+    name: datasets
+
+jobs:
+  list:
+    image:
+      uri: docker://alpine:3.20
+    resource:
+      cpu:
+        cores: 1
+      memory:
+        size: 1GiB
+    mounts:
+      /data:
+        volume: data
+      /shared:
+        volume: shared
+        read-only: true
+    script: |
+      #!/bin/sh
+      set -e
+      mkdir -p /data/weights /data/chunks /data/predictions /data/log /data/studies
+      echo "== /data"; ls -la /data; df -h /data
+      echo "== /shared"; ls -la /shared; du -sh /shared/* 2>/dev/null | sort -h | tail -40

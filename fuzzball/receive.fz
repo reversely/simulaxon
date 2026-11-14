@@ -1,0 +1,24 @@
+version: v4
+# Holds /data open so files can be streamed in with `fuzzball workflow exec`:
+#   ssh <host> 'tar -C <dir> -cf - <paths>' | fuzzball workflow exec <workflow-id> receive -- tar -C /data -xf -
+# Stop the workflow when the copy is done.
+volumes:
+  data:
+    use: team13
+    name: simulaxon-data
+
+jobs:
+  receive:
+    image:
+      uri: docker://alpine:3.20
+    resource:
+      cpu:
+        cores: 2
+      memory:
+        size: 2GiB
+    mounts:
+      /data:
+        volume: data
+    script: |
+      #!/bin/sh
+      sleep 21600

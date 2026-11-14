@@ -1,4 +1,5 @@
-"""Warm worker for cosmos_sim_transfer. Runs in feasibility/cosmos-src/.venv (Python 3.13, torch 2.10 for CUDA 13).
+"""Warm worker for cosmos_sim_transfer. Runs in /data/envs/cosmos (Python 3.13, torch 2.10 for CUDA 13), from the
+cosmos-framework source at COSMOS_SRC.
 
 Loads Cosmos3-Nano-Sim-Transfer once with NVIDIA's reference settings (4 steps, guidance 1, full history, eager),
 then answers one job per line.
@@ -14,19 +15,19 @@ Memory: about 48 GB. Guardrails are off because nvidia/Cosmos-Guardrail1 is gate
 import json, os, sys
 from pathlib import Path
 
-FE = Path(__file__).resolve().parents[2] / 'feasibility'; SRC = FE / 'cosmos-src'
+DATA = Path(os.environ.get('SIMULAXON_DATA', '/data')); SRC = Path(os.environ.get('COSMOS_SRC', DATA / 'src' / 'cosmos-framework'))
 os.chdir(SRC)
 for k, v in {'COSMOS_INTERNAL': '0', 'COSMOS_TRAINING': '1', 'COSMOS_SMOKE': '0', 'COSMOS_DEVICE': 'cuda', 'WANDB_MODE': 'disabled',
              'OMP_NUM_THREADS': '1', 'TOKENIZERS_PARALLELISM': 'false'}.items():
     os.environ.setdefault(k, v)
 os.environ.pop('PYTHONPATH', None); os.environ.pop('COSMOS_DISTILLATION_IMPL', None)
 
-HF = Path.home() / '.cache/huggingface/hub'
-CK = SRC / 'checkpoints/Cosmos3-Nano-Sim-Transfer'
+HF = Path(os.environ.get('HF_HUB_CACHE', Path.home() / '.cache/huggingface/hub'))
+CK = Path(os.environ.get('COSMOS_CHECKPOINT', DATA / 'weights' / 'nvidia--cosmos3-nano-sim-transfer'))
 TOK = HF / 'models--nvidia--Cosmos3-Nano/snapshots/e59a53c25979a090fa8706c9acc0c254a6e89b92/text_tokenizer'
 VAE = HF / 'models--Wan-AI--Wan2.2-TI2V-5B/snapshots/921dbaf3f1674a56f47e83fb80a34bac8a8f203e/Wan2.2_VAE.pth'
 DEFAULTS = SRC / '.agents/skills/cosmos3-nano-sim-transfer/inference/assets/sample_args.json'
-WORK = FE / 'out/cosmos_worker'; WORK.mkdir(parents=True, exist_ok=True)
+WORK = DATA / 'chunks' / 'cosmos_worker'; WORK.mkdir(parents=True, exist_ok=True)
 
 
 def request(inputs: dict, settings: dict) -> dict:

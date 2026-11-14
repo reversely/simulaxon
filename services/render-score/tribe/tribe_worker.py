@@ -1,16 +1,16 @@
-"""Warm worker for tribe_v2. Runs in the feasibility environment (torch 2.9.1 for CUDA 13).
+"""Warm worker for tribe_v2. Runs in /data/envs/tribe (torch 2.9.1 for CUDA 13), with HF_HUB_CACHE pointing at the weights.
 
 Job inputs:  {"clip": "/path/clip.mp4"}            one clip per job; never concatenate clips
 Job settings: {"on_s": [0, 3]}                     seconds the stimulus is on, used for the readout
 Outputs:     {"response": "/path/clip.tribe.npy", "seconds": n, "readout": per-vertex mean over on_s saved as .on.npy}
 """
-import json, sys
+import json, os, sys
 from pathlib import Path
-sys.path.insert(0, str(Path(__file__).resolve().parents[2] / 'feasibility'))
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 import numpy as np
 from fast_tribe import load, predict_clip
 
-model = load(cache_folder=Path(__file__).resolve().parents[2] / 'feasibility' / 'cache_fast')
+model = load(cache_folder=os.environ.get('TRIBE_CACHE', '/data/weights/tribe-cache'))
 print(json.dumps({'ready': True}), flush=True)
 for line in sys.stdin:
     j = json.loads(line)

@@ -1,0 +1,147 @@
+version: v4
+# Observability: Prometheus and Grafana for every team13 workflow, in a workflow of their own so that restarting the
+# app or a study leaves the history in place. No GPU. Config and dashboards come from the repo at /data/src/simulaxon
+# (services/observability/), so re-stream the code after changing them.
+#
+#   exporter     the GPU jobs' readings (fuzzball/gpu-log.sh -> /data/log/metrics/gpu) and every job's state, as
+#                Prometheus metrics; /targets tells Prometheus where each running planner is (planner.<workflow id>)
+#   prometheus   scrapes the exporter and every planner's vLLM /metrics. Its database lives on the container's own disk:
+#                Prometheus does not support NFS for its storage; a snapshot on /data every 10 minutes carries the
+#                history across restarts.
+#   grafana      Prometheus as data source and the Simulaxon dashboard, both provisioned from the repo; open to viewers
+#                without login. Open it with fuzzball/grafana.sh, which finds the running workflow.
+#
+# Services share their node's network, so each takes a port unlikely to be in use there (9100 was taken on a GB10).
+# Both images start through their own entrypoints, which Fuzzball runs in place of a script, so each service sets
+# `command` instead.
+volumes:
+  data:
+    use: team13
+    name: simulaxon-data
+
+services:
+  exporter:
+    image:
+      uri: docker://python:3.12-slim
+    persist: true
+    resource:
+      cpu:
+        cores: 1
+      memory:
+        size: 1GiB
+    mounts:
+      /data:
+        volume: data
+        read-only: true
+    env:
+      - SIMULAXON_DATA=/data
+    script: |
+      #!/bin/sh
+      exec python3 -u /data/src/simulaxon/services/observability/exporter.py --port 19100
+    network:
+      ports:
+        - name: metrics
+          port: 19100
+    readiness-probe:
+      http-get:
+        path: /health
+        port: 19100
+      initial-delay-seconds: 5
+      period-seconds: 10
+      failure-threshold: 30
+
+  prometheus:
+    image:
+      uri: docker://prom/prometheus:v3.15.1
+    persist: true
+    resource:
+      cpu:
+        cores: 2
+      memory:
+        size: 4GiB
+    mounts:
+      /data:
+        volume: data
+        read-only: false
+    # The database runs on the container's disk (Prometheus does not support NFS). Every 10 minutes a snapshot is
+    # copied to /data/log/prometheus/snapshot, and a new container starts from it, so the history outlives restarts.
+    command:
+      - /bin/sh
+      - -c
+      - |
+        D=/data/log/prometheus; T=/tmp/prometheus; mkdir -p $D $T
+        [ -d $D/snapshot ] && cp -a $D/snapshot/. $T/ && echo "restored $(ls $D/snapshot | wc -l) blocks from $D/snapshot"
+        (while sleep 600; do
+          s=$(wget -qO- --post-data= http://127.0.0.1:19090/api/v1/admin/tsdb/snapshot | sed -n 's/.*"name":"\([^"]*\)".*/\1/p')
+          [ -n "$s" ] || continue
+          rm -rf $D/snapshot.new && cp -a $T/snapshots/$s $D/snapshot.new && rm -rf $D/snapshot && mv $D/snapshot.new $D/snapshot
+          rm -rf $T/snapshots/$s
+        done) &
+        exec /bin/prometheus --config.file=/data/src/simulaxon/services/observability/prometheus.yml \
+          --storage.tsdb.path=$T --storage.tsdb.retention.size=8GB --storage.tsdb.retention.time=30d \
+          --web.listen-address=0.0.0.0:19090 --web.enable-admin-api
+    network:
+      ports:
+        - name: web
+          port: 19090
+    readiness-probe:
+      http-get:
+        path: /-/ready
+        port: 19090
+      initial-delay-seconds: 5
+      period-seconds: 10
+      failure-threshold: 30
+
+  grafana:
+    image:
+      uri: docker://grafana/grafana:13.0.12
+    persist: true
+    resource:
+      cpu:
+        cores: 1
+      memory:
+        size: 2GiB
+    mounts:
+      /data:
+        volume: data
+        read-only: true
+    env:
+      - GF_PATHS_DATA=/tmp/grafana
+      - GF_PATHS_LOGS=/tmp/grafana/logs
+      - GF_PATHS_PLUGINS=/tmp/grafana/plugins
+      - GF_PATHS_PROVISIONING=/data/src/simulaxon/services/observability/grafana/provisioning
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Viewer
+      - GF_AUTH_DISABLE_LOGIN_FORM=true
+      - GF_SERVER_HTTP_PORT=13000
+      - GF_ANALYTICS_REPORTING_ENABLED=false
+      - GF_ANALYTICS_CHECK_FOR_UPDATES=false
+      - GF_NEWS_NEWS_FEED_ENABLED=false
+    # /run.sh refuses a data folder that does not exist yet. A container whose cluster DNS does not answer (seen on a
+    # GB10 after a network-setup fault) shows every panel empty, so Grafana starts only once `prometheus` resolves and
+    # the service fails, visibly, after two minutes without it. BusyBox nslookup exits non-zero when any search domain
+    # misses, so the check reads its answer instead.
+    command:
+      - /bin/sh
+      - -c
+      - >-
+        mkdir -p /tmp/grafana/logs /tmp/grafana/plugins &&
+        for i in $(seq 24); do nslookup prometheus 2>/dev/null | grep -q '^Name:' && exec /run.sh; sleep 5; done;
+        echo "cluster DNS does not resolve prometheus in this container" >&2; exit 1
+    network:
+      ports:
+        - name: web
+          port: 13000
+      endpoints:
+        - name: grafana
+          port-name: web
+          type: subdomain
+          protocol: http
+          scope: group
+    readiness-probe:
+      http-get:
+        path: /api/health
+        port: 13000
+      initial-delay-seconds: 10
+      period-seconds: 10
+      failure-threshold: 30

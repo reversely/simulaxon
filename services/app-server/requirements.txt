@@ -1,0 +1,15 @@
+fastapi==0.163.0
+uvicorn==0.54.0
+duckdb==2.0.0
+numpy==2.5.4
+pydantic==2.14.3
+# The lab server's other packages, at the versions it runs with on the Spark (services/render-score/env/tribe.txt)
+usd-core==26.11
+requests==2.34.2
+pillow==11.3.0
+pandas==3.1.1
+scipy==1.18.1
+matplotlib==3.11.2
+nilearn==0.14.1
+trimesh==5.2.0
+websockets==17.4   # uvicorn's WebSocket support, for the live event stream at /events

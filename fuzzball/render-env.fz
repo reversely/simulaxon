@@ -1,0 +1,160 @@
+version: v4
+# Onboarding step 3, part 1: what render-score needs on the volume. Run once; each job skips work already done.
+#
+# This cluster builds no images (features.enableWorkflowImageBuilds is off) and mounts only NVIDIA's compute
+# libraries into GPU containers (/gpu-libs). render-score therefore runs on NVIDIA's Isaac Sim 6.2 container for its
+# system libraries, and takes the rest from the volume:
+#   /data/envs/nvidia-gl  NVIDIA's userspace graphics libraries for the host driver 580.173.02 (Vulkan, EGL, RTX,
+#                         OptiX), from NVIDIA's installer, with ICD and vendor files that name them by full path
+#   /data/envs/isaac      Python 3.12, Isaac Sim 6.2 (services/render-score/env/isaac.txt, frozen from the Spark)
+#   /data/envs/tribe      Python 3.12, TRIBE v2 at af58661 (services/render-score/env/tribe.txt, frozen from the Spark)
+#   /data/envs/cosmos     Python 3.13, cosmos-framework at c3a2e37 from its uv.lock, group cu130-train
+# The Pythons come from uv and live in /data/envs/python, so the environments work in any base image.
+# Needs the repo at /data/src/simulaxon.
+volumes:
+  data:
+    use: team13
+    name: simulaxon-data
+
+jobs:
+  nvidia-gl:
+    image:
+      uri: docker://python:3.12
+    resource:
+      cpu:
+        cores: 2
+      memory:
+        size: 4GiB
+    mounts:
+      /data:
+        volume: data
+    script: |
+      #!/bin/bash
+      set -e
+      V=580.173.02; G=/data/envs/nvidia-gl
+      if [ -f $G/lib/libnvidia-ngx.so.1 ]; then
+        echo "already present"
+      else
+      cd /tmp
+      curl -fsSLo nv.run "https://download.nvidia.com/XFree86/Linux-aarch64/$V/NVIDIA-Linux-aarch64-$V.run"
+      sh nv.run -x --target /tmp/nv > /dev/null
+      mkdir -p $G/lib $G/share
+      for f in libEGL_nvidia libGLX_nvidia libnvidia-eglcore libnvidia-glcore libnvidia-glsi libnvidia-tls \
+               libnvidia-rtcore libnvoptix libnvidia-glvkspirv libnvidia-gpucomp libnvidia-ngx; do
+        if [ -f /tmp/nv/$f.so.$V ]; then cp /tmp/nv/$f.so.$V $G/lib/; fi
+      done
+      ln -sf libEGL_nvidia.so.$V $G/lib/libEGL_nvidia.so.0
+      ln -sf libGLX_nvidia.so.$V $G/lib/libGLX_nvidia.so.0
+      ln -sf libnvoptix.so.$V $G/lib/libnvoptix.so.1
+      ln -sf libnvidia-ngx.so.$V $G/lib/libnvidia-ngx.so.1   # NGX, for DLSS denoising and anti-aliasing in RTX
+      cp /tmp/nv/nvoptix.bin $G/lib/
+      sed "s#__NV_VK_ICD__#$G/lib/libGLX_nvidia.so.0#" /tmp/nv/nvidia_icd.json > $G/share/nvidia_icd.json
+      sed "s#\"library_path\" *: *\"[^\"]*\"#\"library_path\": \"$G/lib/libGLX_nvidia.so.0\"#" /tmp/nv/nvidia_layers.json > $G/share/nvidia_layers.json
+      sed "s#libEGL_nvidia.so.0#$G/lib/libEGL_nvidia.so.0#" /tmp/nv/10_nvidia.json > $G/share/10_nvidia.json
+      fi
+      # The 580 ICD and layer files name libGLX_nvidia.so.0 bare; name the copy on the volume instead.
+      sed -i "s#\"libGLX_nvidia.so.0\"#\"$G/lib/libGLX_nvidia.so.0\"#" $G/share/nvidia_icd.json $G/share/nvidia_layers.json
+      ls -la $G/lib; cat $G/share/nvidia_icd.json $G/share/10_nvidia.json
+
+  hf-cache:
+    # The workers load TRIBE, V-JEPA 2, the Cosmos tokenizer and the Wan VAE through Hugging Face's cache layout, at
+    # the revisions they were run with on the Spark. This builds that layout in /data/weights/hf/hub from symlinks to
+    # the downloaded folders, so HF_HUB_CACHE=/data/weights/hf/hub with HF_HUB_OFFLINE=1 serves them without copies.
+    image:
+      uri: docker://alpine:3.20
+    resource:
+      cpu:
+        cores: 1
+      memory:
+        size: 1GiB
+    mounts:
+      /data:
+        volume: data
+    script: |
+      #!/bin/sh
+      set -e
+      H=/data/weights/hf/hub; W=/data/weights
+      link() {  # repo-dir-name revision target-folder
+        mkdir -p $H/$1/snapshots $H/$1/refs
+        ln -sfn $3 $H/$1/snapshots/$2
+        printf %s $2 > $H/$1/refs/main
+      }
+      link models--facebook--tribev2 f894e783020944dcd96e5568550afe2aa9743f9f $W/facebook--tribev2
+      link models--facebook--vjepa2-vitg-fpc64-256 875c192b7b704b87d1e1d99345769632dd5f739a $W/facebook--vjepa2-vitg-fpc64-256
+      link models--nvidia--Cosmos3-Nano e59a53c25979a090fa8706c9acc0c254a6e89b92 $W/nvidia--cosmos3-nano
+      link models--Wan-AI--Wan2.2-TI2V-5B 921dbaf3f1674a56f47e83fb80a34bac8a8f203e $W/wan-ai--wan2.2-ti2v-5b
+      for d in $H/*/snapshots/*; do echo "$d -> $(readlink $d): $(ls $d/ | head -3 | tr '\n' ' ')"; done
+
+  setup-envs:
+    image:
+      uri: docker://python:3.12   # full image: a few pinned packages build from source and need gcc
+    resource:
+      cpu:
+        cores: 16
+      memory:
+        size: 48GiB
+    policy:
+      timeout:
+        execute: 4h
+    mounts:
+      /data:
+        volume: data
+    env:
+      - UV_PYTHON_INSTALL_DIR=/data/envs/python
+      - UV_CACHE_DIR=/tmp/uv-cache
+      - UV_LINK_MODE=copy
+      - UV_PYTHON_PREFERENCE=only-managed
+      - UV_HTTP_TIMEOUT=300
+      - UV_HTTP_RETRIES=10
+      - UV_CONCURRENT_DOWNLOADS=8
+    script: |
+      #!/bin/sh
+      set -e
+      R=/data/src/simulaxon/services/render-score/env
+      mkdir -p /data/envs /data/src
+      [ -x /data/envs/uv/bin/uv ] || pip install --no-cache-dir -q --prefix /data/envs/uv uv==0.12.13
+      export PATH=/data/envs/uv/bin:$PATH
+      # An environment that is built is left alone: rewriting the files of a loaded library on NFS kills the processes
+      # using it (SIGBUS). Each records the sha256 of the lock file it was built from in .built, and rebuilds only when
+      # that lock file changes.
+      built() { [ -f $2/.built ] && [ "$(cat $2/.built)" = "$(sha256sum $1 | cut -d' ' -f1)" ]; }
+      mark() { sha256sum $1 | cut -d' ' -f1 > $2/.built; }
+      echo "== isaac"
+      if built $R/isaac.txt /data/envs/isaac; then echo "isaac: built from this lock file, left alone"; else
+      [ -x /data/envs/isaac/bin/python ] || uv venv -p 3.12 /data/envs/isaac
+      uv pip install --python /data/envs/isaac/bin/python -r $R/isaac.txt \
+        --extra-index-url https://pypi.nvidia.com --index-strategy unsafe-best-match
+      mark $R/isaac.txt /data/envs/isaac; fi
+      echo "== tribe"
+      if built $R/tribe.txt /data/envs/tribe; then echo "tribe: built from this lock file, left alone"; else
+      [ -x /data/envs/tribe/bin/python ] || uv venv -p 3.12 /data/envs/tribe
+      # tribev2 declares torchvision<0.22, but the Spark runs it with 0.24.1 (an editable install never enforced it), so
+      # every other pin installs first and tribev2 follows without its declared dependencies.
+      grep -v '^tribev2 @' $R/tribe.txt > /tmp/tribe-deps.txt
+      uv pip install --python /data/envs/tribe/bin/python -r /tmp/tribe-deps.txt \
+        --extra-index-url https://download.pytorch.org/whl/cu130 --index-strategy unsafe-best-match
+      uv pip install --python /data/envs/tribe/bin/python --no-deps "$(grep '^tribev2 @' $R/tribe.txt)"
+      mark $R/tribe.txt /data/envs/tribe; fi
+      echo "== cosmos"
+      uv python install 3.13
+      if [ ! -f /data/src/cosmos-framework/uv.lock ]; then
+        python3 - <<'PY'
+      import io, tarfile, urllib.request
+      data = urllib.request.urlopen('https://codeload.github.com/NVIDIA/cosmos-framework/tar.gz/c3a2e37', timeout=600).read()
+      with tarfile.open(fileobj=io.BytesIO(data)) as t:
+          root = t.getmembers()[0].name.split('/')[0]
+          t.extractall('/data/src')
+      import os; os.rename(f'/data/src/{root}', '/data/src/cosmos-framework')
+      PY
+      fi
+      cd /data/src/cosmos-framework
+      if built uv.lock /data/envs/cosmos; then echo "cosmos: built from this lock file, left alone"; else
+      # cosmos-framework pins uv 0.11.29 (pyproject required-version), the version the Spark's environment was built with.
+      [ -x /data/envs/uv-0.11.29/bin/uv ] || pip install --no-cache-dir -q --prefix /data/envs/uv-0.11.29 uv==0.11.29
+      UV_PROJECT_ENVIRONMENT=/data/envs/cosmos /data/envs/uv-0.11.29/bin/uv sync --frozen --group cu130-train
+      mark uv.lock /data/envs/cosmos; fi
+      echo "== versions"
+      /data/envs/isaac/bin/python -c "import importlib.metadata as m; print('isaacsim', m.version('isaacsim'), 'torch', m.version('torch'))"
+      /data/envs/tribe/bin/python -c "import importlib.metadata as m; print('tribev2', m.version('tribev2'), 'torch', m.version('torch'))"
+      /data/envs/cosmos/bin/python -c "import importlib.metadata as m; print('torch', m.version('torch'))"
+      du -sh /data/envs/* 2>/dev/null || true   # a few Isaac folders are unreadable; sizes are informational

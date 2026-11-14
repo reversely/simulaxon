@@ -1,0 +1,16 @@
+{
+ "name": "observer",
+ "title": "Observer study on Fuzzball",
+ "question": "How does a humanoid's look (human or Unitree G1) and motion (recorded or robotic) change TRIBE v2's predicted cortical response of an observer, in six EgoBody moments?",
+ "fuzzfile": "fuzzball/observer.fz",
+ "steps": [
+  {"id": "motions", "title": "Moments and motions", "command": ["python", "studies/observer/motions.py", "6"]},
+  {"id": "render", "title": "Render 6 moments x 4 cells in Isaac Sim", "command": ["python", "studies/observer/render.py", "REC", "K"], "items": "moments.json", "workers": 6},
+  {"id": "tribe", "title": "TRIBE v2 on the 24 clips", "command": ["python", "studies/observer/tribe_clips.py", "clips", "4"]},
+  {"id": "analyse", "title": "Contrasts against baselines", "command": ["python", "studies/observer/analyse.py"]},
+  {"id": "maps", "title": "Region maps", "command": ["python", "studies/observer/maps.py"]},
+  {"id": "app-dataset", "title": "The study's dataset in the app", "command": ["python", "studies/observer/app_dataset.py"]}
+ ],
+ "dataset_source": "observer_on_fuzzball__humanoid_look_and_motion.json",
+ "artifacts": ["studies/observer/cluster-run/results.json"]
+}

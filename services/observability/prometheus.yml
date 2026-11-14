@@ -1,0 +1,20 @@
+# Prometheus for Simulaxon (fuzzball/observability.fz). The exporter runs in the same workflow; the planner runs in the
+# app's workflow and is found through the exporter's /targets, which names it <service>.<workflow id>.
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: simulaxon
+    honor_labels: true        # the exporter's own `job` label (the Fuzzball job) is kept as is
+    static_configs:
+      - targets: ['exporter:19100']
+
+  - job_name: vllm
+    http_sd_configs:
+      - url: http://exporter:19100/targets
+        refresh_interval: 30s
+
+  - job_name: prometheus
+    static_configs:
+      - targets: ['localhost:19090']

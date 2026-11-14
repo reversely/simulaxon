@@ -1,6 +1,10 @@
 """Run the app: the tool API, the event stream, run outputs, brain maps and the web UI on one port.
 
-Usage: SIMULAXON_HOME=... python -m app_server.lab.serve [--port 8790] [--db backend/data/lab_main.duckdb]
+Usage: SIMULAXON_HOME=... python -m app_server.lab.serve [--host 127.0.0.1] [--port 8790] [--db backend/data/lab_main.duckdb]
+
+On the cluster (fuzzball/simulaxon.fz) it listens on 0.0.0.0:8791 with SIMULAXON_HOME=/data and the store at
+/data/log/lab.duckdb. It also submits the Fuzzball runs in services/app-server/runs/ (GET /api/runs, POST
+/api/runs/{name}/start and /stop, runs.py), and /dashboard sends people to the cluster dashboard in Grafana (GRAFANA_URL).
 
 lab_main.duckdb is the main store: the lab's store as of 14 Nov 2026 with the replication harness's projects, papers,
 samples, analyses, results and maps merged in. lab.duckdb is the store before that merge; lab_harness.duckdb keeps the
@@ -14,10 +18,9 @@ from fastapi import Request
 from fastapi.staticfiles import StaticFiles
 from ..server import create_app
 from ..store import Store
+from ..config import UI   # the built frontend: SIMULAXON_UI, or this repo's frontend/dist
 from .ingest import DATA, FILES, OUT
 from .tools import register
-
-UI = Path(__file__).resolve().parents[4] / 'frontend' / 'dist'   # this repo's built frontend
 
 
 def make(db: str, port: int = 8790):
@@ -41,8 +44,11 @@ def make(db: str, port: int = 8790):
         t = app.state.tools
         for p in t.store.list('project'):
             if p.data.get('status') == 'Running' and (p.data.get('pairs') or p.data.get('units') or p.data.get('plan') == 'experiment'):   # matched, factorial and experiments; finished clips come from the cache
-                t.call('project_update', 'agent', project_id=p.id, expect_version=p.version, status='Draft')
-                runner.start(t, app.state.lab_broadcast, p.id, 'agent')
+                try:
+                    t.call('project_update', 'agent', project_id=p.id, expect_version=p.version, status='Draft')
+                    runner.start(t, app.state.lab_broadcast, p.id, 'agent')
+                except Exception as e:   # one project that can no longer run must not keep the server from starting
+                    print(f'run of {p.id} not resumed: {type(e).__name__}: {e}', flush=True)
 
     from . import sessions
 
@@ -112,12 +118,37 @@ def make(db: str, port: int = 8790):
         from fastapi.responses import FileResponse
         from PIL import Image
         src = (FILES / path).resolve()
-        if not str(src).startswith(str(FILES.resolve())) or not src.is_file(): raise HTTPException(404, 'no such image')
+        if not src.is_relative_to(FILES.resolve()) or not src.is_file(): raise HTTPException(404, 'no such image')
         dst = FILES / 'thumbs' / (hashlib.sha1(f'{path}:{src.stat().st_mtime_ns}'.encode()).hexdigest()[:16] + '.jpg')
         if not dst.exists():
             dst.parent.mkdir(parents=True, exist_ok=True); im = Image.open(src).convert('RGB'); im.thumbnail((480, 480)); im.save(dst, quality=82)
         return FileResponse(dst, media_type='image/jpeg', headers={'Cache-Control': 'max-age=86400'})
 
+    from .. import runs
+    from ..config import GRAFANA_URL
+
+    @app.get('/dashboard')
+    def dashboard_page():
+        """The cluster dashboard is Grafana's (fuzzball/observability.fz): GPU jobs, the planner, failures, nodes."""
+        from fastapi.responses import RedirectResponse
+        return RedirectResponse(f'{GRAFANA_URL}/d/simulaxon')
+
+    @app.get('/api/runs')
+    def runs_list():
+        """Studies submitted to Fuzzball as workflows (services/app-server/runs/*.json), with each step's status."""
+        return [{**r, 'state': runs.state(r['name']), 'log': runs.log_tail(r['name'], 120)} for r in runs.definitions()]
+
+    @app.post('/api/runs/{name}/start')
+    def runs_start(name: str):
+        from fastapi import HTTPException
+        try: return runs.start(name, lambda source: None)   # the lab has no data-browser source to reload when a run ends
+        except KeyError: raise HTTPException(404, f'no run {name}')
+
+    @app.post('/api/runs/{name}/stop')
+    def runs_stop(name: str):
+        return runs.stop(name)
+
+    for d in (OUT, OUT.parent / 'indexes', FILES): d.mkdir(parents=True, exist_ok=True)   # an empty home starts with nothing in them
     app.mount('/out', StaticFiles(directory=OUT), name='out')
     app.mount('/index', StaticFiles(directory=OUT.parent / 'indexes'), name='index')
     app.mount('/files', StaticFiles(directory=FILES), name='files')
@@ -126,5 +157,6 @@ def make(db: str, port: int = 8790):
 
 
 if __name__ == '__main__':
-    a = argparse.ArgumentParser(); a.add_argument('--port', type=int, default=8790); a.add_argument('--db', default=str(DATA / 'lab_main.duckdb'))
-    x = a.parse_args(); uvicorn.run(make(x.db, x.port), host='127.0.0.1', port=x.port, timeout_graceful_shutdown=5)   # an open page's event socket never holds a restart
+    a = argparse.ArgumentParser(); a.add_argument('--host', default='127.0.0.1'); a.add_argument('--port', type=int, default=8790); a.add_argument('--db', default=str(DATA / 'lab_main.duckdb'))
+    x = a.parse_args(); Path(x.db).parent.mkdir(parents=True, exist_ok=True)
+    uvicorn.run(make(x.db, x.port), host=x.host, port=x.port, timeout_graceful_shutdown=5)   # an open page's event socket never holds a restart

@@ -1,0 +1,28 @@
+version: v4
+volumes:
+  data:
+    use: team13
+    name: simulaxon-data
+    ingress:
+      - source:
+          uri: hf://facebook/tribev2
+        destination:
+          uri: file://weights/facebook--tribev2
+        policy:
+          timeout:
+            execute: 1h
+jobs:
+  sizes:
+    image:
+      uri: docker://alpine:3.20
+    resource:
+      cpu:
+        cores: 1
+      memory:
+        size: 1GiB
+    mounts:
+      /data:
+        volume: data
+    script: |
+      #!/bin/sh
+      du -sh /data/weights/*; ls -la /data/weights/facebook--tribev2

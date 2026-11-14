@@ -1,0 +1,181 @@
+version: v4
+# The observer study (studies/observer/), end to end: moments and motions, a task array of Isaac renders (one task per
+# moment, four clips each), TRIBE on the clips, analysis, region maps, and the app dataset.
+#
+# Inputs: /data/studies/observer (the Spark's ~/data: egobody, body_models, robots), the environments and graphics
+# libraries from render-env.fz, the weights through /data/weights/hf/hub, the repo at /data/src/simulaxon.
+# Outputs go to OBS_OUT, a folder of their own, so this run never reuses the Spark's results in .../observer.
+# Every container links ~/data to /data/studies/observer, the layout the study code reads. The Python steps run on Rocky
+# Linux 10; the renders and maps run on NVIDIA's Isaac Sim image (Ubuntu only), which carries the OpenGL libraries.
+volumes:
+  data:
+    use: team13
+    name: simulaxon-data
+
+defaults:
+  mounts:
+    /data:
+      volume: data
+  env:
+    - HOME=/tmp/home
+    - SIMULAXON_DATA=/data
+    - OBS_OUT=/data/studies/observer/cluster-run
+    - OBS_DATASET=Observer on Fuzzball, humanoid look and motion
+    - HF_HUB_CACHE=/data/weights/hf/hub
+    - HF_HUB_OFFLINE=1
+    - TRIBE_CACHE=/data/weights/tribe-cache
+    - MNE_DATASETS_SAMPLE_PATH=/data/weights/mne_data
+    - LD_LIBRARY_PATH=/data/envs/nvidia-gl/lib:/gpu-libs
+    - VK_ICD_FILENAMES=/data/envs/nvidia-gl/share/nvidia_icd.json
+    - VK_DRIVER_FILES=/data/envs/nvidia-gl/share/nvidia_icd.json
+    - __EGL_VENDOR_LIBRARY_FILENAMES=/data/envs/nvidia-gl/share/10_nvidia.json
+    - OMNI_KIT_ACCEPT_EULA=YES
+
+jobs:
+  motions:
+    image:
+      uri: docker://rockylinux/rockylinux:10
+    resource:
+      cpu:
+        cores: 8
+      memory:
+        size: 32GiB
+    policy:
+      retry:
+        attempts: 2
+    script: |
+      #!/bin/sh
+      set -e
+      mkdir -p $HOME $OBS_OUT && ln -sfn /data/studies/observer $HOME/data
+      cd /data/src/simulaxon
+      /data/envs/tribe/bin/python studies/observer/motions.py 6
+
+  render:
+    depends-on:
+      - name: motions
+        status: FINISHED
+    image:
+      uri: docker://nvcr.io/nvidia/isaac-sim:6.2.0
+    task-array:
+      start: 1
+      end: 6
+      concurrency: 6
+    resource:
+      cpu:
+        cores: 8
+      memory:
+        size: 48GiB
+      devices:
+        nvidia.com/gpu: 1
+    policy:
+      timeout:
+        execute: 3h
+      retry:
+        attempts: 2
+    script: |
+      #!/bin/bash
+      set -e
+      (sh /data/src/simulaxon/fuzzball/gpu-log.sh $$ &)   # GPU readings and commands: fuzzball/gpu-usage.py
+      mkdir -p $HOME/bin && ln -sfn /data/studies/observer $HOME/data
+      # The Isaac Sim image has no ffmpeg; the clips are encoded with the static build the TRIBE environment carries.
+      ln -sf $(/data/envs/tribe/bin/python -c "import imageio_ffmpeg; print(imageio_ffmpeg.get_ffmpeg_exe())") $HOME/bin/ffmpeg
+      export PATH=$HOME/bin:$PATH LD_PRELOAD=/lib/aarch64-linux-gnu/libgomp.so.1
+      cd /data/src/simulaxon
+      read REC K < <(/data/envs/isaac/bin/python -c "import json,os; m=json.load(open(os.environ['OBS_OUT']+'/moments.json'))['moments'][int(os.environ['FB_TASK_ID'])-1]; print(m['rec'], m['k'])")
+      echo "moment $FB_TASK_ID: $REC $K"
+      /data/envs/isaac/bin/python studies/observer/render.py $REC $K
+      ls -la $OBS_OUT/clips | grep "${REC}_$(printf %03d $K)_"
+
+  tribe:
+    depends-on:
+      - name: render
+        status: FINISHED
+    image:
+      uri: docker://rockylinux/rockylinux:10
+    resource:
+      cpu:
+        cores: 8
+      memory:
+        size: 48GiB
+      devices:
+        nvidia.com/gpu: 1
+    policy:
+      timeout:
+        execute: 2h
+      retry:
+        attempts: 2
+    script: |
+      #!/bin/sh
+      set -e
+      (sh /data/src/simulaxon/fuzzball/gpu-log.sh $$ &)   # GPU readings and commands: fuzzball/gpu-usage.py
+      mkdir -p $HOME/bin && ln -sfn /data/studies/observer $HOME/data
+      ln -sf $(/data/envs/tribe/bin/python -c "import imageio_ffmpeg; print(imageio_ffmpeg.get_ffmpeg_exe())") $HOME/bin/ffmpeg
+      export PATH=$HOME/bin:$PATH
+      cd /data/src/simulaxon
+      /data/envs/tribe/bin/python studies/observer/tribe_clips.py $OBS_OUT/clips 4
+
+  analyse:
+    depends-on:
+      - name: tribe
+        status: FINISHED
+    image:
+      uri: docker://rockylinux/rockylinux:10
+    resource:
+      cpu:
+        cores: 8
+      memory:
+        size: 32GiB
+    script: |
+      #!/bin/sh
+      set -e
+      mkdir -p $HOME/bin && ln -sfn /data/studies/observer $HOME/data
+      ln -sf $(/data/envs/tribe/bin/python -c "import imageio_ffmpeg; print(imageio_ffmpeg.get_ffmpeg_exe())") $HOME/bin/ffmpeg
+      export PATH=$HOME/bin:$PATH
+      cd /data/src/simulaxon
+      mkdir -p $MNE_DATASETS_SAMPLE_PATH   # MNE downloads its sample data here once, but does not create the folder
+      /data/envs/tribe/bin/python studies/observer/analyse.py
+
+  maps:
+    depends-on:
+      - name: analyse
+        status: FINISHED
+    # The maps are drawn with VTK (pyvista), which needs OpenGL. The Rocky image has no X11 or EGL, so VTK crashed
+    # there; this step runs on the Isaac Sim image with a GPU and renders off-screen through NVIDIA's EGL.
+    image:
+      uri: docker://nvcr.io/nvidia/isaac-sim:6.2.0
+    resource:
+      cpu:
+        cores: 4
+      memory:
+        size: 16GiB
+      devices:
+        nvidia.com/gpu: 1
+    env:
+      - VTK_DEFAULT_OPENGL_WINDOW=vtkEGLRenderWindow
+      - PYVISTA_OFF_SCREEN=true
+    script: |
+      #!/bin/sh
+      set -e
+      (sh /data/src/simulaxon/fuzzball/gpu-log.sh $$ &)
+      mkdir -p $HOME/bin && ln -sfn /data/studies/observer $HOME/data
+      ln -sf $(/data/envs/tribe/bin/python -c "import imageio_ffmpeg; print(imageio_ffmpeg.get_ffmpeg_exe())") $HOME/bin/ffmpeg
+      export PATH=$HOME/bin:$PATH
+      cd /data/src/simulaxon
+      MPLBACKEND=Agg /data/envs/tribe/bin/python studies/observer/maps.py
+
+  app-dataset:
+    depends-on:
+      - name: maps
+        status: FINISHED
+    image:
+      uri: docker://rockylinux/rockylinux:10
+    resource:
+      cpu:
+        cores: 1
+      memory:
+        size: 2GiB
+    script: |
+      #!/bin/sh
+      set -e
+      cd /data/src/simulaxon
+      /data/envs/tribe/bin/python studies/observer/app_dataset.py
