@@ -164,11 +164,25 @@ def make(db: str, port: int = 8790):
     from .. import runs
     from ..config import GRAFANA_URL
 
+    def _grafana_on_cluster() -> str | None:
+        """The live endpoint of the running observability workflow's Grafana. Its URL changes with every restart, so it
+        is looked up per request; the injected workflow token may list endpoints (In-Workflow API Access)."""
+        import json, subprocess
+        from ..config import FUZZBALL
+        try:
+            p = subprocess.run([FUZZBALL, 'workflow', 'endpoints', 'list', '-o', 'json'], capture_output=True, text=True, timeout=30)
+            eps = json.loads(p.stdout) if p.returncode == 0 and p.stdout.strip() else []
+        except (OSError, ValueError, subprocess.TimeoutExpired):
+            return None
+        g = [e for e in eps if e.get('serviceName') == 'grafana' and e.get('url')]
+        return g[0]['url'].rstrip('/') if g else None
+
     @app.get('/dashboard')
     def dashboard_page():
-        """The cluster dashboard is Grafana's (fuzzball/observability.fz): GPU jobs, the planner, failures, nodes."""
+        """The cluster dashboard is Grafana's (fuzzball/observability.fz): GPU jobs, the planner, failures, nodes. It goes
+        to Grafana's endpoint on the cluster; GRAFANA_URL is used only when no Grafana endpoint is live."""
         from fastapi.responses import RedirectResponse
-        return RedirectResponse(f'{GRAFANA_URL}/d/simulaxon')
+        return RedirectResponse(f'{_grafana_on_cluster() or GRAFANA_URL}/d/simulaxon')
 
     @app.get('/api/runs')
     def runs_list():
