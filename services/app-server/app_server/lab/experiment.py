@@ -8,7 +8,7 @@ file a person added; a condition can pass its stimuli through Cosmos, and then t
 Samples carry it, so the interface shows where each stimulus came from.
 """
 from __future__ import annotations
-import fnmatch, hashlib, json, math, subprocess, threading
+import fnmatch, hashlib, json, math, re, shutil, subprocess, threading
 from pathlib import Path
 import numpy as np
 from . import datasets, maps, plans, regions
@@ -170,8 +170,15 @@ def cosmos_item(item: dict, item_s: float, wait) -> str:
 
 
 def _size(p: Path) -> tuple[int, int]:
-    r = subprocess.run(['ffprobe', '-v', 'error', '-select_streams', 'v:0', '-show_entries', 'stream=width,height', '-of', 'csv=p=0', str(p)], capture_output=True, text=True).stdout.strip().split(',')
-    return int(r[0]), int(r[1])
+    """Width and height of a video or image: ffprobe where it is installed, else read from ffmpeg's description of the
+    input (the cluster's app server has only the static ffmpeg from the TRIBE environment)."""
+    if shutil.which('ffprobe'):
+        r = subprocess.run(['ffprobe', '-v', 'error', '-select_streams', 'v:0', '-show_entries', 'stream=width,height', '-of', 'csv=p=0', str(p)], capture_output=True, text=True).stdout.strip().split(',')
+        return int(r[0]), int(r[1])
+    info = subprocess.run(['ffmpeg', '-hide_banner', '-i', str(p)], capture_output=True, text=True).stderr
+    m = re.search(r'Video: [^\n]*?(\d{2,5})x(\d{2,5})', info)
+    if not m: raise RuntimeError(f'no video stream in {p}')
+    return int(m.group(1)), int(m.group(2))
 
 
 def _boot_diff(groups: dict[str, np.ndarray], w: dict, rng, n=4000) -> list[float]:
