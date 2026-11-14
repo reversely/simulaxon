@@ -1,4 +1,5 @@
-"""The conversation's agent: Claude Code in print mode, with only the lab's tools, through the MCP proxy.
+"""The conversation's agent: Claude Code in print mode, with only the lab's tools, through the MCP proxy; on the cluster,
+the planner in a tool-calling loop over the same tools (planner_agent.py).
 
 One call per message. The reply is plain text; actions happen through the same tools the panels use.
 """
@@ -15,6 +16,11 @@ The current project id is {pid}."""
 
 
 def ask(project_id: str, message: str, history: list[dict], base_url: str) -> str:
+    from . import planner_agent
+    if planner_agent.backend() == 'planner':
+        convo = [{'role': 'user' if m['who'] == 'person' else 'assistant', 'content': m['text']} for m in history[-10:]]
+        while convo and convo[0]['role'] != 'user': convo = convo[1:]
+        return planner_agent.turn(SYSTEM.format(pid=project_id), convo, message, base_url)
     cfg = {'mcpServers': {'vcl': {'command': sys.executable, 'args': ['-m', 'app_server.lab.mcp_proxy', base_url], 'cwd': str(ROOT)}}}
     with tempfile.NamedTemporaryFile('w', suffix='.json', delete=False) as f: json.dump(cfg, f); path = f.name
     convo = ''.join(f"{'Person' if m['who'] == 'person' else 'Agent'}: {m['text']}\n" for m in history[-10:])

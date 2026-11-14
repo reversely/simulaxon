@@ -136,14 +136,16 @@ def assumptions(store, project_id: str) -> list[dict]:
 
 def machine() -> dict:
     import subprocess
-    ps = subprocess.run(['ps', '-eo', 'args'], capture_output=True, text=True).stdout.splitlines()
+    try: ps = subprocess.run(['ps', '-eo', 'args'], capture_output=True, text=True).stdout.splitlines()
+    except OSError: ps = []   # an image without ps (python:3.12-slim on the cluster): no local workers to report
     jobs = []
     for line in ps:
         if 'isaac/.venv' in line and '.py' in line: jobs.append(('World node', 'Isaac Sim: ' + Path(line.split()[1]).stem.replace('_', ' ')))
         elif re.search(r'test\d+\w*\.py|tribe_worker\.py', line) and '.venv/bin/python' in line: jobs.append(('Brain node', 'TRIBE: ' + Path(line.split()[1]).stem.replace('_', ' ')))
     jobs = list(dict.fromkeys(jobs))
     world = next((j for n, j in jobs if n == 'World node'), None); brain = next((j for n, j in jobs if n == 'Brain node'), None)
-    return {'agent': 'Claude', 'world_node': world or 'Idle', 'brain_node': brain or 'Idle'}
+    from .planner_agent import label
+    return {'agent': label(), 'world_node': world or 'Idle', 'brain_node': brain or 'Idle'}
 
 
 def search_egobody_moments(n: int = 6) -> dict:

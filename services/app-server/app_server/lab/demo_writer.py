@@ -5,7 +5,7 @@ never names a project, control, region, view or tool that does not exist, and ca
 from __future__ import annotations
 import json, os, re, subprocess, sys, tempfile
 from pathlib import Path
-from . import regions, templates
+from . import planner_agent, regions, templates
 
 DATA = Path(__file__).parent / 'demo_data'
 SEEDS, WRITTEN = DATA / 'seeds', DATA / 'written'
@@ -149,16 +149,20 @@ def write(store, seed_id: str, base_url: str, attempts: int = 5) -> dict:
     with tempfile.NamedTemporaryFile('w', suffix='.json', delete=False) as f: json.dump(cfg, f); cfg_path = f.name
     prompt = (f"Write a demo that replays this paper's experiment in this app, in the paper's own order.\n"
               f"Paper: {seed['paper']}\nLink: {seed['url']}\nTemplate to build on: {seed['template']}\n\n"
-              f"Read the paper's page first with WebFetch, so every 'paper' sentence matches what it did.\n\n"
+              + ("Read the paper first with paper_fetch and paper_read, so every 'paper' sentence matches what it did.\n\n" if planner_agent.backend() == 'planner'
+                 else "Read the paper's page first with WebFetch, so every 'paper' sentence matches what it did.\n\n")
               + FORMAT % {'views': VIEWS, 'reads': READS, 'tools': TOOLS}
               + "\nWhat exists in the app:\n" + json.dumps(inv, ensure_ascii=False))
     try:
         for n in range(attempts):
-            r = subprocess.run(['claude', '-p', prompt, '--mcp-config', cfg_path, '--strict-mcp-config', '--allowedTools', 'mcp__vcl', 'WebFetch',
-                                '--disallowedTools', 'Bash', 'Edit', 'Write', 'NotebookEdit', 'Agent', '--output-format', 'json'],
-                               capture_output=True, text=True, timeout=900, cwd=str(ROOT), env={**os.environ, 'PYTHONPATH': str(ROOT)})
-            if r.returncode != 0: raise RuntimeError((r.stderr or r.stdout)[-400:])
-            text = json.loads(r.stdout).get('result', '')
+            if planner_agent.backend() == 'planner':   # the cluster: the planner, with the lab's tools in place of WebFetch
+                text = planner_agent.turn('You write demos for the Simulaxon lab app. Use the tools to read the paper and the app; answer with the JSON only.', [], prompt, base_url)
+            else:
+                r = subprocess.run(['claude', '-p', prompt, '--mcp-config', cfg_path, '--strict-mcp-config', '--allowedTools', 'mcp__vcl', 'WebFetch',
+                                    '--disallowedTools', 'Bash', 'Edit', 'Write', 'NotebookEdit', 'Agent', '--output-format', 'json'],
+                                   capture_output=True, text=True, timeout=900, cwd=str(ROOT), env={**os.environ, 'PYTHONPATH': str(ROOT)})
+                if r.returncode != 0: raise RuntimeError((r.stderr or r.stdout)[-400:])
+                text = json.loads(r.stdout).get('result', '')
             m = re.search(r'\{[\s\S]*\}', text)
             try: demo = json.loads(m.group(0)) if m else {}
             except json.JSONDecodeError as e: demo, probs = {}, [f'not valid JSON: {e}']

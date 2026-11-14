@@ -1,7 +1,8 @@
 """Chats with the agent: discuss an experiment, link or upload data, set it up together, and let the agent run it; or
 give one goal and let it go all the way through.
 
-A chat is one Claude Code session, resumed turn after turn, so the agent keeps everything it read and did. Each message
+A chat is one agent conversation, resumed turn after turn, so the agent keeps everything it read and did: a Claude Code
+session where Claude Code is installed, or the planner's message history on the cluster (planner_agent.py). Each message
 from the person starts a turn, in one of two modes:
 - discuss: the agent answers, proposes and sets up only what was agreed, then waits for the person;
 - through: the agent sets up and runs everything on its own, turn after turn, until it writes DONE.
@@ -12,7 +13,7 @@ kept in backend/data/sessions/<id>.json, so the page shows the work live and a r
 from __future__ import annotations
 import json, os, subprocess, sys, tempfile, threading, time, uuid
 from pathlib import Path
-from . import datasets
+from . import datasets, planner_agent
 from .ingest import DATA
 
 DIR = DATA / 'sessions'
@@ -80,12 +81,37 @@ class Session:
                 lines.append(f"Run of project {p.id} ({p.data.get('title')}): {'finished' if p.data.get('status') == 'Done' else 'stopped or failed; the project is back to Draft'}")
         return '\n'.join(lines) or 'The background work ended.'
 
+    def _linked(self, call: dict, res):
+        """experiment_create made the project this chat now builds: remember it and tell the page."""
+        if call['tool'] == 'experiment_create' and isinstance(res, dict) and res.get('project_id'):
+            self.d['project_id'] = res['project_id']; call['project_id'] = res['project_id']; self.emit(stage='project', project_id=res['project_id'])
+
+    def turn_planner(self, prompt: str, rec: dict, n: int, t0: float, system: str) -> str:
+        """A turn on the planner: the same records and events as a Claude Code turn, so the page cannot tell them apart."""
+        def on_tool(name, args):
+            call = {'tool': name, 'arguments': args, 'at': round(time.time() - t0, 1)}
+            rec['tool_calls'].append(call); self.emit(stage='tool', n=n, **call); self.save()
+        def on_result(name, args, res):
+            call = rec['tool_calls'][-1]; body = json.dumps(res, default=str)
+            call['result'] = body[:600]; call['error'] = isinstance(res, dict) and ('error' in res or 'detail' in res)
+            self._linked(call, res.get('result') if isinstance(res, dict) else None); self.save()
+        def on_text(text):
+            rec['text'].append(text); self.emit(stage='text', n=n, text=text)
+        try:
+            rec['reply'] = planner_agent.turn(system, self.d.setdefault('messages', []), prompt, self.base, on_tool, on_result, on_text, self.stop.is_set)
+        except Exception as e:
+            rec['reply'] = f'(the agent stopped: {type(e).__name__}: {e})'[:500]
+        rec['seconds'] = round(time.time() - t0); rec['ended'] = time.strftime('%H:%M:%S'); self.save()
+        self.emit(stage='turn_done', n=n, reply=rec['reply'])
+        return rec['reply'] or ''
+
     def turn(self, prompt: str, source: str) -> str:
         n = len(self.d['turns']) + 1; t0 = time.time(); mode = self.d.get('mode', 'through')
         rec = {'n': n, 'from': source, 'mode': mode, 'prompt': prompt, 'started': time.strftime('%H:%M:%S'), 'tool_calls': [], 'text': [], 'reply': None}
         self.d['turns'].append(rec); self.d['status'] = 'working'; self.save(); self.emit(stage='turn', n=n)
-        cfg = _mcp_config(self.base)
         system = SYSTEM + '\n' + MODES[mode] + (f"\nThe project for this chat, if any: {self.d['project_id']}." if self.d.get('project_id') else '')
+        if self.d.get('runtime') == 'planner': return self.turn_planner(prompt, rec, n, t0, system)   # chats from before the planner have no runtime: Claude Code
+        cfg = _mcp_config(self.base)
         cmd = ['claude', '-p', prompt, '--mcp-config', cfg, '--strict-mcp-config', '--allowedTools', 'mcp__vcl',
                '--disallowedTools', 'Bash', 'Edit', 'Write', 'NotebookEdit', 'WebFetch', 'WebSearch', 'Agent', 'Read', 'Glob', 'Grep',
                '--append-system-prompt', system, '--output-format', 'stream-json', '--verbose']
@@ -111,8 +137,7 @@ class Session:
                             call = rec['tool_calls'][-1]; res = _unwrap(body)
                             call['result'] = body[:600]
                             call['error'] = bool(c.get('is_error')) or (isinstance(res, dict) and ('error' in res or 'detail' in res))
-                            if call['tool'] == 'experiment_create' and isinstance(res, dict) and res.get('project_id'):   # the project this chat now builds
-                                self.d['project_id'] = res['project_id']; call['project_id'] = res['project_id']; self.emit(stage='project', project_id=res['project_id'])
+                            self._linked(call, res)
                 if ev.get('type') == 'result':
                     rec['reply'] = ev.get('result', ''); rec['cost_usd'] = ev.get('total_cost_usd')
                 self.save()
@@ -179,7 +204,7 @@ def start(tools, broadcast, base_url: str, text: str, mode: str = 'discuss', pro
     """A new chat, started with the person's first message."""
     sid = 'session_' + uuid.uuid4().hex[:8]
     d = {'id': sid, 'goal': text, 'project_id': project_id, 'mode': mode, 'status': 'working', 'turns': [], 'max_turns': max_turns, 'max_hours': max_hours,
-         'started': time.strftime('%Y-%m-%d %H:%M'), 'agent': 'Claude Code', 'claude_session': None}
+         'started': time.strftime('%Y-%m-%d %H:%M'), 'runtime': planner_agent.backend(), 'agent': planner_agent.label(), 'claude_session': None}
     s = Session(d, base_url, broadcast, tools); s.save(); _live[sid] = s
     return s.say(text if mode == 'discuss' else f'Goal: {text}', mode, 'person')
 
@@ -189,7 +214,7 @@ def message(tools, broadcast, base_url: str, sid: str, text: str, mode: str = 'd
 
 
 def resume_all(tools, broadcast, base_url: str):
-    """At start-up: chats cut off mid-turn or while waiting continue in the same Claude Code session."""
+    """At start-up: chats cut off mid-turn or while waiting continue in the same conversation."""
     for f in DIR.glob('session_*.json') if DIR.exists() else []:
         d = json.loads(f.read_text())
         if d.get('status') in ('working', 'waiting'):
@@ -215,7 +240,7 @@ def stop(sid: str) -> dict:
     s = _live.get(sid)
     if s:
         s.stop.set(); s.inbox.clear()
-        if s.proc and s.proc.poll() is None: s.proc.terminate()
+        if s.proc and s.proc.poll() is None: s.proc.terminate()   # Claude Code; a planner turn checks stop between rounds
     return {'id': sid, 'stopping': bool(s)}
 
 
