@@ -32,7 +32,9 @@ jobs:
       #!/bin/bash
       set -e
       V=580.173.02; G=/data/envs/nvidia-gl
-      if [ -f $G/lib/libGLX_nvidia.so.0 ]; then echo "already present"; ls $G/lib; exit 0; fi
+      if [ -f $G/lib/libGLX_nvidia.so.0 ]; then
+        echo "already present"
+      else
       cd /tmp
       curl -fsSLo nv.run "https://download.nvidia.com/XFree86/Linux-aarch64/$V/NVIDIA-Linux-aarch64-$V.run"
       sh nv.run -x --target /tmp/nv > /dev/null
@@ -48,6 +50,9 @@ jobs:
       sed "s#__NV_VK_ICD__#$G/lib/libGLX_nvidia.so.0#" /tmp/nv/nvidia_icd.json > $G/share/nvidia_icd.json
       sed "s#\"library_path\" *: *\"[^\"]*\"#\"library_path\": \"$G/lib/libGLX_nvidia.so.0\"#" /tmp/nv/nvidia_layers.json > $G/share/nvidia_layers.json
       sed "s#libEGL_nvidia.so.0#$G/lib/libEGL_nvidia.so.0#" /tmp/nv/10_nvidia.json > $G/share/10_nvidia.json
+      fi
+      # The 580 ICD and layer files name libGLX_nvidia.so.0 bare; name the copy on the volume instead.
+      sed -i "s#\"libGLX_nvidia.so.0\"#\"$G/lib/libGLX_nvidia.so.0\"#" $G/share/nvidia_icd.json $G/share/nvidia_layers.json
       ls -la $G/lib; cat $G/share/nvidia_icd.json $G/share/10_nvidia.json
 
   setup-envs:
@@ -69,6 +74,9 @@ jobs:
       - UV_CACHE_DIR=/tmp/uv-cache
       - UV_LINK_MODE=copy
       - UV_PYTHON_PREFERENCE=only-managed
+      - UV_HTTP_TIMEOUT=300
+      - UV_HTTP_RETRIES=10
+      - UV_CONCURRENT_DOWNLOADS=8
     script: |
       #!/bin/sh
       set -e
