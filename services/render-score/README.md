@@ -9,7 +9,7 @@ Node A in [docs/image.png](../../docs/image.png): one container that runs a scen
 | `isaac/render_fit.py` | The stage settings the scene worker matches |
 | `cosmos/cosmos_worker.py` | Warm Cosmos3-Nano-Sim-Transfer worker: the rendered clip conditions the restyle |
 | `tribe/tribe_worker.py`, `tribe/fast_tribe.py` | Warm TRIBE v2 worker: one prediction per clip, video only, bfloat16 |
-| `jobs.py` | The queue that drives the warm workers over JSON lines |
+| `server.py` imports the queue | `app_server/jobs.py` from the app server, the one queue for both: lanes, caching and warm workers over JSON lines |
 
 Memory, from the picture: Isaac 15 GB (estimate), Cosmos 48 GB (measured), TRIBE 15 GB (estimate; 10.8 GB peak measured); 78 of 128 GB on Node A.
 

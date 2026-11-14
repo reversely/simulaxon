@@ -7,26 +7,32 @@ usage: python server.py [--host 0.0.0.0] [--port 8100]
   POST /score    {rec, k, body, motion, motion_file, prompt, name, control?, seed?}
                  -> {render, chunk, prediction, seconds}; render is Isaac's clip, chunk Cosmos's restyle in
                  /data/chunks, prediction TRIBE's response to the chunk in /data/predictions
-  POST /job      {connector, inputs, settings, lane?} -> one job on one worker (isaac_body, cosmos, tribe)
+  POST /job      {connector, inputs, settings, lane?} -> one job on one worker: isaac_counter, isaac_stage, isaac_body,
+                 tribe_v2, cosmos_sim_transfer. The lab app's previews and runs come here (app_server/lab/preview.py).
 
-Each worker runs in its own environment under /data/envs and keeps its model or renderer loaded (jobs.py). One GPU job
-runs at a time. Uses only the standard library, so any of the environments' Pythons can run it.
+Each worker runs in its own environment under /data/envs and keeps its model or renderer loaded. The queue is the app
+server's own (services/app-server/app_server/jobs.py), so lanes, caching and warm workers behave the same on both sides.
+One GPU job runs at a time. Uses only the standard library, so any of the environments' Pythons can run it.
 """
 from __future__ import annotations
-import argparse, json, os, shutil, time
+import argparse, json, os, shutil, sys, time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from jobs import Connector, Queue
 
 HERE = Path(__file__).resolve().parent
+sys.path.insert(0, str(HERE.parent / 'app-server'))   # the one queue, shared with the app server
+from app_server.jobs import Connector, Queue
 DATA = Path(os.environ.get('SIMULAXON_DATA', '/data'))
 ENVS = Path(os.environ.get('SIMULAXON_ENVS', DATA / 'envs'))
 ISAAC_ENV = {'OMNI_KIT_ACCEPT_EULA': 'YES', 'LD_PRELOAD': '/lib/aarch64-linux-gnu/libgomp.so.1'}
 
-CONNECTORS = [
-    Connector('isaac_body', 'render', str(ENVS / 'isaac/bin/python'), str(HERE / 'isaac/isaac_body_worker.py'), 'isaac-6.2', env=ISAAC_ENV),
-    Connector('cosmos', 'restyle', str(ENVS / 'cosmos/bin/python'), str(HERE / 'cosmos/cosmos_worker.py'), 'cosmos-c3a2e37'),
-    Connector('tribe', 'predict', str(ENVS / 'tribe/bin/python'), str(HERE / 'tribe/tribe_worker.py'), 'tribev2-af58661'),
+ISAAC_PY, SCENE = str(ENVS / 'isaac/bin/python'), str(HERE / 'isaac/isaac_scene_worker.py')
+CONNECTORS = [   # the lab's connector names, so its previews and runs need no translation
+    Connector('isaac_counter', 'renderer', ISAAC_PY, SCENE, 'isaac-6.2.0-counter', env=ISAAC_ENV, args=['counter']),
+    Connector('isaac_stage', 'renderer', ISAAC_PY, SCENE, 'isaac-6.2.0-stage', env=ISAAC_ENV, args=['stage']),
+    Connector('isaac_body', 'renderer', ISAAC_PY, str(HERE / 'isaac/isaac_body_worker.py'), 'isaac-6.2.0-body', env=ISAAC_ENV),
+    Connector('tribe_v2', 'neural model', str(ENVS / 'tribe/bin/python'), str(HERE / 'tribe/tribe_worker.py'), 'tribev2-bf16'),
+    Connector('cosmos_sim_transfer', 'generator', str(ENVS / 'cosmos/bin/python'), str(HERE / 'cosmos/cosmos_worker.py'), 'cosmos3-nano-sim-transfer-c3a2e37'),
 ]
 Q = Queue(CONNECTORS)
 
@@ -43,9 +49,9 @@ def score(s: dict) -> dict:
     renders = DATA / 'chunks' / 'renders'; chunks = DATA / 'chunks'; preds = DATA / 'predictions'
     for d in (renders, chunks, preds): d.mkdir(parents=True, exist_ok=True)
     r = run('isaac_body', {k: s[k] for k in ('rec', 'k', 'body', 'motion', 'motion_file')} | {'out_dir': str(renders), 'name': name}, {})
-    c = run('cosmos', {'controls': {'rgb': r['clip']}, 'prompt': s['prompt'], 'out_dir': str(chunks), 'name': name},
+    c = run('cosmos_sim_transfer', {'controls': {'rgb': r['clip']}, 'prompt': s['prompt'], 'out_dir': str(chunks), 'name': name},
             {'control': s.get('control', 'edge'), 'seed': int(s.get('seed', 2025))})
-    p = run('tribe', {'clip': c['clip']}, {'on_s': r.get('on_s', [1, 9])})
+    p = run('tribe_v2', {'clip': c['clip']}, {'on_s': r.get('on_s', [1, 9])})
     pred = preds / f'{name}.tribe.npy'; shutil.copyfile(p['response'], pred)
     return {'render': r['clip'], 'chunk': c['clip'], 'prediction': str(pred), 'seconds': round(time.time() - t0, 1)}
 
