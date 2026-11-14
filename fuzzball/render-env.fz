@@ -139,7 +139,9 @@ jobs:
       PY
       fi
       cd /data/src/cosmos-framework
-      UV_PROJECT_ENVIRONMENT=/data/envs/cosmos uv sync --frozen --group cu130-train
+      # cosmos-framework pins uv 0.11.29 (pyproject required-version), the version the Spark's environment was built with.
+      [ -x /data/envs/uv-0.11.29/bin/uv ] || pip install --no-cache-dir -q --prefix /data/envs/uv-0.11.29 uv==0.11.29
+      UV_PROJECT_ENVIRONMENT=/data/envs/cosmos /data/envs/uv-0.11.29/bin/uv sync --frozen --group cu130-train
       echo "== versions"
       /data/envs/isaac/bin/python -c "import importlib.metadata as m; print('isaacsim', m.version('isaacsim'), 'torch', m.version('torch'))"
       /data/envs/tribe/bin/python -c "import importlib.metadata as m; print('tribev2', m.version('tribev2'), 'torch', m.version('torch'))"
