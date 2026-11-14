@@ -1,0 +1,28 @@
+version: v4
+volumes:
+  data:
+    use: team13
+    name: simulaxon-data
+    ingress:
+      - source:
+          uri: hf://nvidia/Nemotron-3-Super-120B-A12B-BF16-MTPv2
+        destination:
+          uri: file://weights/nvidia--nemotron-3-super-120b-a12b-bf16-mtpv2
+        policy:
+          timeout:
+            execute: 2h
+jobs:
+  sizes:
+    image:
+      uri: docker://alpine:3.20
+    resource:
+      cpu:
+        cores: 1
+      memory:
+        size: 1GiB
+    mounts:
+      /data:
+        volume: data
+    script: |
+      #!/bin/sh
+      du -sh /data/weights/* /data/weights/*/text_tokenizer 2>/dev/null || true
