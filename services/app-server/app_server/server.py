@@ -13,6 +13,8 @@ usage: SIMULAXON_DATA=/data python -m app_server.server [--host 0.0.0.0] [--port
   POST /api/runs/{name}/start                submits a run as a Fuzzball workflow; POST /api/runs/{name}/stop stops it
   POST /api/agent                            {dataset, stages, message, history} -> reply, tool calls, view to show (the planner)
   GET  /media/{path}                         a media file that some loaded sample points to; nothing else is served
+  GET  /api/startup                          the new-project screen: sample prompt, paper link, study images, dataset (startup.json)
+  GET  /startup-files/{i}                    the i-th study image startup.json lists
 """
 from __future__ import annotations
 import argparse, json, os, tempfile, urllib.request
@@ -24,7 +26,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from . import agent_tools, loaders, runs, store, views
-from .config import DATA, PLANNER_MODEL, PLANNER_URL, ROOT, SOURCES, UI
+from .config import APP, DATA, PLANNER_MODEL, PLANNER_URL, ROOT, SOURCES, UI
 
 PORT = 8791
 WIDE = 32   # tracks with more columns than this are returned as mean and spread across columns
@@ -145,7 +147,8 @@ AGENT_SYSTEM = """You are the agent inside Visual Cortex Lab. People look at dat
 and time tracks, including TRIBE v2 predictions of an average viewer's fMRI response. Use the tools to read the data; never
 invent a number, and say which field and how many samples each number comes from. Write short plain sentences in plain text: no Markdown, no tables, no asterisks. No verdict
 words such as supported, confirmed, refuted or ruled out. To show the person something, build it from stages and call
-view_show; that is the only way you change the screen, and every stage you add is visible and removable.
+view_show; that is the only way you change the screen, and every stage you add is visible and removable. Studies run
+as Fuzzball workflows: runs_list shows each run and its steps, and run_start starts one when the person asks for it.
 The person is looking at dataset {dataset!r} with these stages: {stages}."""
 
 
@@ -229,6 +232,26 @@ def runs_stop(name: str):
 def media(path: str):
     if not con().execute('select 1 from samples where media = ? limit 1', [path]).fetchone(): raise HTTPException(404, 'not a sample media file')
     return FileResponse(DATA / path)
+
+
+def _startup() -> dict:
+    return json.load(open(APP / 'startup.json'))
+
+
+@app.get('/api/startup')
+def startup():
+    """What the new-project screen shows: the sample prompt, the paper, the study's images (each with whether it exists
+    on the data root) and the dataset and run they belong to."""
+    s = _startup()
+    return {**s, 'images': [{'title': im['title'], 'url': f'/startup-files/{i}', 'exists': (DATA / im['file']).exists()} for i, im in enumerate(s['images'])],
+            'dataset_loaded': any(d['name'] == s['dataset'] for d in store.datasets(con()))}
+
+
+@app.get('/startup-files/{i}')
+def startup_file(i: int):
+    ims = _startup()['images']
+    if not 0 <= i < len(ims) or not (DATA / ims[i]['file']).exists(): raise HTTPException(404, 'no such image')
+    return FileResponse(DATA / ims[i]['file'])
 
 
 if UI.exists(): app.mount('/', StaticFiles(directory=UI, html=True), name='ui')

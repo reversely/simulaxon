@@ -76,6 +76,20 @@ def view_show(dataset: str, stages: list[dict], why: str, fields_on_tiles: list[
     return json.dumps({'shown': True, 'dataset': dataset, 'stages': len(stages)})
 
 
+def runs_list() -> str:
+    """Every run the app can start: name, title, question, status, and each step's status. A run is a study submitted to
+    Fuzzball as one workflow; its steps are the workflow's jobs."""
+    return json.dumps([{'name': r['name'], 'title': r['title'], 'question': r.get('question'), 'status': r['state']['status'],
+                        'steps': {s['id']: r['state']['steps'].get(s['id'], {}).get('status', 'waiting') for s in r['steps']},
+                        'dataset': r.get('dataset_name')} for r in _http('GET', '/api/runs')])
+
+
+def run_start(name: str) -> str:
+    """Starts a run by name as a new Fuzzball workflow and returns its workflow ID. A run already running is left
+    alone. Runs take tens of minutes; check on one with runs_list."""
+    return json.dumps(_http('POST', f'/api/runs/{urllib.parse.quote(name, safe="")}/start'))
+
+
 _S = lambda **p: {'type': 'object', 'properties': p, 'required': list(p)}
 _STR = {'type': 'string'}
 _STAGES = {"type": "array", "items": {"type": "object"}, "description": "Stages, in the forms listed in view_run."}
@@ -85,6 +99,8 @@ TOOLS = [
     (view_run, {**_S(dataset=_STR, stages=_STAGES), 'properties': {'dataset': _STR, 'stages': _STAGES, 'limit': {'type': 'integer'}}}),
     (sample_get, _S(dataset=_STR, id=_STR)),
     (track_summary, _S(dataset=_STR, id=_STR, path=_STR)),
+    (runs_list, _S()),
+    (run_start, _S(name=_STR)),
     (view_show, {**_S(dataset=_STR, stages=_STAGES, why=_STR),
                  'properties': {'dataset': _STR, 'stages': _STAGES, 'why': _STR, 'fields_on_tiles': {'type': 'array', 'items': _STR}}}),
 ]
