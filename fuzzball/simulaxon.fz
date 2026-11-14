@@ -1,0 +1,131 @@
+version: v4
+# Simulaxon's services (docs/image.png): the planner and the app server on Node B; render-score on Node A is added once
+# its image is built (onboarding step 3).
+# Needs: the repo at /data/src/simulaxon (streamed in with receive.fz), the Nemotron weights in /data/weights
+# (weights/5-nemotron-super-nvfp4.fz). The app's URL: fuzzball workflow endpoints <workflow-id>. Fuzzball 4.3 has no
+# persistent endpoints, so the URL changes with each new workflow.
+volumes:
+  data:
+    use: team13
+    name: simulaxon-data
+
+jobs:
+  build-ui:
+    image:
+      uri: docker://node:24-bookworm-slim
+    resource:
+      cpu:
+        cores: 4
+      memory:
+        size: 8GiB
+    mounts:
+      /data:
+        volume: data
+    script: |
+      #!/bin/sh
+      set -e
+      cd /data/src/simulaxon/frontend
+      npm ci --no-audit --no-fund
+      npm run build
+      ls -la dist
+
+services:
+  planner:
+    # Nemotron 3 Super NVFP4 on one GB10, with the settings NVIDIA's model card gives for DGX Spark
+    # (huggingface.co/nvidia/NVIDIA-Nemotron-3-Super-120B-A12B-NVFP4, "vLLM on DGX Spark"), served from /data/weights.
+    image:
+      uri: docker://vllm/vllm-openai:v0.27.1
+    persist: true
+    resource:
+      cpu:
+        cores: 16
+      memory:
+        size: 100GiB
+      devices:
+        nvidia.com/gpu: 1
+    mounts:
+      /data:
+        volume: data
+    env:
+      - HF_HUB_OFFLINE=1
+      - VLLM_NVFP4_GEMM_BACKEND=marlin
+      - VLLM_FLASHINFER_ALLREDUCE_BACKEND=trtllm
+      - VLLM_USE_FLASHINFER_MOE_FP4=0
+    script: |
+      #!/bin/sh
+      M=/data/weights/nvidia--nemotron-3-super-120b-a12b-nvfp4
+      exec vllm serve "$M" \
+        --served-model-name nvidia/nemotron-3-super \
+        --host 0.0.0.0 --port 8000 \
+        --async-scheduling --dtype auto --kv-cache-dtype fp8 \
+        --tensor-parallel-size 1 --trust-remote-code \
+        --gpu-memory-utilization 0.85 \
+        --enable-chunked-prefill --max-num-seqs 4 --max-model-len 65536 \
+        --moe-backend marlin --mamba_ssm_cache_dtype float16 --quantization fp4 \
+        --reasoning-parser-plugin "$M/super_v3_reasoning_parser.py" --reasoning-parser super_v3 \
+        --enable-auto-tool-choice --tool-call-parser qwen3_coder
+    network:
+      ports:
+        - name: openai
+          port: 8000
+    readiness-probe:
+      http-get:
+        path: /health
+        port: 8000
+      initial-delay-seconds: 120
+      period-seconds: 30
+      failure-threshold: 60
+
+  app-server:
+    image:
+      uri: docker://python:3.12-slim
+    persist: true
+    depends-on:
+      - name: build-ui
+        status: FINISHED
+    resource:
+      cpu:
+        cores: 4
+      memory:
+        size: 4GiB
+    mounts:
+      /data:
+        volume: data
+    env:
+      - SIMULAXON_DATA=/data
+      - SIMULAXON_UI=/data/src/simulaxon/frontend/dist
+      - PLANNER_URL=http://planner:8000/v1
+      - PLANNER_MODEL=nvidia/nemotron-3-super
+      - FUZZBALL=/data/bin/fuzzball
+    script: |
+      #!/bin/sh
+      set -e
+      mkdir -p /data/bin /data/log
+      # The cluster's CLI, for submitting runs with the injected FB_TOKEN (docs: In-Workflow API Access).
+      python3 - <<'PY'
+      import os, urllib.request
+      req = urllib.request.Request('https://ui.fb-hack.civilfritz.net/api/download/cli/linux/arm64',
+                                   headers={'Cookie': 'fwi.access-token=' + os.environ['FB_TOKEN']})
+      open('/data/bin/fuzzball.part', 'wb').write(urllib.request.urlopen(req, timeout=600).read())
+      os.chmod('/data/bin/fuzzball.part', 0o755); os.replace('/data/bin/fuzzball.part', '/data/bin/fuzzball')
+      PY
+      pip install --no-cache-dir -q -r /data/src/simulaxon/services/app-server/requirements.txt
+      cd /data/src/simulaxon/services/app-server
+      exec python -m app_server.server --host 0.0.0.0 --port 8791
+    network:
+      ports:
+        - name: web
+          port: 8791
+      endpoints:
+        - name: simulaxon
+          port-name: web
+          type: subdomain
+          protocol: http
+          scope: group
+    readiness-probe:
+      http-get:
+        path: /api/datasets
+        port: 8791
+      initial-delay-seconds: 20
+      period-seconds: 10
+      failure-threshold: 30
