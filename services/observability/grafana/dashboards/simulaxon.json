@@ -329,7 +329,7 @@
     "x": 0,
     "y": 14
    },
-   "description": "One row per observer workflow from the last 6 hours, one column per step, each cell the step's state now; a render cell shows one of its tasks' states. Fuzzball gives the exporter no step times, so this is the current state, not a timeline.",
+   "description": "One row per observer run from the last 6 hours, newest first (start time in UTC and the workflow's short ID), one column per step. A cell shows the worst state of the step's tasks: one failed render task makes the render cell red.",
    "datasource": {
     "type": "prometheus",
     "uid": "prometheus"
@@ -340,7 +340,7 @@
       "type": "prometheus",
       "uid": "prometheus"
      },
-     "expr": "max by (workflow, job, state) (simulaxon_step_state)",
+     "expr": "max by (run, job) ((simulaxon_step_state == 3) * 10 or simulaxon_step_state)",
      "format": "table",
      "instant": true,
      "refId": "A"
@@ -351,17 +351,16 @@
      "id": "organize",
      "options": {
       "excludeByName": {
-       "Time": true,
-       "Value": true
+       "Time": true
       }
      }
     },
     {
      "id": "groupingToMatrix",
      "options": {
-      "rowField": "workflow",
+      "rowField": "run",
       "columnField": "job",
-      "valueField": "state",
+      "valueField": "Value",
       "emptyValue": "empty"
      }
     },
@@ -369,7 +368,7 @@
      "id": "organize",
      "options": {
       "indexByName": {
-       "workflow\\job": 0,
+       "run\\job": 0,
        "motions": 1,
        "render": 2,
        "tribe": 3,
@@ -378,8 +377,19 @@
        "app-dataset": 6
       },
       "renameByName": {
-       "workflow\\job": "workflow"
+       "run\\job": "run"
       }
+     }
+    },
+    {
+     "id": "sortBy",
+     "options": {
+      "sort": [
+       {
+        "field": "run",
+        "desc": true
+       }
+      ]
      }
     }
    ],
@@ -395,33 +405,25 @@
       {
        "type": "value",
        "options": {
-        "finished": {
-         "color": "green",
-         "text": "finished"
+        "0": {
+         "text": "waiting",
+         "color": "text"
         },
-        "started": {
-         "color": "blue",
-         "text": "started"
+        "1": {
+         "text": "running",
+         "color": "blue"
         },
-        "running": {
-         "color": "blue",
-         "text": "running"
+        "2": {
+         "text": "finished",
+         "color": "green"
         },
-        "failed": {
-         "color": "red",
-         "text": "failed"
+        "30": {
+         "text": "failed",
+         "color": "red"
         },
-        "canceled": {
-         "color": "orange",
-         "text": "canceled"
-        },
-        "cancelled": {
-         "color": "orange",
-         "text": "cancelled"
-        },
-        "unspecified": {
-         "color": "text",
-         "text": "unspecified"
+        "4": {
+         "text": "canceled",
+         "color": "orange"
         }
        }
       }
@@ -431,7 +433,7 @@
      {
       "matcher": {
        "id": "byName",
-       "options": "workflow"
+       "options": "run"
       },
       "properties": [
        {
