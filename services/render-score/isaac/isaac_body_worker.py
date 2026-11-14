@@ -1,8 +1,8 @@
-"""Warm Isaac Sim worker for the body world (backend/vcl/lab/worlds.py, kind "body"). Runs in feasibility/isaac/.venv
+"""Warm Isaac Sim worker for the body world (backend/vcl/lab/worlds.py, kind "body"). Runs in /data/envs/isaac
 with OMNI_KIT_ACCEPT_EULA=YES and the libgomp preload.
 
 One job is one cell: an EgoBody moment acted out by one body with one motion, in the scan of the real room, filmed from
-the partner's eye (feasibility/observer/body_scene.py, the same code observer/render.py uses).
+the partner's eye (studies/observer/body_scene.py, the same code observer/render.py uses).
 Job inputs:  {rec, k, body: human|g1, motion: recorded|robotic, motion_file (npz from observer/motion_lib.py), out_dir, name}
 Outputs:     {clip: 9 s mp4 at 30 fps, rgb: the decision-point frame, on_s: [1, 9], frames, camera, seated, render_s, ...}
 The stage is rebuilt only when the moment changes, so the four cells of one moment share one load.
@@ -11,7 +11,7 @@ import json, sys, time
 from pathlib import Path
 from isaacsim import SimulationApp
 app = SimulationApp({'headless': True, 'multi_gpu': False, 'extra_args': ['--enable', 'omni.rtx.spg', '--/renderer/multiGpu/enabled=false']})
-sys.path.insert(0, str(Path(__file__).resolve().parents[2] / 'feasibility' / 'observer'))
+sys.path.insert(0, str(Path(__file__).resolve().parents[3] / 'studies' / 'observer'))
 from body_scene import BodyScene, REVISION
 
 scene = BodyScene(app)
