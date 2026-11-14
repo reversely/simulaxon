@@ -27,7 +27,8 @@ from scan_mesh import load_scan
 WORK = os.path.expanduser('~/data/egobody/work')
 G1_URL = 'https://omniverse-content-production.s3-us-west-2.amazonaws.com/Assets/Isaac/6.2/Isaac/Robots/Unitree/G1/g1.usd'
 KIN = os.path.join(WORK, 'g1_kinematics.json'); PEL_REST = np.array([0.0031, -0.3514, 0.0120])
-REVISION = 'body-scene 1: scan room, partner-eye camera 0.35 m / 1.6 m, G1 by FK, SMPL-X mesh with normals'
+REVISION = {'human': 'body-scene 1: scan room, partner-eye camera 0.35 m above the pelvis, 1.6 m in frame, SMPL-X mesh with normals',
+            'g1': 'body-scene 3: as 1, G1 posed through its links only; its root never touched'}
 
 
 def _M(m): return Gf.Matrix4d(np.asarray(m, float).T.tolist())
@@ -101,7 +102,20 @@ class BodyScene:
                 top = w_pel[1] - 0.08; xf = UsdGeom.Xformable(b); xf.ClearXformOpOrder()
                 xf.AddTranslateOp().Set(Gf.Vec3d(float(w_pel[0]), float((top + floor) / 2), float(w_pel[2]))); xf.AddScaleOp().Set(Gf.Vec3f(0.45, float(top - floor), 0.45)); seat = True
         self.rp = rep.create.render_product('/World/Film', (W, H)); self.ann = rep.AnnotatorRegistry.get_annotator('LdrColor'); self.ann.attach(self.rp)
-        cache = UsdGeom.XformCache(); self.pelvis_rest = np.array(cache.GetLocalToWorldTransform(st.GetPrimAtPath('/World/G1/pelvis'))).T
+        cache = UsdGeom.XformCache(); rest = lambda p: np.array(cache.GetLocalToWorldTransform(st.GetPrimAtPath(p))).T
+        self.pelvis_rest = rest('/World/G1/pelvis')
+        # links the stored kinematics cannot reach (both palms' fixed joints share one name in the asset, so one was lost):
+        # mount each on the link its mirror image hangs from, at the offset the asset's own rest pose gives
+        for path in self.links:
+            name = path.split('/')[-1]
+            if name == 'pelvis': continue
+            try: self.FK.chain(name)
+            except KeyError:
+                mirror = name.replace('left', '#').replace('right', 'left').replace('#', 'right')
+                _, mparent = self.FK.parent[mirror]; parent = mparent.replace('left', '#').replace('right', 'left').replace('#', 'right')
+                ppath = next(p for p in self.links if p.split('/')[-1] == parent)
+                jn = f'rest_mount_{name}'; self.FK.parent[name] = (jn, parent); self.FK.j[jn] = {'type': 'fixed'}
+                self.FK.fixed[jn] = np.linalg.inv(rest(ppath)) @ rest(path); self.FK.inv1[jn] = np.eye(4)
         self.loaded = key
         self.info = dict(rec=rec, k=k, frames=self.N, decision_frame=self.n_t, seated=seated, seat_added=seat, floor=round(floor, 3), focal_mm=round(fl, 1),
                          camera=f"{'seated' if seated else 'standing'}; partner head {np.linalg.norm((ph - target)[[0, 2]]):.2f} m from the body (fit {off:+d} frames), camera 0.5 m behind it, {fl:.0f} mm",
@@ -119,20 +133,22 @@ class BodyScene:
 
     # ---- bodies
     def _show(self, body):
+        # The G1's root prim is never touched after the stage is built: changes to it (hidden, or moved away) were not
+        # carried into the render once it had been drawn (2026-11-14: 10 of 12 lab G1 clips were an empty room), while
+        # changes to its links are. So the whole pose goes into the links, and for a human cell they sit 1 km below.
         (UsdGeom.Imageable(self.hm).MakeVisible if body == 'human' else UsdGeom.Imageable(self.hm).MakeInvisible)()
-        (UsdGeom.Imageable(self.g1).MakeVisible if body == 'g1' else UsdGeom.Imageable(self.g1).MakeInvisible)()
 
     def _human(self, n, motion):
         v = self.Mo[f'{motion}_verts'][n]; FH = self.FH; fn = np.cross(v[FH[:, 1]] - v[FH[:, 0]], v[FH[:, 2]] - v[FH[:, 0]])
         nv = np.zeros_like(v); [np.add.at(nv, FH[:, j], fn) for j in range(3)]; nv /= np.linalg.norm(nv, axis=1, keepdims=True) + 1e-12
         self.hm.GetPointsAttr().Set(Vt.Vec3fArray.FromNumpy(v)); self.hm.GetNormalsAttr().Set(Vt.Vec3fArray.FromNumpy(nv.astype(np.float32)))
 
-    def _g1(self, q, n, motion):
+    def _g1(self, q, n, motion, away=False):
         pel, fwd = self.Mo[f'{motion}_pel'][n], self.Mo[f'{motion}_fwd'][n]
         fh = np.array([fwd[0], 0, fwd[2]]) / np.linalg.norm(fwd[[0, 2]]); r_ = Rot.from_euler('y', np.arctan2(-fh[2], fh[0])) * Rot.from_euler('x', -90, degrees=True)
-        P = np.eye(4); P[:3, :3] = r_.as_matrix(); P[:3, 3] = [pel[0], pel[1] if self.seated else self.floor + 0.80, pel[2]]
-        UsdGeom.Xformable(self.g1).ClearXformOpOrder(); UsdGeom.Xformable(self.g1).AddTransformOp().Set(_M(P))
-        B = P @ self.pelvis_rest; qq = {**q, **self.legs}; world = {'/World/G1': P}
+        P = np.eye(4); P[:3, :3] = r_.as_matrix(); P[:3, 3] = [pel[0], pel[1] if self.seated else self.floor + 0.80, pel[2] ]
+        if away: P[1, 3] -= 1000.0   # beyond the camera's 100 m far clip, so no hole in the scanned floor shows it
+        B = P @ self.pelvis_rest; qq = {**q, **self.legs}; world = {'/World/G1': np.eye(4)}   # the root stays where the stage put it
         for path in self.links:
             name = path.split('/')[-1]; parent = path.rsplit('/', 1)[0]
             Mw = B if name == 'pelvis' else self.FK.link_world(name, qq, B)
@@ -148,9 +164,13 @@ class BodyScene:
             for n in range(self.N):
                 q, e = self.RT.fit(self.Mo[f'{motion}_six'][n], prev); qs.append(q); prev = q; worst = max(worst, max(e.values()))
         frames = []
+        q_away = self.RT.fit(self.Mo['recorded_six'][0], None)[0] if body == 'human' else None
         for n in range(-4, self.N):   # four settling frames before the first kept one
             m = max(n, 0)
-            self._g1(qs[m], m, motion) if body == 'g1' else self._human(m, motion)
+            if body == 'g1': self._g1(qs[m], m, motion)
+            else:
+                self._human(m, motion)
+                if n == -4: self._g1(q_away, 0, 'recorded', away=True)   # the G1's links out of view for the whole cell
             self.app.update(); rep.orchestrator.step()
             if n >= 0: frames.append(np.asarray(self.ann.get_data())[..., :3].astype(np.uint8))
         os.makedirs(os.path.dirname(out_mp4), exist_ok=True)
