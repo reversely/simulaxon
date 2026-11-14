@@ -74,7 +74,7 @@ def failed_steps(w: dict) -> list[dict]:
                                capture_output=True, text=True, timeout=60)
             tail = ' | '.join(l.strip() for l in r.stdout.splitlines() if l.strip() and not l.startswith('gpulog'))
         out.append({'workflow': w['id'], 'workflow_name': w.get('name', ''), 'job': s['name'] if s.get('kind') != 'STAGE_KIND_WORKFLOW' else '',
-                    'task': str(task), 'error': (s.get('error') or d.get('error') or '')[:200], 'log_tail': tail[-200:],
+                    'task': str(task) if task else '', 'error': (s.get('error') or d.get('error') or '')[:200], 'log_tail': tail[-200:],
                     'ended': ts(s.get('endTime') or d.get('endTime'))})
     return out
 
@@ -98,7 +98,7 @@ def refresh():
             if s['name'] in arrays and s.get('rank', 0) == 0: continue
             host = (s.get('details') or {}).get('Host', '')
             jobs.append({'workflow': w['id'], 'workflow_name': wfs[w['id']], 'job': s['name'],
-                         'task': str(s['rank']) if s['name'] in arrays else '0', 'node': host.split(':')[0],
+                         'task': str(s['rank']) if s['name'] in arrays else '', 'node': host.split(':')[0],
                          'kind': 'service' if s['kind'] == 'STAGE_KIND_SERVICE' else 'job',
                          'status': s['status'].replace('STAGE_STATUS_', '').lower()})
             if s['kind'] == 'STAGE_KIND_SERVICE' and s['name'] in SCRAPE and s['status'] == 'STAGE_STATUS_STARTED':
@@ -136,7 +136,8 @@ def last_line(f: Path) -> dict | None:
 
 def metrics() -> str:
     with _lock: st = {k: v for k, v in _state.items()}
-    nodes = {(j['workflow'], j['job'], j['task']): j['node'] for j in st['jobs']}
+    if not st['updated']: return '# waiting for the first Fuzzball read, so every series carries its workflow name\n'
+    nodes = {(j['workflow'], j['job'], j['task'] or '0'): j['node'] for j in st['jobs']}
     out, now = [], time.time()
     series = {m: [] for _, m, _ in GPU}; procs = []
     for f in GPU_DIR.glob('*.jsonl') if GPU_DIR.exists() else []:
@@ -146,7 +147,9 @@ def metrics() -> str:
         except OSError: continue
         if not r: continue
         wf, job, task = r.get('workflow', ''), r.get('job', ''), str(r.get('task', 0))
-        lab = dict(workflow=wf, workflow_name=st['workflows'].get(wf, ''), job=job, task=task, node=nodes.get((wf, job, task), ''))
+        # task is empty for a job that is not a task array (gpu-log.sh writes 0; array tasks count from 1)
+        lab = dict(workflow=wf, workflow_name=st['workflows'].get(wf, ''), job=job, task='' if task == '0' else task,
+                   node=nodes.get((wf, job, task), ''))
         for key, name, _ in GPU:
             if isinstance(r.get(key), (int, float)): series[name].append((lab, r[key]))
         for rank, p in enumerate(r.get('top') or [], 1):

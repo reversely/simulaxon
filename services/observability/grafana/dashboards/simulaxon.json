@@ -179,7 +179,7 @@
       "uid": "prometheus"
      },
      "expr": "simulaxon_gpu_utilization_percent",
-     "legendFormat": "{{workflow_name}} / {{job}}{{task}}",
+     "legendFormat": "{{workflow_name}} / {{job}} {{task}}",
      "refId": "A"
     }
    ],
@@ -206,7 +206,8 @@
       "lineWidth": 2,
       "fillOpacity": 8,
       "spanNulls": false
-     }
+     },
+     "min": 0
     },
     "overrides": []
    },
@@ -232,7 +233,7 @@
       "uid": "prometheus"
      },
      "expr": "simulaxon_gpu_power_watts",
-     "legendFormat": "{{workflow_name}} / {{job}}{{task}}",
+     "legendFormat": "{{workflow_name}} / {{job}} {{task}}",
      "refId": "A"
     }
    ],
@@ -259,7 +260,9 @@
       "lineWidth": 2,
       "fillOpacity": 8,
       "spanNulls": false
-     }
+     },
+     "min": 0,
+     "decimals": 1
     },
     "overrides": []
    },
@@ -285,7 +288,7 @@
       "uid": "prometheus"
      },
      "expr": "simulaxon_job_memory_bytes",
-     "legendFormat": "{{workflow_name}} / {{job}}{{task}}",
+     "legendFormat": "{{workflow_name}} / {{job}} {{task}}",
      "refId": "A"
     }
    ],
@@ -312,7 +315,8 @@
       "lineWidth": 2,
       "fillOpacity": 8,
       "spanNulls": false
-     }
+     },
+     "min": 0
     },
     "overrides": []
    },
@@ -338,7 +342,7 @@
       "uid": "prometheus"
      },
      "expr": "simulaxon_gpu_temperature_celsius",
-     "legendFormat": "{{workflow_name}} / {{job}}{{task}}",
+     "legendFormat": "{{workflow_name}} / {{job}} {{task}}",
      "refId": "A"
     }
    ],
