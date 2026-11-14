@@ -105,10 +105,16 @@ services:
       - GF_ANALYTICS_REPORTING_ENABLED=false
       - GF_ANALYTICS_CHECK_FOR_UPDATES=false
       - GF_NEWS_NEWS_FEED_ENABLED=false
-    command:   # /run.sh refuses a data folder that does not exist yet
+    # /run.sh refuses a data folder that does not exist yet. A container whose cluster DNS does not answer (seen on a
+    # GB10 after a network-setup fault) shows every panel empty, so Grafana starts only once `prometheus` resolves and
+    # the service fails, visibly, after two minutes without it.
+    command:
       - /bin/sh
       - -c
-      - mkdir -p /tmp/grafana/logs /tmp/grafana/plugins && exec /run.sh
+      - >-
+        mkdir -p /tmp/grafana/logs /tmp/grafana/plugins &&
+        for i in $(seq 24); do nslookup prometheus >/dev/null 2>&1 && exec /run.sh; sleep 5; done;
+        echo "cluster DNS does not resolve prometheus in this container" >&2; exit 1
     network:
       ports:
         - name: web
