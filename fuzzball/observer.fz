@@ -24,6 +24,7 @@ defaults:
     - HF_HUB_CACHE=/data/weights/hf/hub
     - HF_HUB_OFFLINE=1
     - TRIBE_CACHE=/data/weights/tribe-cache
+    - MNE_DATASETS_SAMPLE_PATH=/data/weights/mne_data
     - LD_LIBRARY_PATH=/data/envs/nvidia-gl/lib:/gpu-libs
     - VK_ICD_FILENAMES=/data/envs/nvidia-gl/share/nvidia_icd.json
     - VK_DRIVER_FILES=/data/envs/nvidia-gl/share/nvidia_icd.json
@@ -125,7 +126,9 @@ jobs:
     script: |
       #!/bin/sh
       set -e
-      mkdir -p $HOME && ln -sfn /data/studies/observer $HOME/data
+      mkdir -p $HOME/bin && ln -sfn /data/studies/observer $HOME/data
+      ln -sf $(/data/envs/tribe/bin/python -c "import imageio_ffmpeg; print(imageio_ffmpeg.get_ffmpeg_exe())") $HOME/bin/ffmpeg
+      export PATH=$HOME/bin:$PATH
       cd /data/src/simulaxon
       /data/envs/tribe/bin/python studies/observer/analyse.py
 
@@ -143,7 +146,9 @@ jobs:
     script: |
       #!/bin/sh
       set -e
-      mkdir -p $HOME && ln -sfn /data/studies/observer $HOME/data
+      mkdir -p $HOME/bin && ln -sfn /data/studies/observer $HOME/data
+      ln -sf $(/data/envs/tribe/bin/python -c "import imageio_ffmpeg; print(imageio_ffmpeg.get_ffmpeg_exe())") $HOME/bin/ffmpeg
+      export PATH=$HOME/bin:$PATH
       cd /data/src/simulaxon
       MPLBACKEND=Agg /data/envs/tribe/bin/python studies/observer/maps.py
 
