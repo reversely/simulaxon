@@ -75,6 +75,7 @@ jobs:
     script: |
       #!/bin/bash
       set -e
+      (sh /data/src/simulaxon/fuzzball/gpu-log.sh $$ &)   # GPU readings and commands: fuzzball/gpu-usage.py
       mkdir -p $HOME/bin && ln -sfn /data/studies/observer $HOME/data
       # The Isaac Sim image has no ffmpeg; the clips are encoded with the static build the TRIBE environment carries.
       ln -sf $(/data/envs/tribe/bin/python -c "import imageio_ffmpeg; print(imageio_ffmpeg.get_ffmpeg_exe())") $HOME/bin/ffmpeg
@@ -106,6 +107,7 @@ jobs:
     script: |
       #!/bin/sh
       set -e
+      (sh /data/src/simulaxon/fuzzball/gpu-log.sh $$ &)   # GPU readings and commands: fuzzball/gpu-usage.py
       mkdir -p $HOME/bin && ln -sfn /data/studies/observer $HOME/data
       ln -sf $(/data/envs/tribe/bin/python -c "import imageio_ffmpeg; print(imageio_ffmpeg.get_ffmpeg_exe())") $HOME/bin/ffmpeg
       export PATH=$HOME/bin:$PATH

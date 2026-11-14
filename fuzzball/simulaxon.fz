@@ -55,6 +55,7 @@ services:
       - VLLM_USE_FLASHINFER_MOE_FP4=0
     script: |
       #!/bin/sh
+      (sh /data/src/simulaxon/fuzzball/gpu-log.sh $$ &)   # GPU readings and commands: fuzzball/gpu-usage.py
       M=/data/weights/nvidia--nemotron-3-super-120b-a12b-nvfp4
       exec vllm serve "$M" \
         --served-model-name nvidia/nemotron-3-super \
