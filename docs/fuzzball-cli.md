@@ -115,7 +115,37 @@ fuzzball workflow start -n weights-1 fuzzball/weights/1-tribev2.fz
 
 A single workflow with every download in it stalled its volume stage, and Fuzzball cancelled it with `job stopped responding`.
 
-## 8. Find out why a workflow failed
+The cluster's outside connection carries about 15 MB/s in total, shared by every team. One download gets about 10 MB/s; a parallel downloader in a second job got 5 MB/s beside it. Nemotron's 80 GB takes about 2 hours. Watch progress with:
+
+```
+python3 fuzzball/pull-status.py --watch 15
+```
+
+## 8. Copy files from your machine
+
+Files that are not on the internet (the Spark's study data, this private repo) go in through a running job. Start `fuzzball/receive.fz`, then pipe a tar into it. `workflow exec` never passes the end of input to the command, so the receiving side stops after the tar's exact byte count:
+
+```
+fuzzball workflow start -n simulaxon-receive fuzzball/receive.fz
+```
+```
+git archive --format=tar --prefix=simulaxon/ HEAD > /tmp/src.tar
+```
+```
+fuzzball workflow exec <workflow-id> receive -- sh -c "mkdir -p /data/src && head -c $(stat -f %z /tmp/src.tar) | tar -C /data/src -xf -" < /tmp/src.tar
+```
+
+The command stays open after the copy finishes; stop it with Ctrl-C once the files are there.
+
+## 9. Open the app
+
+The app's endpoint uses the cluster's private certificate authority, so a browser warns about it. A port-forward opens it at `http://127.0.0.1:18791` instead:
+
+```
+fuzzball workflow port-forward <workflow-id> app-server 18791:8791
+```
+
+## 10. Find out why a workflow failed
 
 | Command | Shows |
 |---|---|
@@ -141,3 +171,8 @@ To find a cause, change one thing per run and run one workflow at a time on the 
 | `job stopped responding on node …` after about 10 minutes | A volume stage running many downloads at once | Step 7: one download per workflow |
 | `no route to host` naming `database-postgresql`, `10.96.73.41:7331` or another `10.x` address | Cluster network fault | Report to the organizers with the workflow ID |
 | `failed to probe image cache … lookup fuzzball-objectcache on 10.96.0.10:53: no such host` | Cluster DNS fault; every image and node fails the same way | Report to the organizers; no image change avoids it |
+| `building images in a workflow is not enabled on this deployment` | The cluster turns off `images:` sections | Use a published image and put the rest on `/data` (`fuzzball/render-env.fz`) |
+| `field on not found in type api.WorkflowDefinition_Policy_Retry` | `retry.on` is new in Fuzzball 4.4; the cluster runs 4.3.1 | Use `retry: {attempts: N}` |
+| `could not use tcp port 8791: already used` | An earlier workflow still holds the port on that node | Stop the earlier workflow |
+| `Could not set lock on file "/data/log/datasets.duckdb"` | An earlier app server still holds the DuckDB lock | Stop the earlier app workflow |
+| `rm: can't remove …: Directory not empty` on `/data` | A process still has a file open there; NFS keeps it as `.nfs…` | Stop that process, then remove |
