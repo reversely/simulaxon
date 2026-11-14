@@ -17,7 +17,7 @@ Node B in [docs/image.png](../../docs/image.png): FastAPI and DuckDB.
 | `app_server/lab/sessions.py` | Chats with the agent, in discuss or all-the-way-through mode |
 | `app_server/lab/planner_agent.py` | The agent on the cluster: the planner in a tool-calling loop over the same tools; Claude Code where it is installed (`SIMULAXON_AGENT`) |
 | `app_server/runs.py` | Studies submitted to Fuzzball as workflows, from `runs/*.json` |
-| `app_server/config.py` | The cluster settings: `SIMULAXON_DATA`, `SIMULAXON_UI`, `PLANNER_URL`, `PLANNER_MODEL`, `FUZZBALL`, `GRAFANA_URL` |
+| `app_server/config.py` | The cluster settings: `SIMULAXON_DATA`, `SIMULAXON_UI`, `PLANNER_URL`, `PLANNER_MODEL`, `FUZZBALL` |
 | `app_server/lab/experiment.py` | Experiments from any paper and any stimuli: trials, Cosmos, TRIBE, baselines |
 | `app_server/lab/runner.py` | Runs a project's clips and analyses |
 | `app_server/lab/preview.py` | One render and TRIBE read, and the connectors for Isaac, TRIBE and Cosmos |
