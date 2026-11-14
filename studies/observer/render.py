@@ -10,7 +10,7 @@ import argparse, json, os, sys
 ap = argparse.ArgumentParser(); ap.add_argument('rec', nargs='?'); ap.add_argument('k', type=int, nargs='?'); ap.add_argument('--item'); ap.add_argument('--res', default='960x540')
 a = ap.parse_args()
 if a.item: _it = json.load(open(a.item))[0]; a.rec, a.k = _it['rec'], int(_it['k'])   # a run's item file: [{id, rec, k}]
-HERE = os.path.dirname(os.path.abspath(__file__)); sys.path.insert(0, os.path.join(os.path.dirname(HERE), 'egobody')); import memwait; memwait.wait(30, 'observer render')
+HERE = os.path.dirname(os.path.abspath(__file__))   # Fuzzball sizes the job, so no wait for free memory
 from isaacsim import SimulationApp
 app = SimulationApp({'headless': True, 'multi_gpu': False, 'extra_args': ['--enable', 'omni.rtx.spg', '--/renderer/multiGpu/enabled=false']})
 sys.path.insert(0, HERE)

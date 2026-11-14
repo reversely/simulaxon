@@ -2,20 +2,19 @@
 One timeline per clip, many clips per call: the batched path checked in test 17 (tribe_had.py --check).
 Writes <clip>.tribe.npy (seconds x 20484) beside each clip; resumable. V-JEPA 2 features land in cache_fast,
 keyed by the clip's path, as test 18 reads them.
-usage (feasibility/.venv): python egobody/tribe_clips.py CLIP_DIR [BATCH] [--wait [--until N]]   (--wait: keep polling for new clips; --until: stop at N)
+usage (/data/envs/tribe): python studies/observer/tribe_clips.py CLIP_DIR [BATCH] [--wait [--until N]]   (--wait: keep polling for new clips; --until: stop at N)
 """
 import glob, os, sys, time
 from pathlib import Path
 import numpy as np, pandas as pd
-here = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(here)); sys.path.insert(0, str(here / 'tribev2-src'))
+repo = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(repo / 'services' / 'render-score' / 'tribe'))
 from fast_tribe import load
-sys.path.insert(0, str(here / 'egobody')); import memwait
 from neuralset.events.utils import standardize_events
 
 d = sys.argv[1]; batch = int(sys.argv[2]) if len(sys.argv) > 2 and sys.argv[2].isdigit() else 25; wait = '--wait' in sys.argv
 until = int(sys.argv[sys.argv.index('--until') + 1]) if '--until' in sys.argv else 0  # with --wait: stop once this many predictions exist
-model = load(cache_folder=str(here / 'cache_fast'))
+model = load(cache_folder=os.environ.get('TRIBE_CACHE', '/data/weights/tribe-cache'))
 
 
 def predict_batch(paths):
@@ -29,7 +28,7 @@ def predict_batch(paths):
 while True:
     todo = sorted(p for p in glob.glob(os.path.join(d, '*.mp4')) if not os.path.exists(p[:-4] + '.tribe.npy'))
     for k in range(0, len(todo), batch):
-        memwait.wait(label='TRIBE batch'); chunk = todo[k:k + batch]; t0 = time.time()
+        chunk = todo[k:k + batch]; t0 = time.time()
         try:  # the GPU is shared: a failed batch (e.g. out of memory) waits and is retried next round
             ys = predict_batch([os.path.abspath(p) for p in chunk]); fails = 0
         except Exception as e:
