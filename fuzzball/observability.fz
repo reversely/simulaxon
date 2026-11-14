@@ -6,9 +6,10 @@ version: v4
 #   exporter     the GPU jobs' readings (fuzzball/gpu-log.sh -> /data/log/metrics/gpu) and every job's state, as
 #                Prometheus metrics; /targets tells Prometheus where each running planner is (planner.<workflow id>)
 #   prometheus   scrapes the exporter and every planner's vLLM /metrics. Its database lives on the container's own disk:
-#                Prometheus does not support NFS for its storage, so the history lasts as long as this workflow.
+#                Prometheus does not support NFS for its storage; a snapshot on /data every 10 minutes carries the
+#                history across restarts.
 #   grafana      Prometheus as data source and the Simulaxon dashboard, both provisioned from the repo; open to viewers
-#                without login. Open it with: fuzzball workflow port-forward <workflow-id> grafana 13000:13000
+#                without login. Open it with fuzzball/grafana.sh, which finds the running workflow.
 #
 # Services share their node's network, so each takes a port unlikely to be in use there (9100 was taken on a GB10).
 # Both images start through their own entrypoints, which Fuzzball runs in place of a script, so each service sets
@@ -61,13 +62,24 @@ services:
     mounts:
       /data:
         volume: data
-        read-only: true
+        read-only: false
+    # The database runs on the container's disk (Prometheus does not support NFS). Every 10 minutes a snapshot is
+    # copied to /data/log/prometheus/snapshot, and a new container starts from it, so the history outlives restarts.
     command:
-      - /bin/prometheus
-      - --config.file=/data/src/simulaxon/services/observability/prometheus.yml
-      - --storage.tsdb.path=/tmp/prometheus
-      - --storage.tsdb.retention.size=8GB
-      - --web.listen-address=0.0.0.0:19090
+      - /bin/sh
+      - -c
+      - |
+        D=/data/log/prometheus; T=/tmp/prometheus; mkdir -p $D $T
+        [ -d $D/snapshot ] && cp -a $D/snapshot/. $T/ && echo "restored $(ls $D/snapshot | wc -l) blocks from $D/snapshot"
+        (while sleep 600; do
+          s=$(wget -qO- --post-data= http://127.0.0.1:19090/api/v1/admin/tsdb/snapshot | sed -n 's/.*"name":"\([^"]*\)".*/\1/p')
+          [ -n "$s" ] || continue
+          rm -rf $D/snapshot.new && cp -a $T/snapshots/$s $D/snapshot.new && rm -rf $D/snapshot && mv $D/snapshot.new $D/snapshot
+          rm -rf $T/snapshots/$s
+        done) &
+        exec /bin/prometheus --config.file=/data/src/simulaxon/services/observability/prometheus.yml \
+          --storage.tsdb.path=$T --storage.tsdb.retention.size=8GB --storage.tsdb.retention.time=30d \
+          --web.listen-address=0.0.0.0:19090 --web.enable-admin-api
     network:
       ports:
         - name: web
@@ -107,13 +119,14 @@ services:
       - GF_NEWS_NEWS_FEED_ENABLED=false
     # /run.sh refuses a data folder that does not exist yet. A container whose cluster DNS does not answer (seen on a
     # GB10 after a network-setup fault) shows every panel empty, so Grafana starts only once `prometheus` resolves and
-    # the service fails, visibly, after two minutes without it.
+    # the service fails, visibly, after two minutes without it. BusyBox nslookup exits non-zero when any search domain
+    # misses, so the check reads its answer instead.
     command:
       - /bin/sh
       - -c
       - >-
         mkdir -p /tmp/grafana/logs /tmp/grafana/plugins &&
-        for i in $(seq 24); do nslookup prometheus >/dev/null 2>&1 && exec /run.sh; sleep 5; done;
+        for i in $(seq 24); do nslookup prometheus 2>/dev/null | grep -q '^Name:' && exec /run.sh; sleep 5; done;
         echo "cluster DNS does not resolve prometheus in this container" >&2; exit 1
     network:
       ports:
