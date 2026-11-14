@@ -1,5 +1,5 @@
-fastapi
-uvicorn
-duckdb
-numpy
-pydantic
+fastapi==0.163.0
+uvicorn==0.54.0
+duckdb==2.0.0
+numpy==2.5.4
+pydantic==2.14.3
