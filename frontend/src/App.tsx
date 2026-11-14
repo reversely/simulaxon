@@ -7,14 +7,20 @@ import { Agent, type Msg } from './Agent'
 import { Runs } from './Runs'
 import { ViewBar } from './ViewBar'
 import { NewProject } from './NewProject'
+import { Dashboard } from './Dashboard'
 
 // The frame: datasets, the view bar, fields, samples and the inspector. Everything shown comes from the API. The
 // dataset, stages, shown fields and selected sample live in the address, so any screen can be reopened exactly.
 
-type Loc = { d?: string; stages: Stage[]; shown: string[]; sel: string | null; view?: 'data' | 'runs' }
+type Loc = { d?: string; stages: Stage[]; shown: string[]; sel: string | null; view?: 'data' | 'runs' | 'dashboard' }
 const readLoc = (): Loc => { try { return { stages: [], shown: [], sel: null, ...JSON.parse(decodeURIComponent(location.hash.slice(1))) } } catch { return { stages: [], shown: [], sel: null } } }
 
 export default function App() {
+  if (location.pathname === '/dashboard') return <Dashboard standalone />   // the dashboard's own link
+  return <Lab />
+}
+
+function Lab() {
   const [all, setAll] = useState<Dataset[]>([])
   const [loc, setLoc] = useState<Loc>(readLoc)
   const [v, setV] = useState<ViewResult | null>(null)
@@ -46,15 +52,16 @@ export default function App() {
       <div className="seg" role="tablist">
         <button role="tab" aria-selected={loc.view !== 'runs'} onClick={() => go({ view: 'data' })}>Data</button>
         <button role="tab" aria-selected={loc.view === 'runs'} onClick={() => go({ view: 'runs' })}>Runs</button>
+        <button role="tab" aria-selected={loc.view === 'dashboard'} onClick={() => go({ view: 'dashboard' })}>Dashboard</button>
       </div>
-      {loc.view !== 'runs' && <select value={name ?? ''} onChange={e => setLoc({ d: e.target.value, stages: [], shown: [], sel: null })} aria-label="Dataset">
+      {(loc.view ?? 'data') === 'data' && <select value={name ?? ''} onChange={e => setLoc({ d: e.target.value, stages: [], shown: [], sel: null })} aria-label="Dataset">
         {all.map(d => <option key={d.name} value={d.name}>{d.name}, {d.samples.toLocaleString()} samples</option>)}
       </select>}
       <button className="btn" onClick={() => setFresh(true)}>New project</button>
       {busy && <span className="ink2">Updating</span>}
       {err && <span className="flag">{err}</span>}
     </header>
-    {loc.view === 'runs' ? <Runs onOpenDataset={n => { setAll(a => a); api.datasets().then(setAll); setLoc({ d: n, stages: [], shown: [], sel: null, view: 'data' }) }} /> : <>
+    {loc.view === 'dashboard' ? <Dashboard /> : loc.view === 'runs' ? <Runs onOpenDataset={n => { setAll(a => a); api.datasets().then(setAll); setLoc({ d: n, stages: [], shown: [], sel: null, view: 'data' }) }} /> : <>
     {v && <ViewBar trail={v.trail} stages={loc.stages} fields={v.schema} onRemove={i => go({ stages: loc.stages.filter((_, k) => k !== i) })} onAdd={s => go({ stages: [...loc.stages, s] })} />}
     <div className={`body${wideOn ? ' wide' : ''}`}>
       {v && <Fields schema={v.schema} facets={v.facets} shown={loc.shown} onToggleShown={p => go({ shown: loc.shown.includes(p) ? loc.shown.filter(x => x !== p) : [...loc.shown, p] })}

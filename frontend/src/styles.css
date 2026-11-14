@@ -203,3 +203,24 @@ select, input { background: var(--raise); border: 1px solid var(--rule-strong); 
 .thumbs a { display: grid; gap: 6px; text-decoration: none; font-size: 14px; }
 .thumbs img { width: 100%; aspect-ratio: 16 / 10; object-fit: cover; border-radius: 6px; border: 1px solid var(--rule); background: var(--ground); }
 @media (max-width: 720px) { .modal { padding: 20px 16px; } .np-refs { grid-template-columns: 1fr; } }
+
+/* dashboard */
+.dash { overflow: auto; padding: 20px 24px 40px; display: grid; gap: 24px; align-content: start; min-height: 0; }
+.dash.standalone { min-height: 100vh; }
+.dash-head { display: flex; flex-wrap: wrap; gap: 8px 18px; align-items: baseline; }
+.dash h1 { margin: 0; font-size: 24px; } .dash h2 { margin: 0 0 10px; font-size: 18px; }
+.dash a { color: var(--ink-2); }
+.card { background: var(--panel); border: 1px solid var(--rule); border-radius: var(--radius); padding: 12px 14px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; min-width: 0; }
+.card-head { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: baseline; }
+.multiples { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(380px, 100%), 1fr)); gap: 12px; }
+.chartwrap { position: relative; }
+.chart { display: block; max-width: 100%; }
+.ftable th.num, .ftable td.num { text-align: right; }
+.chart .grid { stroke: var(--rule); stroke-width: 1; }
+.chart .axis { fill: var(--ink-3); font-size: 12px; }
+.chart .cross { stroke: var(--ink-3); stroke-width: 1; }
+.chart .bar { fill: var(--s1); } .chart .bar.failed { fill: var(--flag); } .chart .bar.canceled { fill: var(--rule-strong); }
+.chart .bar.started, .chart .bar.running { fill: var(--s1); opacity: .6; }
+.tip { position: absolute; pointer-events: none; background: var(--raise); border: 1px solid var(--rule-strong); border-radius: 6px; padding: 6px 8px; font-size: 13px; white-space: nowrap; transform: translateX(-50%); z-index: 2; }
+.legend { display: flex; gap: 14px; font-size: 13px; color: var(--ink-2); }
+.legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 6px; vertical-align: -1px; }
