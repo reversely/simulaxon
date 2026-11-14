@@ -148,11 +148,17 @@ jobs:
       PY
       fi
       cd /data/src/cosmos-framework
-      if built uv.lock /data/envs/cosmos; then echo "cosmos: built from this lock file, left alone"; else
+      # The train extra is part of the environment: cosmos_worker.py sets COSMOS_TRAINING=1, and cosmos_framework then
+      # imports its training dependencies (pandas first) even for inference. The marker covers the lock file and these
+      # options, so changing either rebuilds.
+      COSMOS_SYNC="--frozen --extra train --group cu130-train"
+      { cat uv.lock; echo "$COSMOS_SYNC"; } > /tmp/cosmos-spec
+      if built /tmp/cosmos-spec /data/envs/cosmos; then echo "cosmos: built from this lock file and options, left alone"; else
       # cosmos-framework pins uv 0.11.29 (pyproject required-version), the version the Spark's environment was built with.
       [ -x /data/envs/uv-0.11.29/bin/uv ] || pip install --no-cache-dir -q --prefix /data/envs/uv-0.11.29 uv==0.11.29
-      UV_PROJECT_ENVIRONMENT=/data/envs/cosmos /data/envs/uv-0.11.29/bin/uv sync --frozen --group cu130-train
-      mark uv.lock /data/envs/cosmos; fi
+      UV_PROJECT_ENVIRONMENT=/data/envs/cosmos /data/envs/uv-0.11.29/bin/uv sync $COSMOS_SYNC
+      mark /tmp/cosmos-spec /data/envs/cosmos; fi
+      /data/envs/cosmos/bin/python -c "import pandas, cosmos_framework.scripts.inference; print('cosmos imports ok, pandas', pandas.__version__)"
       echo "== versions"
       /data/envs/isaac/bin/python -c "import importlib.metadata as m; print('isaacsim', m.version('isaacsim'), 'torch', m.version('torch'))"
       /data/envs/tribe/bin/python -c "import importlib.metadata as m; print('tribev2', m.version('tribev2'), 'torch', m.version('torch'))"
