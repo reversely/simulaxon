@@ -794,44 +794,92 @@
    "id": 16
   },
   {
-   "type": "timeseries",
-   "title": "Monitoring health",
-   "description": "",
+   "type": "stat",
+   "title": "Scrape targets",
+   "description": "Whether Prometheus reached each source at its last scrape: the exporter, each planner, and Prometheus itself.",
    "datasource": {
     "type": "prometheus",
     "uid": "prometheus"
    },
    "gridPos": {
     "h": 6,
-    "w": 24,
+    "w": 12,
     "x": 0,
     "y": 65
    },
+   "targets": [
+    {
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus"
+     },
+     "expr": "up",
+     "legendFormat": "{{job}} {{instance}}",
+     "instant": true,
+     "refId": "A"
+    }
+   ],
    "fieldConfig": {
     "defaults": {
-     "unit": "short",
-     "custom": {
-      "lineWidth": 2,
-      "fillOpacity": 8,
-      "spanNulls": false
+     "mappings": [
+      {
+       "type": "value",
+       "options": {
+        "0": {
+         "text": "Down",
+         "color": "red"
+        },
+        "1": {
+         "text": "Up",
+         "color": "green"
+        }
+       }
+      }
+     ],
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "red",
+        "value": null
+       },
+       {
+        "color": "green",
+        "value": 1
+       }
+      ]
      }
     },
     "overrides": []
    },
    "options": {
-    "legend": {
-     "displayMode": "table",
-     "placement": "bottom",
+    "colorMode": "background",
+    "graphMode": "none",
+    "textMode": "value_and_name",
+    "reduceOptions": {
      "calcs": [
-      "lastNotNull",
-      "mean",
-      "max"
-     ]
+      "lastNotNull"
+     ],
+     "fields": "",
+     "values": false
     },
-    "tooltip": {
-     "mode": "multi",
-     "sort": "desc"
-    }
+    "orientation": "horizontal"
+   },
+   "id": 17
+  },
+  {
+   "type": "stat",
+   "title": "Fuzzball reads",
+   "description": "Seconds since the exporter last read Fuzzball. It reads every 30 s plus however long the read takes, so anything under 90 s is current; red means job states and failures have stopped updating.",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prometheus"
+   },
+   "gridPos": {
+    "h": 6,
+    "w": 12,
+    "x": 12,
+    "y": 65
    },
    "targets": [
     {
@@ -840,20 +888,45 @@
       "uid": "prometheus"
      },
      "expr": "simulaxon_exporter_fuzzball_age_seconds",
-     "legendFormat": "seconds since Fuzzball was read",
+     "legendFormat": "last read",
+     "instant": true,
      "refId": "A"
-    },
-    {
-     "datasource": {
-      "type": "prometheus",
-      "uid": "prometheus"
-     },
-     "expr": "up",
-     "legendFormat": "{{job}} {{instance}} up",
-     "refId": "B"
     }
    ],
-   "id": 17
+   "fieldConfig": {
+    "defaults": {
+     "unit": "s",
+     "decimals": 0,
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "green",
+        "value": null
+       },
+       {
+        "color": "red",
+        "value": 90
+       }
+      ]
+     }
+    },
+    "overrides": []
+   },
+   "options": {
+    "colorMode": "background",
+    "graphMode": "none",
+    "textMode": "value_and_name",
+    "reduceOptions": {
+     "calcs": [
+      "lastNotNull"
+     ],
+     "fields": "",
+     "values": false
+    },
+    "orientation": "horizontal"
+   },
+   "id": 18
   }
  ],
  "editable": false
