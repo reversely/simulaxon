@@ -114,11 +114,19 @@ jobs:
       mkdir -p /data/envs /data/src
       [ -x /data/envs/uv/bin/uv ] || pip install --no-cache-dir -q --prefix /data/envs/uv uv==0.12.13
       export PATH=/data/envs/uv/bin:$PATH
+      # An environment that is built is left alone: rewriting the files of a loaded library on NFS kills the processes
+      # using it (SIGBUS). Each records the sha256 of the lock file it was built from in .built, and rebuilds only when
+      # that lock file changes.
+      built() { [ -f $2/.built ] && [ "$(cat $2/.built)" = "$(sha256sum $1 | cut -d' ' -f1)" ]; }
+      mark() { sha256sum $1 | cut -d' ' -f1 > $2/.built; }
       echo "== isaac"
+      if built $R/isaac.txt /data/envs/isaac; then echo "isaac: built from this lock file, left alone"; else
       [ -x /data/envs/isaac/bin/python ] || uv venv -p 3.12 /data/envs/isaac
       uv pip install --python /data/envs/isaac/bin/python -r $R/isaac.txt \
         --extra-index-url https://pypi.nvidia.com --index-strategy unsafe-best-match
+      mark $R/isaac.txt /data/envs/isaac; fi
       echo "== tribe"
+      if built $R/tribe.txt /data/envs/tribe; then echo "tribe: built from this lock file, left alone"; else
       [ -x /data/envs/tribe/bin/python ] || uv venv -p 3.12 /data/envs/tribe
       # tribev2 declares torchvision<0.22, but the Spark runs it with 0.24.1 (an editable install never enforced it), so
       # every other pin installs first and tribev2 follows without its declared dependencies.
@@ -126,6 +134,7 @@ jobs:
       uv pip install --python /data/envs/tribe/bin/python -r /tmp/tribe-deps.txt \
         --extra-index-url https://download.pytorch.org/whl/cu130 --index-strategy unsafe-best-match
       uv pip install --python /data/envs/tribe/bin/python --no-deps "$(grep '^tribev2 @' $R/tribe.txt)"
+      mark $R/tribe.txt /data/envs/tribe; fi
       echo "== cosmos"
       uv python install 3.13
       if [ ! -f /data/src/cosmos-framework/uv.lock ]; then
@@ -139,9 +148,11 @@ jobs:
       PY
       fi
       cd /data/src/cosmos-framework
+      if built uv.lock /data/envs/cosmos; then echo "cosmos: built from this lock file, left alone"; else
       # cosmos-framework pins uv 0.11.29 (pyproject required-version), the version the Spark's environment was built with.
       [ -x /data/envs/uv-0.11.29/bin/uv ] || pip install --no-cache-dir -q --prefix /data/envs/uv-0.11.29 uv==0.11.29
       UV_PROJECT_ENVIRONMENT=/data/envs/cosmos /data/envs/uv-0.11.29/bin/uv sync --frozen --group cu130-train
+      mark uv.lock /data/envs/cosmos; fi
       echo "== versions"
       /data/envs/isaac/bin/python -c "import importlib.metadata as m; print('isaacsim', m.version('isaacsim'), 'torch', m.version('torch'))"
       /data/envs/tribe/bin/python -c "import importlib.metadata as m; print('tribev2', m.version('tribev2'), 'torch', m.version('torch'))"
