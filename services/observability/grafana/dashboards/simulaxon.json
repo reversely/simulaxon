@@ -324,12 +324,12 @@
    "type": "table",
    "title": "Study steps",
    "gridPos": {
-    "h": 12,
+    "h": 9,
     "w": 24,
     "x": 0,
     "y": 14
    },
-   "description": "Each step of the observer workflows from the last 6 hours, render tasks one by one, with its state now. Fuzzball gives the exporter no step times, so this is the current state, not a timeline.",
+   "description": "One row per observer workflow from the last 6 hours, one column per step, each cell the step's state now; a render cell shows one of its tasks' states. Fuzzball gives the exporter no step times, so this is the current state, not a timeline.",
    "datasource": {
     "type": "prometheus",
     "uid": "prometheus"
@@ -340,7 +340,7 @@
       "type": "prometheus",
       "uid": "prometheus"
      },
-     "expr": "max by (workflow_name, workflow, job, state, node) (simulaxon_step_state)",
+     "expr": "max by (workflow, job, state) (simulaxon_step_state)",
      "format": "table",
      "instant": true,
      "refId": "A"
@@ -353,84 +353,96 @@
       "excludeByName": {
        "Time": true,
        "Value": true
-      },
-      "renameByName": {
-       "workflow_name": "workflow",
-       "workflow": "workflow id",
-       "job": "step"
-      },
-      "indexByName": {
-       "workflow_name": 0,
-       "job": 1,
-       "state": 2,
-       "node": 3,
-       "workflow": 4
       }
      }
     },
     {
-     "id": "sortBy",
+     "id": "groupingToMatrix",
      "options": {
-      "sort": [
-       {
-        "field": "workflow id"
-       }
-      ]
+      "rowField": "workflow",
+      "columnField": "job",
+      "valueField": "state",
+      "emptyValue": "empty"
+     }
+    },
+    {
+     "id": "organize",
+     "options": {
+      "indexByName": {
+       "workflow\\job": 0,
+       "motions": 1,
+       "render": 2,
+       "tribe": 3,
+       "analyse": 4,
+       "maps": 5,
+       "app-dataset": 6
+      },
+      "renameByName": {
+       "workflow\\job": "workflow"
+      }
      }
     }
    ],
    "fieldConfig": {
-    "defaults": {},
+    "defaults": {
+     "custom": {
+      "cellOptions": {
+       "type": "color-background"
+      },
+      "align": "center"
+     },
+     "mappings": [
+      {
+       "type": "value",
+       "options": {
+        "finished": {
+         "color": "green",
+         "text": "finished"
+        },
+        "started": {
+         "color": "blue",
+         "text": "started"
+        },
+        "running": {
+         "color": "blue",
+         "text": "running"
+        },
+        "failed": {
+         "color": "red",
+         "text": "failed"
+        },
+        "canceled": {
+         "color": "orange",
+         "text": "canceled"
+        },
+        "cancelled": {
+         "color": "orange",
+         "text": "cancelled"
+        },
+        "unspecified": {
+         "color": "text",
+         "text": "unspecified"
+        }
+       }
+      }
+     ]
+    },
     "overrides": [
      {
       "matcher": {
        "id": "byName",
-       "options": "state"
+       "options": "workflow"
       },
       "properties": [
        {
         "id": "custom.cellOptions",
         "value": {
-         "type": "color-background"
+         "type": "auto"
         }
        },
        {
-        "id": "mappings",
-        "value": [
-         {
-          "type": "value",
-          "options": {
-           "finished": {
-            "color": "green",
-            "text": "finished"
-           },
-           "started": {
-            "color": "blue",
-            "text": "started"
-           },
-           "running": {
-            "color": "blue",
-            "text": "running"
-           },
-           "failed": {
-            "color": "red",
-            "text": "failed"
-           },
-           "canceled": {
-            "color": "orange",
-            "text": "canceled"
-           },
-           "cancelled": {
-            "color": "orange",
-            "text": "cancelled"
-           },
-           "unspecified": {
-            "color": "text",
-            "text": "unspecified"
-           }
-          }
-         }
-        ]
+        "id": "custom.align",
+        "value": "left"
        }
       ]
      }
