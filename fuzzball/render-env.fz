@@ -119,8 +119,12 @@ jobs:
         --extra-index-url https://pypi.nvidia.com --index-strategy unsafe-best-match
       echo "== tribe"
       [ -x /data/envs/tribe/bin/python ] || uv venv -p 3.12 /data/envs/tribe
-      uv pip install --python /data/envs/tribe/bin/python -r $R/tribe.txt \
+      # tribev2 declares torchvision<0.22, but the Spark runs it with 0.24.1 (an editable install never enforced it), so
+      # every other pin installs first and tribev2 follows without its declared dependencies.
+      grep -v '^tribev2 @' $R/tribe.txt > /tmp/tribe-deps.txt
+      uv pip install --python /data/envs/tribe/bin/python -r /tmp/tribe-deps.txt \
         --extra-index-url https://download.pytorch.org/whl/cu130 --index-strategy unsafe-best-match
+      uv pip install --python /data/envs/tribe/bin/python --no-deps "$(grep '^tribev2 @' $R/tribe.txt)"
       echo "== cosmos"
       uv python install 3.13
       if [ ! -f /data/src/cosmos-framework/uv.lock ]; then
