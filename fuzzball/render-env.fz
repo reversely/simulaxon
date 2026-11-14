@@ -55,6 +55,35 @@ jobs:
       sed -i "s#\"libGLX_nvidia.so.0\"#\"$G/lib/libGLX_nvidia.so.0\"#" $G/share/nvidia_icd.json $G/share/nvidia_layers.json
       ls -la $G/lib; cat $G/share/nvidia_icd.json $G/share/10_nvidia.json
 
+  hf-cache:
+    # The workers load TRIBE, V-JEPA 2, the Cosmos tokenizer and the Wan VAE through Hugging Face's cache layout, at
+    # the revisions they were run with on the Spark. This builds that layout in /data/weights/hf/hub from symlinks to
+    # the downloaded folders, so HF_HUB_CACHE=/data/weights/hf/hub with HF_HUB_OFFLINE=1 serves them without copies.
+    image:
+      uri: docker://alpine:3.20
+    resource:
+      cpu:
+        cores: 1
+      memory:
+        size: 1GiB
+    mounts:
+      /data:
+        volume: data
+    script: |
+      #!/bin/sh
+      set -e
+      H=/data/weights/hf/hub; W=/data/weights
+      link() {  # repo-dir-name revision target-folder
+        mkdir -p $H/$1/snapshots $H/$1/refs
+        ln -sfn $3 $H/$1/snapshots/$2
+        printf %s $2 > $H/$1/refs/main
+      }
+      link models--facebook--tribev2 f894e783020944dcd96e5568550afe2aa9743f9f $W/facebook--tribev2
+      link models--facebook--vjepa2-vitg-fpc64-256 875c192b7b704b87d1e1d99345769632dd5f739a $W/facebook--vjepa2-vitg-fpc64-256
+      link models--nvidia--Cosmos3-Nano e59a53c25979a090fa8706c9acc0c254a6e89b92 $W/nvidia--cosmos3-nano
+      link models--Wan-AI--Wan2.2-TI2V-5B 921dbaf3f1674a56f47e83fb80a34bac8a8f203e $W/wan-ai--wan2.2-ti2v-5b
+      for d in $H/*/snapshots/*; do echo "$d -> $(readlink $d): $(ls $d/ | head -3 | tr '\n' ' ')"; done
+
   setup-envs:
     image:
       uri: docker://python:3.12   # full image: a few pinned packages build from source and need gcc
