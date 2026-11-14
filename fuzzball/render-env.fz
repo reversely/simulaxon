@@ -52,7 +52,7 @@ jobs:
 
   setup-envs:
     image:
-      uri: docker://python:3.12-slim
+      uri: docker://python:3.12   # full image: a few pinned packages build from source and need gcc
     resource:
       cpu:
         cores: 16

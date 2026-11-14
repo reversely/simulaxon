@@ -36,9 +36,10 @@ def download(wf_id):
     states = {s['status'] for s in files}
     start = min((ts(s.get('startTime')) for s in files if s.get('startTime')), default=None)
     ends = [ts(s.get('endTime')) for s in files]
-    if 'STAGE_STATUS_FAILED' in states or wf.get('status') == 'STAGE_STATUS_FAILED': state = 'failed'
-    elif 'STAGE_STATUS_CANCELED' in states: state = 'cancelled'
-    elif states == {'STAGE_STATUS_FINISHED'}: state = 'done'
+    # A download is judged by its file stages: the size report that runs after them can fail on its own.
+    if states == {'STAGE_STATUS_FINISHED'}: state = 'done'
+    elif 'STAGE_STATUS_FAILED' in states: state = 'failed'
+    elif 'STAGE_STATUS_CANCELED' in states or wf.get('status') == 'STAGE_STATUS_FAILED': state = 'cancelled'
     elif start: state = 'downloading'
     else: state = 'queued'
     return {'state': state, 'start': start, 'end': max(ends) if state == 'done' and all(ends) else None,
