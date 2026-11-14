@@ -1,0 +1,58 @@
+version: v4
+# Optional: render-score as a long-running service, for instant previews (Isaac Sim, Cosmos3-Nano and TRIBE v2 stay
+# loaded). It holds a whole GB10 node while it runs, idle or not. Rendering normally runs as batch tasks the app
+# launches (observer.fz), as in the team's sketch, so start this one only when previews are needed:
+#   fuzzball workflow start -n render-score fuzzball/render-score.fz
+# Needs render-env.fz to have run.
+volumes:
+  data:
+    use: team13
+    name: simulaxon-data
+
+services:
+  render-score:
+    # Isaac Sim 6.2 renders, Cosmos3-Nano restyles, TRIBE v2 reads (services/render-score/server.py). NVIDIA's Isaac Sim
+    # container supplies the system libraries; the graphics libraries and the three Python environments are on /data.
+    image:
+      uri: docker://nvcr.io/nvidia/isaac-sim:6.2.0
+    persist: true
+    resource:
+      cpu:
+        cores: 16
+      memory:
+        size: 96GiB
+      devices:
+        nvidia.com/gpu: 1
+    mounts:
+      /data:
+        volume: data
+    env:
+      - HOME=/tmp/home
+      - SIMULAXON_DATA=/data
+      - HF_HUB_CACHE=/data/weights/hf/hub
+      - HF_HUB_OFFLINE=1
+      - TRIBE_CACHE=/data/weights/tribe-cache
+      - LD_LIBRARY_PATH=/data/envs/nvidia-gl/lib:/gpu-libs
+      - VK_ICD_FILENAMES=/data/envs/nvidia-gl/share/nvidia_icd.json
+      - VK_DRIVER_FILES=/data/envs/nvidia-gl/share/nvidia_icd.json
+      - __EGL_VENDOR_LIBRARY_FILENAMES=/data/envs/nvidia-gl/share/10_nvidia.json
+      - OMNI_KIT_ACCEPT_EULA=YES
+    script: |
+      #!/bin/bash
+      set -e
+      mkdir -p $HOME/bin && ln -sfn /data/studies/observer $HOME/data
+      ln -sf $(/data/envs/tribe/bin/python -c "import imageio_ffmpeg; print(imageio_ffmpeg.get_ffmpeg_exe())") $HOME/bin/ffmpeg
+      export PATH=$HOME/bin:$PATH
+      cd /data/src/simulaxon/services/render-score
+      exec /data/envs/tribe/bin/python server.py --host 0.0.0.0 --port 8100
+    network:
+      ports:
+        - name: http
+          port: 8100
+    readiness-probe:
+      http-get:
+        path: /health
+        port: 8100
+      initial-delay-seconds: 10
+      period-seconds: 10
+      failure-threshold: 30

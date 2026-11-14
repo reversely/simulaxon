@@ -69,7 +69,7 @@ Code: [../services/render-score/](../services/render-score/).
   - `/data/envs/cosmos`, from `cosmos-framework` at `c3a2e37` and its `uv.lock`. The Spark's `feasibility/cosmos-src` is a clean checkout of that commit, so nothing is vendored.
   - A Hugging Face cache in `/data/weights/hf/hub`, symlinked to the downloaded weights at the revisions the workers pin.
 
-**Service.** In `fuzzball/simulaxon.fz`:
+**Service.** Rendering runs as batch tasks the app launches (`fuzzball/observer.fz`), each reading and writing `/data`, as in the team's sketch. For instant previews, `fuzzball/render-score.fz` runs the same workers as an always-on service:
 
 | Field | Setting |
 |---|---|

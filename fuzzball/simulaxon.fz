@@ -1,9 +1,8 @@
 version: v4
-# Simulaxon's services (docs/image.png): render-score, the planner and the app server.
-# render-score and the planner each take a node's one GB10, so Fuzzball always places them on different nodes (Node A
-# and Node B in the picture); the app server needs no GPU and goes wherever there is room.
-# Needs: the repo at /data/src/simulaxon (streamed in with receive.fz), the weights (weights/*.fz), and render-score's
-# environments and graphics libraries (render-env.fz). The app's URL: fuzzball workflow endpoints <workflow-id>.
+# Simulaxon's long-running task (the team's sketch, batch mode): the planner (Nemotron on vLLM) and the app server the
+# user talks to. The app launches rendering as batch tasks (observer.fz) that read and write the same volume.
+# render-score.fz adds an optional always-on render service for previews.
+# Needs: the repo at /data/src/simulaxon (streamed in with receive.fz) and the Nemotron weights (weights/5-*.fz). The app's URL: fuzzball workflow endpoints <workflow-id>.
 # Fuzzball 4.3 has no persistent endpoints, so the URL changes with each new workflow.
 volumes:
   data:
@@ -33,53 +32,6 @@ jobs:
       ls -la /data/app/dist
 
 services:
-  render-score:
-    # Isaac Sim 6.2 renders, Cosmos3-Nano restyles, TRIBE v2 reads (services/render-score/server.py). NVIDIA's Isaac Sim
-    # container supplies the system libraries; the graphics libraries and the three Python environments are on /data.
-    image:
-      uri: docker://nvcr.io/nvidia/isaac-sim:6.2.0
-    persist: true
-    resource:
-      cpu:
-        cores: 16
-      memory:
-        size: 96GiB
-      devices:
-        nvidia.com/gpu: 1
-    mounts:
-      /data:
-        volume: data
-    env:
-      - HOME=/tmp/home
-      - SIMULAXON_DATA=/data
-      - HF_HUB_CACHE=/data/weights/hf/hub
-      - HF_HUB_OFFLINE=1
-      - TRIBE_CACHE=/data/weights/tribe-cache
-      - LD_LIBRARY_PATH=/data/envs/nvidia-gl/lib:/gpu-libs
-      - VK_ICD_FILENAMES=/data/envs/nvidia-gl/share/nvidia_icd.json
-      - VK_DRIVER_FILES=/data/envs/nvidia-gl/share/nvidia_icd.json
-      - __EGL_VENDOR_LIBRARY_FILENAMES=/data/envs/nvidia-gl/share/10_nvidia.json
-      - OMNI_KIT_ACCEPT_EULA=YES
-    script: |
-      #!/bin/bash
-      set -e
-      mkdir -p $HOME/bin && ln -sfn /data/studies/observer $HOME/data
-      ln -sf $(/data/envs/tribe/bin/python -c "import imageio_ffmpeg; print(imageio_ffmpeg.get_ffmpeg_exe())") $HOME/bin/ffmpeg
-      export PATH=$HOME/bin:$PATH
-      cd /data/src/simulaxon/services/render-score
-      exec /data/envs/tribe/bin/python server.py --host 0.0.0.0 --port 8100
-    network:
-      ports:
-        - name: http
-          port: 8100
-    readiness-probe:
-      http-get:
-        path: /health
-        port: 8100
-      initial-delay-seconds: 10
-      period-seconds: 10
-      failure-threshold: 30
-
   planner:
     # Nemotron 3 Super NVFP4 on one GB10, with the settings NVIDIA's model card gives for DGX Spark
     # (huggingface.co/nvidia/NVIDIA-Nemotron-3-Super-120B-A12B-NVFP4, "vLLM on DGX Spark"), served from /data/weights.
@@ -147,7 +99,6 @@ services:
       - HOME=/tmp
       - PLANNER_URL=http://planner:8000/v1
       - PLANNER_MODEL=nvidia/nemotron-3-super
-      - RENDER_SCORE_URL=http://render-score:8100
       - FUZZBALL=/data/bin/fuzzball
     script: |
       #!/bin/sh
