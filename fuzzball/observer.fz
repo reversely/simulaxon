@@ -6,7 +6,7 @@ version: v4
 # libraries from render-env.fz, the weights through /data/weights/hf/hub, the repo at /data/src/simulaxon.
 # Outputs go to OBS_OUT, a folder of their own, so this run never reuses the Spark's results in .../observer.
 # Every container links ~/data to /data/studies/observer, the layout the study code reads. The Python steps run on Rocky
-# Linux 10; the renders run on NVIDIA's Isaac Sim image, which NVIDIA publishes for Ubuntu only.
+# Linux 10; the renders and maps run on NVIDIA's Isaac Sim image (Ubuntu only), which carries the OpenGL libraries.
 volumes:
   data:
     use: team13
@@ -139,16 +139,24 @@ jobs:
     depends-on:
       - name: analyse
         status: FINISHED
+    # The maps are drawn with VTK (pyvista), which needs OpenGL. The Rocky image has no X11 or EGL, so VTK crashed
+    # there; this step runs on the Isaac Sim image with a GPU and renders off-screen through NVIDIA's EGL.
     image:
-      uri: docker://rockylinux/rockylinux:10
+      uri: docker://nvcr.io/nvidia/isaac-sim:6.2.0
     resource:
       cpu:
         cores: 4
       memory:
         size: 16GiB
+      devices:
+        nvidia.com/gpu: 1
+    env:
+      - VTK_DEFAULT_OPENGL_WINDOW=vtkEGLRenderWindow
+      - PYVISTA_OFF_SCREEN=true
     script: |
       #!/bin/sh
       set -e
+      (sh /data/src/simulaxon/fuzzball/gpu-log.sh $$ &)
       mkdir -p $HOME/bin && ln -sfn /data/studies/observer $HOME/data
       ln -sf $(/data/envs/tribe/bin/python -c "import imageio_ffmpeg; print(imageio_ffmpeg.get_ffmpeg_exe())") $HOME/bin/ffmpeg
       export PATH=$HOME/bin:$PATH
