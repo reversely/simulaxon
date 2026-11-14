@@ -86,7 +86,7 @@ Code: [../services/render-score/](../services/render-score/).
 
 - Serve Nemotron Super 120B (NVFP4) with vLLM, as service `planner` in the same Fuzzfile. Use the catalog's general `vllm` entry as the reference for its settings.
 - The model file comes from `/data/weights`.
-- The settings come from NVIDIA's model card, section "vLLM on DGX Spark": vLLM `v0.27.1`, Marlin NVFP4 kernels, fp8 KV cache, the `super_v3` reasoning parser shipped in the model repo. `--gpu-memory-utilization` starts at 0.85, between CIQ's DGX Spark guide (0.7) and the model card (0.9), since the 80 GB of weights leave little KV cache at 0.7.
+- The settings come from NVIDIA's model card, section "vLLM on DGX Spark": vLLM `v0.27.1`, Marlin NVFP4 kernels, fp8 KV cache, the `super_v3` reasoning parser shipped in the model repo. `--gpu-memory-utilization` is 0.75. At 0.85 the engine reserved 69.6 GB of weights and a 29 GB KV cache, then died without an error during FlashInfer's autotuning (2026-11-14). On the GB10 the GPU's memory is the node's own, so the reservation leaves less room for everything else on the node. 0.75 keeps about 17 GB of KV cache, far more than 4 requests of 64k tokens need.
 - Turn tool calling on (`--enable-auto-tool-choice` with Nemotron's tool-call parser). The app server's agent calls tools.
 
 **Check:** `curl http://planner:<port>/v1/models` from another service lists the model. Node B's memory should be near the picture's 72 GB once the app server runs too.
