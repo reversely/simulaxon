@@ -1,0 +1,28 @@
+version: v4
+volumes:
+  data:
+    use: team13
+    name: simulaxon-data
+    ingress:
+      - source:
+          uri: hf://nvidia/Cosmos3-Nano-Sim-Transfer
+        destination:
+          uri: file://weights/nvidia--cosmos3-nano-sim-transfer
+        policy:
+          timeout:
+            execute: 3h
+jobs:
+  sizes:
+    image:
+      uri: docker://alpine:3.20
+    resource:
+      cpu:
+        cores: 1
+      memory:
+        size: 1GiB
+    mounts:
+      /data:
+        volume: data
+    script: |
+      #!/bin/sh
+      du -sh /data/weights/* /data/weights/*/text_tokenizer 2>/dev/null

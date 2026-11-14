@@ -1,0 +1,77 @@
+version: v4
+volumes:
+  data:
+    use: team13
+    name: simulaxon-data
+    ingress:
+      - source:
+          uri: https://huggingface.co/Wan-AI/Wan2.2-TI2V-5B/resolve/921dbaf3f1674a56f47e83fb80a34bac8a8f203e/Wan2.2_VAE.pth
+        destination:
+          uri: file://weights/wan-ai--wan2.2-ti2v-5b/Wan2.2_VAE.pth
+        policy:
+          timeout:
+            execute: 1h
+      - source:
+          uri: https://huggingface.co/nvidia/Cosmos3-Nano/resolve/e59a53c25979a090fa8706c9acc0c254a6e89b92/text_tokenizer/added_tokens.json
+        destination:
+          uri: file://weights/nvidia--cosmos3-nano/text_tokenizer/added_tokens.json
+        policy:
+          timeout:
+            execute: 10m
+      - source:
+          uri: https://huggingface.co/nvidia/Cosmos3-Nano/resolve/e59a53c25979a090fa8706c9acc0c254a6e89b92/text_tokenizer/chat_template.jinja
+        destination:
+          uri: file://weights/nvidia--cosmos3-nano/text_tokenizer/chat_template.jinja
+        policy:
+          timeout:
+            execute: 10m
+      - source:
+          uri: https://huggingface.co/nvidia/Cosmos3-Nano/resolve/e59a53c25979a090fa8706c9acc0c254a6e89b92/text_tokenizer/merges.txt
+        destination:
+          uri: file://weights/nvidia--cosmos3-nano/text_tokenizer/merges.txt
+        policy:
+          timeout:
+            execute: 10m
+      - source:
+          uri: https://huggingface.co/nvidia/Cosmos3-Nano/resolve/e59a53c25979a090fa8706c9acc0c254a6e89b92/text_tokenizer/special_tokens_map.json
+        destination:
+          uri: file://weights/nvidia--cosmos3-nano/text_tokenizer/special_tokens_map.json
+        policy:
+          timeout:
+            execute: 10m
+      - source:
+          uri: https://huggingface.co/nvidia/Cosmos3-Nano/resolve/e59a53c25979a090fa8706c9acc0c254a6e89b92/text_tokenizer/tokenizer.json
+        destination:
+          uri: file://weights/nvidia--cosmos3-nano/text_tokenizer/tokenizer.json
+        policy:
+          timeout:
+            execute: 10m
+      - source:
+          uri: https://huggingface.co/nvidia/Cosmos3-Nano/resolve/e59a53c25979a090fa8706c9acc0c254a6e89b92/text_tokenizer/tokenizer_config.json
+        destination:
+          uri: file://weights/nvidia--cosmos3-nano/text_tokenizer/tokenizer_config.json
+        policy:
+          timeout:
+            execute: 10m
+      - source:
+          uri: https://huggingface.co/nvidia/Cosmos3-Nano/resolve/e59a53c25979a090fa8706c9acc0c254a6e89b92/text_tokenizer/vocab.json
+        destination:
+          uri: file://weights/nvidia--cosmos3-nano/text_tokenizer/vocab.json
+        policy:
+          timeout:
+            execute: 10m
+jobs:
+  sizes:
+    image:
+      uri: docker://alpine:3.20
+    resource:
+      cpu:
+        cores: 1
+      memory:
+        size: 1GiB
+    mounts:
+      /data:
+        volume: data
+    script: |
+      #!/bin/sh
+      du -sh /data/weights/* /data/weights/*/text_tokenizer 2>/dev/null
