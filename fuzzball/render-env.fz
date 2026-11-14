@@ -157,4 +157,4 @@ jobs:
       /data/envs/isaac/bin/python -c "import importlib.metadata as m; print('isaacsim', m.version('isaacsim'), 'torch', m.version('torch'))"
       /data/envs/tribe/bin/python -c "import importlib.metadata as m; print('tribev2', m.version('tribev2'), 'torch', m.version('torch'))"
       /data/envs/cosmos/bin/python -c "import importlib.metadata as m; print('torch', m.version('torch'))"
-      du -sh /data/envs/*
+      du -sh /data/envs/* 2>/dev/null || true   # a few Isaac folders are unreadable; sizes are informational
