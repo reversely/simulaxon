@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { call, fmt, ROLE_NAMES, type Row, regionInText } from './api'
+import { call, fmt, ROLE_NAMES, type Row, regionInText, upload as sendFile } from './api'
 
 export type Param = { name: string; type: string; value: any; role: string; unit?: string; range?: [number, number]; options?: string[]; label?: string; project_id: string }
 export type Preview = { key: string; values: Record<string, any>; image: string; clip: string; readout: Record<string, number>; map: { views: Record<string, string> } }
@@ -94,7 +94,7 @@ function AddMenu({ pid, params, onDone }: { pid: string; params: Row<Param>[]; o
   }
   const upload = async (f: File) => {
     setBusy(f.name); setErr(null)
-    try { const r = await fetch(`/upload?name=${encodeURIComponent(f.name)}`, { method: 'POST', body: f }); const j = await r.json(); if (!r.ok) throw new Error(j.detail); await add({ source_id: 'file', file_path: j.file_path }, f.name) } catch (e) { setErr(String(e)); setBusy(null) }
+    try { const r = await sendFile(`/upload?name=${encodeURIComponent(f.name)}`, f); const j = await r.json(); if (!r.ok) throw new Error(j.detail); await add({ source_id: 'file', file_path: j.file_path }, f.name) } catch (e) { setErr(String(e)); setBusy(null) }
   }
   const methods: { name: string; status: string; ready: boolean }[] = [
     { name: 'Library asset', status: assetParam ? '1,013 Palatial assets, downloaded when picked' : 'This world has no asset control yet', ready: !!assetParam },

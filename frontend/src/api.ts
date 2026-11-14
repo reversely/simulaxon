@@ -45,3 +45,15 @@ export const inText = (r: string) => /^[LR]?_?[A-Z0-9][A-Za-z0-9_-]*$/.test(r) &
 export const fmt = (v: number | null | undefined, d = 3) => v == null || Number.isNaN(v) ? 'None' : (v > 0 ? '+' : v < 0 ? '−' : '') + Math.abs(v).toFixed(d)
 export const PLAN_NAMES: Record<string, string> = { matched: 'Matched pairs', leave_one_out: 'Leave one out', adaptive: 'Adaptive search', selection: 'Selection', grid: 'Grid', random: 'Random', factorial: 'Two by two', experiment: 'Experiment' }
 export const ROLE_NAMES: Record<string, string> = { manipulated: 'Manipulated', matched: 'Matched', fixed: 'Fixed', randomized: 'Randomized', measured: 'Measured', split: 'Split' }
+
+/** Sends a file a person adds. A large file that compresses well goes gzipped (Content-Encoding: gzip), which the
+ * server unpacks as it streams to disk, so more fits under its 2 GB upload limit. Files already compressed (video,
+ * images, archives) go as they are. */
+const PACKED = /\.(zip|gz|tgz|bz2|xz|7z|zst|mp4|mov|mkv|webm|avi|jpe?g|png|webp|gif|npz|parquet)$/i
+export async function upload(url: string, f: File): Promise<Response> {
+  if (f.size > 32e6 && !PACKED.test(f.name) && typeof CompressionStream !== 'undefined') {
+    const gz = await new Response(f.stream().pipeThrough(new CompressionStream('gzip'))).blob()
+    if (gz.size < f.size * 0.9) return fetch(url, { method: 'POST', headers: { 'Content-Encoding': 'gzip' }, body: gz })
+  }
+  return fetch(url, { method: 'POST', body: f })
+}

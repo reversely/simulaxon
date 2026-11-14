@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { upload as sendFile } from './api'
 
 export type ToolCall = { tool: string; arguments: Record<string, unknown>; at: number; result?: string; error?: boolean; project_id?: string }
 export type Turn = { n: number; from?: 'person' | 'wake' | 'goal'; mode?: 'discuss' | 'through'; prompt: string; started: string; ended?: string; seconds?: number; tool_calls: ToolCall[]; text: string[]; reply: string | null }
@@ -76,7 +77,7 @@ export function Chat({ sid, projectId, live, compact, header, footer, chips, onS
   async function upload(list: FileList | null) {
     if (!list) return
     for (const f of Array.from(list)) {
-      const r = await fetch(`/datasets/upload?name=${encodeURIComponent(f.name)}${files[0] ? `&dataset_id=${files[0].dataset_id}` : ''}`, { method: 'POST', body: f })
+      const r = await sendFile(`/datasets/upload?name=${encodeURIComponent(f.name)}${files[0] ? `&dataset_id=${files[0].dataset_id}` : ''}`, f)
       if (r.ok) { const j = await r.json(); setFiles(fs => [...fs, j]) } else setErr(`${f.name} was not uploaded`)
     }
   }

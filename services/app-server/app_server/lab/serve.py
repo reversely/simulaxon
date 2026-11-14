@@ -23,6 +23,39 @@ from .ingest import DATA, FILES, OUT
 from .tools import register
 
 
+UPLOAD_WIRE_LIMIT = 2_000_000_000    # bytes on the wire, compressed or not
+UPLOAD_FILE_LIMIT = 20_000_000_000   # bytes on disk after a gzip upload is unpacked
+
+
+async def receive(request, dest: Path) -> int:
+    """Stream a request body to dest, never holding it in memory. A body sent with Content-Encoding: gzip (the browser
+    compresses large uploads) is unpacked on the way, a slice at a time. Returns the bytes written; 413 past a limit."""
+    import zlib
+    from fastapi import HTTPException
+    d = zlib.decompressobj(wbits=31) if request.headers.get('content-encoding', '').lower() == 'gzip' else None
+    dest.parent.mkdir(parents=True, exist_ok=True); part = dest.with_name(dest.name + '.part'); wire = wrote = 0
+    def put(f, b):
+        nonlocal wrote
+        wrote += len(b)
+        if wrote > UPLOAD_FILE_LIMIT: raise HTTPException(413, f'The file unpacks to over {UPLOAD_FILE_LIMIT // 10**9} GB; use a link instead')
+        f.write(b)
+    try:
+        with open(part, 'wb') as f:
+            async for chunk in request.stream():
+                wire += len(chunk)
+                if wire > UPLOAD_WIRE_LIMIT: raise HTTPException(413, 'Files over 2 GB, even compressed, go through a link instead')
+                if d is None: put(f, chunk); continue
+                data = chunk
+                while data:   # at most 16 MB unpacked per step, so a small body that expands hugely is caught early
+                    put(f, d.decompress(data, 1 << 24)); data = d.unconsumed_tail
+            if d is not None: put(f, d.flush())
+        part.replace(dest); return wrote
+    except zlib.error as e:
+        raise HTTPException(422, f'the upload says gzip but is not: {e}')
+    finally:
+        if part.exists(): part.unlink()
+
+
 def make(db: str, port: int = 8790):
     app = create_app(Store(db)); app.state.tools_port = port; register(app.state.tools, app.state.broadcast); app.state.lab_broadcast = app.state.tools.lab_broadcast; app.state.tools.port = port
 
@@ -77,10 +110,12 @@ def make(db: str, port: int = 8790):
 
     @app.post('/datasets/upload')
     async def dataset_upload(request: Request, name: str, dataset_id: str | None = None):
-        """A file a person adds in a chat, saved into a dataset of uploads (a new one unless dataset_id is given). Body is the raw file."""
-        body = await request.body()
-        if len(body) > 2e9: from fastapi import HTTPException; raise HTTPException(413, 'Files over 2 GB go through a link instead')
-        return sessions.upload(name, body, dataset_id)
+        """A file a person adds in a chat, saved into a dataset of uploads (a new one unless dataset_id is given). Body is
+        the raw file, or the file gzipped with Content-Encoding: gzip; it streams to disk."""
+        import asyncio, uuid
+        tmp = DATA / 'uploads' / 'incoming' / f'{uuid.uuid4().hex[:8]}_{Path(name).name}'
+        await receive(request, tmp)
+        return await asyncio.to_thread(sessions.upload_file, name, tmp, dataset_id)
 
     @app.on_event('startup')
     def _resume_sessions():
@@ -96,9 +131,11 @@ def make(db: str, port: int = 8790):
         runner.SHUTTING_DOWN.set()   # a run cut off here stays Running, so the next start resumes it
         if preview._q:   # warm Isaac and TRIBE workers end with the server, never left holding the GPU
             for w in preview._q.workers.values():
-                w.p.terminate()
-                try: w.p.wait(timeout=5)
-                except Exception: w.p.kill()
+                p = getattr(w, 'p', None)   # remote workers (render-score) have no process here
+                if p is None: continue
+                p.terminate()
+                try: p.wait(timeout=5)
+                except Exception: p.kill()
 
     @app.post('/upload')
     async def upload(request: Request, name: str):
@@ -107,7 +144,7 @@ def make(db: str, port: int = 8790):
         if Path(safe).suffix.lower() not in {'.glb', '.gltf', '.obj', '.ply', '.stl', '.usd', '.usda', '.usdc', '.usdz'}:
             from fastapi import HTTPException
             raise HTTPException(422, 'Use GLB, glTF, OBJ, PLY, STL or USD')
-        up = DATA / 'uploads'; up.mkdir(parents=True, exist_ok=True); (up / safe).write_bytes(await request.body())
+        up = DATA / 'uploads'; await receive(request, up / safe)   # streamed, and unpacked if sent gzipped
         return {'file_path': str(up / safe)}
 
     @app.get('/thumb/{path:path}')

@@ -245,13 +245,21 @@ def stop(sid: str) -> dict:
 
 
 def upload(name: str, data: bytes, dataset_id: str | None = None) -> dict:
-    """Files a person adds in a chat become a dataset of their own, labelled as uploaded; archives are unpacked."""
+    """upload_file for a body already in memory."""
+    tmp = Path(tempfile.mkdtemp()) / Path(name).name; tmp.write_bytes(data)
+    return upload_file(name, tmp, dataset_id)
+
+
+def upload_file(name: str, src: Path, dataset_id: str | None = None) -> dict:
+    """Files a person adds in a chat become a dataset of their own, labelled as uploaded; archives are unpacked. src is
+    the received file, moved into the dataset, so a large upload is never held in memory."""
+    import shutil
     did = dataset_id or 'upload_' + uuid.uuid4().hex[:8]
     root = datasets.HERE / did; root.mkdir(parents=True, exist_ok=True)
-    safe = Path(name).name; (root / safe).write_bytes(data)
+    safe = Path(name).name; shutil.move(str(src), root / safe); size = (root / safe).stat().st_size
     if datasets.kind_of(safe) == 'archive': datasets._unpack(root / safe)
     meta_f = root / '_dataset.json'
     meta = json.loads(meta_f.read_text()) if meta_f.exists() else {'id': did, 'ref': 'upload', 'repository': 'upload', 'key': did, 'title': 'Uploaded in a chat', 'licence': None,
                                                                    'fetched_at': time.strftime('%Y-%m-%d %H:%M'), 'files': []}
     meta['files'] = sorted(set(meta['files'] + [safe])); meta_f.write_text(json.dumps(meta, indent=1))
-    return {'dataset_id': did, 'file': safe, 'kind': datasets.kind_of(safe), 'megabytes': round(len(data) / 1e6, 3)}
+    return {'dataset_id': did, 'file': safe, 'kind': datasets.kind_of(safe), 'megabytes': round(size / 1e6, 3)}
