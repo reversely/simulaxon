@@ -19,7 +19,7 @@ volumes:
 jobs:
   nvidia-gl:
     image:
-      uri: docker://nvcr.io/nvidia/isaac-sim:6.2.0
+      uri: docker://python:3.12
     resource:
       cpu:
         cores: 2
