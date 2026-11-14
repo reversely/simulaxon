@@ -34,13 +34,13 @@ The target is [image.png](image.png). Each step below adds one box or arrow from
 | Cosmos3-Nano-Sim-Transfer | `/data/weights/nvidia--cosmos3-nano-sim-transfer` | `hf://nvidia/Cosmos3-Nano-Sim-Transfer` | render-score |
 | Cosmos3-Nano text tokenizer, Wan2.2 VAE | `/data/weights/nvidia--cosmos3-nano/text_tokenizer`, `/data/weights/wan-ai--wan2.2-ti2v-5b` | Single files at the revisions `cosmos_worker.py` pins | render-score |
 | Nemotron 3 Super 120B, NVFP4 | `/data/weights/nvidia--nemotron-3-super-120b-a12b-nvfp4` | `hf://nvidia/NVIDIA-Nemotron-3-Super-120B-A12B-NVFP4` | planner |
-| SMPL-X v1.1 body model | `/data/body_models/models/smplx` | The Spark's `~/data/body_models` | observer study |
-| EgoBody: the six recordings, scene meshes and `work/` | `/data/egobody` | The Spark's `~/data/egobody` | observer study |
-| Observer outputs | `/data/observer` | The Spark's `~/data/observer` | observer study, app |
+| SMPL-X v1.1 body model | `/data/studies/observer/body_models` | The Spark's `~/data/body_models` | observer study |
+| EgoBody: the six recordings, scene meshes, fits and `work/` | `/data/studies/observer/egobody` | The Spark's `~/data/egobody` | observer study |
+| Observer outputs from the Spark | `/data/studies/observer/observer` | The Spark's `~/data/observer` | baseline, app |
 
 The weights come from Hugging Face. Every repo above is public, so no token is needed. Run the five files in [../fuzzball/weights/](../fuzzball/weights/) one at a time, each after the previous finishes. Thirteen transfers in one workflow stalled its volume stage until Fuzzball cancelled it.
 
-The study code reads the Spark's layout under `~/data` (`motion_lib.py`, `body_scene.py`, `g1_execute.py`), so the study data keeps that layout at `/data`, and each container links `~/data` to `/data`. The SMPL-X and EgoBody files sit behind registration and come from the Spark: start [../fuzzball/receive.fz](../fuzzball/receive.fz) and stream them in with `fuzzball workflow exec` (see the file's header).
+The study code reads the Spark's layout under `~/data` (`motion_lib.py`, `body_scene.py`, `g1_execute.py`), so the study data keeps that layout at `/data/studies/observer`, and each container links `~/data` there. The SMPL-X and EgoBody files sit behind registration and come from the Spark: start [../fuzzball/receive.fz](../fuzzball/receive.fz) and stream a tar into it with `fuzzball workflow exec` (see the file's header). The copy that ran on 2026-11-14 took 1.76 GB, 77,457 entries, in 23 minutes over a home connection.
 
 The six EgoBody recordings:
 - `recording_20210923_S05_S13_02`
@@ -61,11 +61,13 @@ One container running Isaac Sim 6.2, Cosmos3 Nano and TRIBE v2, with a small HTT
 
 Code: [../services/render-score/](../services/render-score/).
 
-**Image.** Build it with an `images:` section in the Fuzzfile, so it is built on the cluster for its own architecture and CUDA version:
-- Isaac Sim 6.2
-- the Cosmos framework at `c3a2e37`, cloned from `github.com/NVIDIA/cosmos-framework`. The Spark's `feasibility/cosmos-src` that `cosmos_worker.py` expects is a clean checkout of that commit, so nothing is vendored.
-- TRIBE v2 at `af58661`
-- torch with CUDA
+**Image and environments.** The hackathon cluster builds no images (`features.enableWorkflowImageBuilds` is off), runs containers as the team user, and mounts only NVIDIA's compute libraries into GPU containers (`/gpu-libs`). So:
+- The service runs on NVIDIA's `nvcr.io/nvidia/isaac-sim:6.2.0` (arm64), which carries Isaac Sim's system libraries.
+- [../fuzzball/render-env.fz](../fuzzball/render-env.fz) puts the rest on `/data` once:
+  - NVIDIA's graphics libraries for the host driver 580.173.02 (Vulkan, EGL, RTX, OptiX), from NVIDIA's installer, in `/data/envs/nvidia-gl`.
+  - `/data/envs/isaac` (Isaac Sim 6.2) and `/data/envs/tribe` (TRIBE v2 at `af58661`), from lock files frozen from the Spark in [../services/render-score/env/](../services/render-score/env/).
+  - `/data/envs/cosmos`, from `cosmos-framework` at `c3a2e37` and its `uv.lock`. The Spark's `feasibility/cosmos-src` is a clean checkout of that commit, so nothing is vendored.
+  - A Hugging Face cache in `/data/weights/hf/hub`, symlinked to the downloaded weights at the revisions the workers pin.
 
 **Service.** In `fuzzball/simulaxon.fz`:
 
@@ -74,7 +76,7 @@ Code: [../services/render-score/](../services/render-score/).
 | Name | `render-score`, so the app server reaches it at `http://render-score` |
 | Mounts | `/data` |
 | GPU | `nvidia.com/gpu: 1` |
-| Memory | Sized from the picture: 78 of 128 GB on Node A |
+| Memory | 96 GiB requested; the picture's 78 GB plus headroom |
 | Port | One named port, with a readiness probe on it |
 | `persist` | `true` |
 
@@ -84,7 +86,7 @@ Code: [../services/render-score/](../services/render-score/).
 
 - Serve Nemotron Super 120B (NVFP4) with vLLM, as service `planner` in the same Fuzzfile. Use the catalog's general `vllm` entry as the reference for its settings.
 - The model file comes from `/data/weights`.
-- On GB10's unified memory, start `--gpu-memory-utilization` at 0.7, not vLLM's default 0.9; CIQ's DGX Spark guide gives this value.
+- The settings come from NVIDIA's model card, section "vLLM on DGX Spark": vLLM `v0.27.1`, Marlin NVFP4 kernels, fp8 KV cache, the `super_v3` reasoning parser shipped in the model repo. `--gpu-memory-utilization` starts at 0.85, between CIQ's DGX Spark guide (0.7) and the model card (0.9), since the 80 GB of weights leave little KV cache at 0.7.
 - Turn tool calling on (`--enable-auto-tool-choice` with Nemotron's tool-call parser). The app server's agent calls tools.
 
 **Check:** `curl http://planner:<port>/v1/models` from another service lists the model. Node B's memory should be near the picture's 72 GB once the app server runs too.
@@ -95,16 +97,18 @@ Code: [../services/render-score/](../services/render-score/).
 - The DuckDB log lives at `/data/log`.
 - It calls `http://planner` for the agent and `http://render-score` for previews.
 - It submits study workflows to Fuzzball with the token Fuzzball injects into every container (`FB_TOKEN`, `FB_API_HOST`). Each study it starts is recorded as its child: `fuzzball workflow list --parent <app-server workflow id>`.
-- Give it an endpoint (`fuzzball endpoint create simulaxon`, with `persistent: true` on the service), so the browser's URL survives redeploys.
+- Give it a workflow endpoint (`type: subdomain`, `scope: group`). Fuzzball 4.3 has no persistent endpoints, so the URL changes with each new workflow: `fuzzball workflow endpoints <workflow-id>`. The endpoint's certificate comes from the cluster's private CA, so a browser warns; `fuzzball workflow port-forward <workflow-id> app-server 18791:8791` opens the app at `http://127.0.0.1:18791` without it.
 
-**Check:** `curl https://<endpoint>/api/datasets` returns the dataset list.
+**Check:** `curl http://127.0.0.1:18791/api/datasets` through the port-forward returns the dataset list.
 
 ## 6. The browser app
 
 - Build `frontend/` with Vite and serve it from the app server. `server.py` already serves a built UI folder when one is present.
 - Or run `npm run dev` locally, with the proxy pointed at the endpoint.
 
-**Check:** the interface opens over HTTPS, lists the datasets, and the agent box answers through the planner.
+The `build-ui` job in `simulaxon.fz` builds it into `/data/app/dist`, outside the source tree, so refreshing the code on the volume leaves the running app's UI in place.
+
+**Check:** the interface opens, lists the datasets, and the agent box answers through the planner.
 
 ## 7. One study, end to end
 

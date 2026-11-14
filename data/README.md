@@ -8,11 +8,13 @@ The VAST volume in [docs/image.png](../docs/image.png), mounted at `/data` by ev
 | `/data/chunks` | Cosmos output, one chunk per restyled clip | render-score |
 | `/data/predictions` | TRIBE output, one cortical map per second | render-score |
 | `/data/log` | The DuckDB log (`datasets.duckdb`) | app-server |
-| `/data/egobody` | EgoBody: the six recordings, scene meshes, SMPL-X fits and `work/` (episodes, kinematics, Isaac renders), in the Spark's `~/data/egobody` layout | Onboarding step 2, from the Spark |
-| `/data/body_models/models/smplx` | SMPL-X v1.1 body model | Onboarding step 2, from the Spark |
-| `/data/observer` | The observer study's clips, predictions and results | The observer study's workflow |
-| `/data/studies/<study>` | Inputs and outputs of later studies | The study's workflow |
+| `/data/weights/hf/hub` | A Hugging Face cache made of symlinks to the folders above, at the revisions the workers pin | `fuzzball/render-env.fz` |
+| `/data/studies/observer` | The Spark's `~/data` for the observer study: `egobody/` (the six recordings, their scene meshes, SMPL-X fits, calibrations, gaze and `work/`), `body_models/`, `robots/`, and `observer/` (the Spark's 24 clips, predictions and results) | Onboarding step 2, from the Spark |
+| `/data/studies/observer/cluster-run` | The observer study's outputs from Fuzzball | `fuzzball/observer.fz` |
+| `/data/envs` | render-score's environments (`isaac`, `tribe`, `cosmos`), their Pythons, and NVIDIA's graphics libraries (`nvidia-gl`) | `fuzzball/render-env.fz` |
+| `/data/src` | The repo (`simulaxon`) and `cosmos-framework` at `c3a2e37` | `fuzzball/receive.fz`, `fuzzball/render-env.fz` |
+| `/data/app/dist` | The built frontend | `fuzzball/simulaxon.fz`, job `build-ui` |
 
-The study code reads `~/data/egobody`, `~/data/body_models` and `~/data/observer`, so each container links `~/data` to `/data`.
+The study code reads `~/data/egobody`, `~/data/body_models` and `~/data/observer`, so each container links `~/data` to `/data/studies/observer`.
 
 The shared provisioner holds sample data and sample models.
