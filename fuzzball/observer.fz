@@ -132,6 +132,7 @@ jobs:
       ln -sf $(/data/envs/tribe/bin/python -c "import imageio_ffmpeg; print(imageio_ffmpeg.get_ffmpeg_exe())") $HOME/bin/ffmpeg
       export PATH=$HOME/bin:$PATH
       cd /data/src/simulaxon
+      mkdir -p $MNE_DATASETS_SAMPLE_PATH   # MNE downloads its sample data here once, but does not create the folder
       /data/envs/tribe/bin/python studies/observer/analyse.py
 
   maps:
