@@ -11,7 +11,7 @@ Node B in [docs/image.png](../../docs/image.png): FastAPI and DuckDB.
 | `app_server/home.py` | Where the data and research tools live: `SIMULAXON_HOME` |
 | `app_server/server.py` | `/tools`, `/tools/{name}` and the `/events` stream over the one tool registry |
 | `app_server/store.py` | The DuckDB store: every row, every step, undo |
-| `app_server/jobs.py` | The queue and its warm workers, by lane |
+| `app_server/jobs.py` | The queue and its warm workers, by lane; render-score runs the same file. On the cluster each connector is remote: jobs go to render-score's `/job` |
 | `app_server/lab/serve.py` | The app: chats, uploads, files, thumbnails, the built frontend, Fuzzball runs, the link to Grafana |
 | `app_server/lab/tools.py` | The lab's tools: projects, papers, datasets, regions, experiments, runs, examples |
 | `app_server/lab/sessions.py` | Chats with the agent, in discuss or all-the-way-through mode |

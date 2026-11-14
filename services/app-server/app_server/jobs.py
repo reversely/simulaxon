@@ -16,9 +16,13 @@
   for it go there in chunks, so one remote container loads the model once per chunk, and they take no local GPU
   time or memory. Fast-lane jobs always run here, so editing and previews stay local. Each remote runner has a
   spending limit; once the next chunk would pass it, jobs run locally instead and the event says so.
+- Remote workers: a connector with a url runs on another machine's queue instead of a local process. On the cluster the
+  app server has no GPU, so previews and runs go to render-score's POST /job (services/render-score/server.py), which
+  runs this same queue with warm workers on the GPU. The job keeps its lane there, and the result comes back here.
+This is the one queue: the app server imports it as app_server.jobs and render-score imports the same file.
 """
 from __future__ import annotations
-import hashlib, json, subprocess, threading, time, uuid, queue
+import hashlib, json, subprocess, threading, time, uuid, queue, urllib.error, urllib.request
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -35,6 +39,7 @@ class Connector:
     env: dict = field(default_factory=dict)
     memory_gb: float = 0.0  # what the warm worker holds; 0 means small enough to ignore
     args: list = field(default_factory=list)   # extra arguments to the worker script
+    url: Any = ''          # a remote queue's base URL, or a function returning it: jobs go to its POST /job
 
 
 def memory_available_gb() -> float:
@@ -65,7 +70,7 @@ class WarmWorker:
             msg = _protocol(line)
             if msg and msg.get('ready') is True: break
 
-    def run(self, job_id: str, inputs: dict, settings: dict) -> dict:
+    def run(self, job_id: str, inputs: dict, settings: dict, lane: str = 'batch') -> dict:
         self.p.stdin.write(json.dumps({'job_id': job_id, 'inputs': inputs, 'settings': settings}) + '\n'); self.p.stdin.flush()
         while True:
             line = self.p.stdout.readline()
@@ -76,6 +81,34 @@ class WarmWorker:
     def close(self):
         try: self.p.stdin.close(); self.p.wait(timeout=30)
         except Exception: self.p.kill()
+
+
+class HttpWorker:
+    """A connector whose warm worker lives in another queue: each job is one POST {connector, inputs, settings, lane}
+    to its /job, answered with the outputs (200) or {"error"} (4xx, 5xx). Holds no process, no GPU and no memory here."""
+    def __init__(self, c: Connector):
+        self.c = c
+
+    def base(self) -> str:
+        u = self.c.url() if callable(self.c.url) else self.c.url
+        if not u: raise RuntimeError(f'no remote queue for {self.c.connector_id}: render-score is not running')
+        return u.rstrip('/')
+
+    def run(self, job_id: str, inputs: dict, settings: dict, lane: str = 'batch') -> dict:
+        body = json.dumps({'connector': self.c.connector_id, 'inputs': inputs, 'settings': settings, 'lane': lane}).encode()
+        try:
+            req = urllib.request.Request(self.base() + '/job', data=body, headers={'Content-Type': 'application/json'})
+            with urllib.request.urlopen(req, timeout=4 * 3600) as r: return {'job_id': job_id, 'outputs': json.loads(r.read())}
+        except urllib.error.HTTPError as e:
+            try: err = json.loads(e.read() or b'{}').get('error')
+            except ValueError: err = None
+            return {'job_id': job_id, 'error': err or f'HTTP {e.code} from {self.c.connector_id}'}
+        except OSError as e:
+            if callable(getattr(self.c.url, 'forget', None)): self.c.url.forget()   # the remote moved (a restart): look it up again next time
+            raise RuntimeError(f'{self.c.connector_id} at {self.c.url() if callable(self.c.url) else self.c.url} unreachable: {e}') from e
+
+    def close(self):
+        pass
 
 
 @dataclass
@@ -177,9 +210,10 @@ class Queue:
                 try:
                     w = self.workers.get(c.connector_id)
                     if w is None:
-                        self._make_room(c); w = self.workers.setdefault(c.connector_id, WarmWorker(c))
+                        if c.url: w = self.workers.setdefault(c.connector_id, HttpWorker(c))
+                        else: self._make_room(c); w = self.workers.setdefault(c.connector_id, WarmWorker(c))
                     self.last_used[c.connector_id] = time.time()
-                    msg = w.run(j.job_id, j.inputs, j.settings)
+                    msg = w.run(j.job_id, j.inputs, j.settings, j.lane)
                     self.last_used[c.connector_id] = time.time()
                     if 'error' in msg: j.status, j.error = 'failed', msg['error']
                     else: j.status, j.outputs = 'done', msg['outputs']; self.cache[j.key] = msg['outputs']
@@ -198,7 +232,7 @@ class Queue:
         while True:
             have = self.memory_fn()
             if have >= need: return
-            idle = sorted((k for k in self.workers if k != c.connector_id), key=lambda k: self.last_used.get(k, 0))
+            idle = sorted((k for k in self.workers if k != c.connector_id and isinstance(self.workers[k], WarmWorker)), key=lambda k: self.last_used.get(k, 0))
             if idle:
                 k = idle[0]; self.workers.pop(k).close()
                 self.evictions.append({'unloaded': k, 'for': c.connector_id, 'available_gb': round(have, 1), 'needed_gb': need})

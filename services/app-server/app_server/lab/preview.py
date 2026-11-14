@@ -21,9 +21,22 @@ REVISION = 'isaac-6.2.0 scene-worker 3'
 on_job = lambda msg: None   # set by the app: every stimulus's stages go to the live workspace   # part of every cache key: a renderer change never reuses an old clip
 
 
+CONNECTORS = [('isaac_counter', 'renderer', 'isaac-6.2.0-counter'), ('isaac_stage', 'renderer', 'isaac-6.2.0-stage'), ('isaac_body', 'renderer', 'isaac-6.2.0-body'),
+              ('tribe_v2', 'neural model', 'tribev2-bf16'), ('cosmos_sim_transfer', 'generator', 'cosmos3-nano-sim-transfer-c3a2e37')]
+
+
+def remote() -> bool:
+    """On the cluster the app server has no GPU: every connector runs on render-score's queue (RENDER_SCORE_URL, or
+    found through Fuzzball). Where the warm workers can run here (the Spark), they do."""
+    return bool(os.environ.get('RENDER_SCORE_URL') or os.environ.get('FB_WORKFLOW_ID'))
+
+
 def queue() -> Queue:
     global _q
     with _lock:
+        if _q is None and remote():
+            from ..config import render_score_url
+            _q = Queue([Connector(cid, kind, '', '', rev, url=render_score_url) for cid, kind, rev in CONNECTORS])
         if _q is None:
             env = {'OMNI_KIT_ACCEPT_EULA': 'YES', 'LD_PRELOAD': '/lib/aarch64-linux-gnu/libgomp.so.1'}
             W = str(ROOT / 'backend/workers/isaac_scene_worker.py'); py = str(FE / 'isaac/.venv/bin/python')
