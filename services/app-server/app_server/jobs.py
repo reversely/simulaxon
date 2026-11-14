@@ -129,7 +129,8 @@ class Queue:
             j.where = r.name; self.remote_q[connector_id].put(j.job_id); self._emit(j); return j
         if lane == 'batch' and r is not None:
             self._event({'event': 'remote limit reached', 'connector_id': connector_id, 'spent_usd': round(r.spent_usd, 2), 'limit_usd': r.limit_usd})
-        self.n += 1; self.q.put(({'fast': 0, 'batch': 1}.get(lane, 2), self.n, j.job_id))   # fast, then runs and demo steps, then renders made ahead on a guess; self._emit(j)
+        self.n += 1; self.q.put(({'fast': 0, 'batch': 1}.get(lane, 2), self.n, j.job_id))   # fast, then runs and demo steps, then renders made ahead on a guess
+        self._emit(j)
         return j
 
     def _event(self, e: dict):

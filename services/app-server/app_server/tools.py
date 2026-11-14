@@ -52,7 +52,11 @@ class Tools:
             raise NeedsPerson(f'{name} needs a person')
         if t.writes_project and t.verb not in ('get', 'list', 'search', 'query'):
             step = self.store.begin(actor, name, args)
-            return t.fn(step=step, actor=actor, **args)
+            try:
+                return t.fn(step=step, actor=actor, **args)
+            except Exception:
+                self.store.discard(step)   # a refused or failed call leaves no step and no half-written rows
+                raise
         return t.fn(actor=actor, **args)
 
     def _register_all(self):

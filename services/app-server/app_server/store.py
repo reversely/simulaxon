@@ -120,18 +120,40 @@ class Store:
     # ---------- undo ----------
     @_locked
     def undo(self, step_id: str, actor: str) -> str:
-        touched = self.db.execute('select kind, id, before_version, after_version from touched where step_id=?', [step_id]).fetchall()
+        """Put every row the step wrote back as it was before the step, all or nothing.
+
+        A step can write the same row more than once (create a project, then update it), so each row's writes collapse
+        to its version before the step's first write and after its last. Every row is checked before any is written:
+        if one changed after the step, nothing is undone."""
+        touched = self.db.execute('select kind, id, min(before_version), max(after_version) from touched where step_id=? group by kind, id', [step_id]).fetchall()
         if not touched: raise KeyError(f'step {step_id} changed nothing')
-        u = self.begin(actor, 'step_undo', {'step_id': step_id}, undoes=step_id)
         for kind, id, before, after in touched:
             latest = self.db.execute('select max(version) from rows where kind=? and id=?', [kind, id]).fetchone()[0]
             if latest != after:
                 raise Conflict(f'{kind} {id} changed after step {step_id}; undo the later steps first')
-            if before == 0:
-                cur = self.get(kind, id); self._write(u, kind, id, cur.data if cur else {}, latest, deleted=True)
-            else:
-                old = self.version_of(kind, id, before); self._write(u, kind, id, old.data, latest, deleted=old.deleted)
+        u = self.begin(actor, 'step_undo', {'step_id': step_id}, undoes=step_id)
+        try:
+            for kind, id, before, after in touched:
+                if before == 0:
+                    cur = self.get(kind, id); self._write(u, kind, id, cur.data if cur else {}, after, deleted=True)
+                else:
+                    old = self.version_of(kind, id, before); self._write(u, kind, id, old.data, after, deleted=old.deleted)
+        except Exception:
+            self.discard(u); raise
         return u
+
+    @_locked
+    def discard(self, step_id: str) -> None:
+        """Remove a step that failed partway, with every row version, dependency and stale mark it wrote, so a tool that
+        raises leaves the store as it was. Only that step's own writes go; other steps are untouched."""
+        made = self.db.execute('select kind, id from touched where step_id=? and before_version=0', [step_id]).fetchall()
+        self.db.execute('delete from rows where step_id=?', [step_id])
+        self.db.execute('delete from touched where step_id=?', [step_id])
+        self.db.execute('delete from stale where because_step=?', [step_id])
+        for kind, id in made:   # dependencies of rows the step created, which no longer exist
+            if not self.db.execute('select 1 from rows where kind=? and id=?', [kind, id]).fetchone():
+                self.db.execute('delete from deps where kind=? and id=?', [kind, id])
+        self.db.execute('delete from steps where step_id=?', [step_id])
 
     @_locked
     def steps(self) -> list[dict]:

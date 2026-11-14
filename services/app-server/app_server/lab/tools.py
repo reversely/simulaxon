@@ -143,7 +143,8 @@ def register(tools, broadcast=lambda m: None):
     def template_list(actor):
         """Every template: question with blanks, sampling plan, parameters with roles, analyses, controls, hand-off, walkthrough."""
         used = {}
-        for p in s.list('project'): used[p.data['template_id']] = used.get(p.data['template_id'], 0) + 1
+        for p in s.list('project'):   # a project made from a question alone has no template
+            if p.data.get('template_id'): used[p.data['template_id']] = used.get(p.data['template_id'], 0) + 1
         return [{**t, 'walkthrough': [{'flow': f, 'flow_name': templates.FLOWS[f], 'text': x} for f, x in t['walkthrough']],
                  'projects': used.get(t['id'], 0)} for t in templates.TEMPLATES]
 

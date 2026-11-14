@@ -38,7 +38,7 @@ def create_app(store: Store | None = None) -> FastAPI:
     async def call_tool(name: str, body: dict, x_actor: str = Header('person')):
         if name not in tools.registry: raise HTTPException(404, f'no tool {name}')
         try:
-            out = tools.call(name, x_actor, **body)
+            out = await asyncio.to_thread(tools.call, name, x_actor, **body)   # off the event loop: a slow tool never stalls other requests or /events
         except NeedsPerson as e: raise HTTPException(403, {'needs_person': str(e)})
         except Conflict as e: raise HTTPException(409, {'conflict': str(e)})
         except (ScriptError, ValueError, KeyError, TypeError) as e: raise HTTPException(422, {'invalid': str(e)})
