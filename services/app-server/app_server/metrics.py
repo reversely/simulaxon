@@ -37,6 +37,35 @@ def _tail(f: Path, n: int) -> list[dict]:
     return out
 
 
+_hosts: dict[str, dict] = {}   # workflow -> {job: node name, or None when its tasks ran on different nodes}
+_names: dict[str, str] = {}    # node address -> host name
+
+
+def _node_names() -> dict[str, str]:
+    if not _names:
+        p = subprocess.run([FUZZBALL, 'node', 'list'], capture_output=True, text=True, timeout=60)
+        for line in p.stdout.splitlines():
+            c = [x.strip() for x in line.split('|')]
+            if len(c) > 2 and ':' not in c[0] and '/' in c[0]: _names[c[0].split('/')[0]] = c[2]
+    return _names
+
+
+def _job_nodes(wf: str) -> dict:
+    """Which node each job of a workflow ran on, from fuzzball workflow describe. The samples carry no node: inside a
+    container the host name is the job's. A task array gets a node only when all its tasks shared one, since describe
+    does not say which listed task is which FB_TASK_ID."""
+    if wf in _hosts: return _hosts[wf]
+    p = subprocess.run([FUZZBALL, 'workflow', 'describe', wf, '-o', 'json'], capture_output=True, text=True, timeout=60)
+    if p.returncode != 0: return {}
+    seen: dict[str, set] = {}
+    for s in json.loads(p.stdout).get('status', {}).get('stages', []):
+        h = (s.get('details') or {}).get('Host')
+        if s.get('kind') == 'STAGE_KIND_JOB' and h: seen.setdefault(s['name'], set()).add(h.split(':')[0])
+    names = _node_names()
+    _hosts[wf] = {j: (names.get(next(iter(h)), next(iter(h))) if len(h) == 1 else None) for j, h in seen.items()}
+    return _hosts[wf]
+
+
 def gpu(limit: int = 720) -> list[dict]:
     """Every GPU job's samples, newest file first: the last `limit` samples per job (3 hours at 15 s)."""
     d = M / 'gpu'
@@ -46,7 +75,8 @@ def gpu(limit: int = 720) -> list[dict]:
         rows = _tail(f, limit)
         if not rows: continue
         last = rows[-1]
-        out.append({'file': f.name, 'workflow': last.get('workflow'), 'job': last.get('job'), 'task': last.get('task'), 'node': last.get('node'),
+        node = last.get('node') or (_job_nodes(last['workflow']).get(last.get('job')) if last.get('workflow') else None)
+        out.append({'file': f.name, 'workflow': last.get('workflow'), 'job': last.get('job'), 'task': last.get('task'), 'node': node,
                     'updated': f.stat().st_mtime, 'samples': [{k: r.get(k) for k in ('t', 'gpu_util_pct', 'power_w', 'temp_c', 'mem_used_bytes')} for r in rows]})
     return out
 
