@@ -5,7 +5,8 @@ version: v4
 # Inputs: /data/studies/observer (the Spark's ~/data: egobody, body_models, robots), the environments and graphics
 # libraries from render-env.fz, the weights through /data/weights/hf/hub, the repo at /data/src/simulaxon.
 # Outputs go to OBS_OUT, a folder of their own, so this run never reuses the Spark's results in .../observer.
-# Every container links ~/data to /data/studies/observer, the layout the study code reads.
+# Every container links ~/data to /data/studies/observer, the layout the study code reads. The Python steps run on Rocky
+# Linux 10; the renders run on NVIDIA's Isaac Sim image, which NVIDIA publishes for Ubuntu only.
 volumes:
   data:
     use: team13
@@ -32,7 +33,7 @@ defaults:
 jobs:
   motions:
     image:
-      uri: docker://python:3.12
+      uri: docker://rockylinux/rockylinux:10
     resource:
       cpu:
         cores: 8
@@ -86,7 +87,7 @@ jobs:
       - name: render
         status: FINISHED
     image:
-      uri: docker://python:3.12
+      uri: docker://rockylinux/rockylinux:10
     resource:
       cpu:
         cores: 8
@@ -113,7 +114,7 @@ jobs:
       - name: tribe
         status: FINISHED
     image:
-      uri: docker://python:3.12
+      uri: docker://rockylinux/rockylinux:10
     resource:
       cpu:
         cores: 8
@@ -131,7 +132,7 @@ jobs:
       - name: analyse
         status: FINISHED
     image:
-      uri: docker://python:3.12
+      uri: docker://rockylinux/rockylinux:10
     resource:
       cpu:
         cores: 4
@@ -149,7 +150,7 @@ jobs:
       - name: maps
         status: FINISHED
     image:
-      uri: docker://python:3.12
+      uri: docker://rockylinux/rockylinux:10
     resource:
       cpu:
         cores: 1
@@ -159,4 +160,4 @@ jobs:
       #!/bin/sh
       set -e
       cd /data/src/simulaxon
-      python3 studies/observer/app_dataset.py
+      /data/envs/tribe/bin/python studies/observer/app_dataset.py
