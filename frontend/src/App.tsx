@@ -61,7 +61,7 @@ export default function App() {
   const follow = useRef<{ unit?: number } | null>(null)
   const [showCond, setShowCond] = useState<string | undefined>()   // what a demo step asks a view to display
   useEffect(() => { call<DemoInfo[]>('demo_list').then(setDemos); call<DemoState>('demo_get').then(d => d.demo && setDemo(d)) }, [])
-  const [machine, setMachine] = useState<{ agent: string; world_node: string; brain_node: string } | null>(null)
+  const [machine, setMachine] = useState<{ agent: string; world_node: string; brain_node: string; dashboard_url?: string } | null>(null)
   const [widen, setWiden] = useState(false)
   const [sessions, setSessions] = useState<SessionInfo[]>([]); const [openSession, setOpenSession] = useState<string | null>(null); const [sessionTick, setSessionTick] = useState(0)
   const loadSessions = () => fetch('/agent/sessions').then(r => r.json()).then(setSessions).catch(() => {})
@@ -208,7 +208,7 @@ export default function App() {
   // no project yet, as on a fresh install: the agent's chat and New project, never a spinner that waits for nothing
   if (!project || !P) return <div className="frame">
     <header className="top"><span className="brand">Simulaxon</span><button className="btn" onClick={() => setSheet('templates')}>New project</button>
-      <a className="btn" href="/dashboard" target="_blank" rel="noreferrer">Dashboard</a>
+      {machine?.dashboard_url && <a className="btn" href="/dashboard" target="_blank" rel="noreferrer">Dashboard</a>}
       {offline && <span className="chip flag" role="status">Reconnecting to the lab server</span>}</header>
     {!projectsLoaded ? <div className="centre"><span className="spin" /></div>
       : <div className="body chatonly"><main className="col centre"><div className="chatwide"><h1 className="q">{sessions.find(x => x.id === openSession)?.goal ?? 'New chat with the agent'}</h1>
@@ -230,7 +230,7 @@ export default function App() {
           </div>}
         </div>
         <button className="btn" onClick={() => setSheet('templates')}>New project</button>
-        <a className="btn" href="/dashboard" target="_blank" rel="noreferrer">Dashboard</a>
+        {machine?.dashboard_url && <a className="btn" href="/dashboard" target="_blank" rel="noreferrer">Dashboard</a>}
         {machine && <div className="status" aria-label="Machine status">
           <span>Agent: {machine.agent}</span>
           <span><span className={`dot ${machine.world_node !== 'Idle' ? 'busy' : ''}`} />World node {machine.world_node === 'Idle' ? 'idle' : machine.world_node}</span>

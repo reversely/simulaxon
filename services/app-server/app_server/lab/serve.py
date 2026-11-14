@@ -167,7 +167,9 @@ def make(db: str, port: int = 8790):
     @app.get('/dashboard')
     def dashboard_page():
         """The cluster dashboard is Grafana's (fuzzball/observability.fz): GPU jobs, the planner, failures, nodes."""
+        from fastapi import HTTPException
         from fastapi.responses import RedirectResponse
+        if not GRAFANA_URL: raise HTTPException(404, 'No dashboard here: GRAFANA_URL is empty in this place')
         return RedirectResponse(f'{GRAFANA_URL}/d/simulaxon')
 
     @app.get('/api/runs')
