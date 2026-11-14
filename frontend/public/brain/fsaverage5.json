@@ -1,0 +1,7 @@
+{
+ "vertices": 20484,
+ "faces": 40960,
+ "left_vertices": 10242,
+ "colours": 256,
+ "source": "TRIBE v2 PlotBrain(mesh=\"fsaverage5\").get_mesh()[\"both\"], half inflated; colorcet fire"
+}
