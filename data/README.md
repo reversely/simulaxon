@@ -8,6 +8,11 @@ The VAST volume in [docs/image.png](../docs/image.png), mounted at `/data` by ev
 | `/data/chunks` | Cosmos output, one chunk per restyled clip | render-score |
 | `/data/predictions` | TRIBE output, one cortical map per second | render-score |
 | `/data/log` | The DuckDB log (`datasets.duckdb`) | app-server |
-| `/data/studies/<study>` | A study's inputs and outputs; for the observer study, the six EgoBody recordings, the SMPL-X model, clips, predictions and results | The study's workflow |
+| `/data/egobody` | EgoBody: the six recordings, scene meshes, SMPL-X fits and `work/` (episodes, kinematics, Isaac renders), in the Spark's `~/data/egobody` layout | Onboarding step 2, from the Spark |
+| `/data/body_models/models/smplx` | SMPL-X v1.1 body model | Onboarding step 2, from the Spark |
+| `/data/observer` | The observer study's clips, predictions and results | The observer study's workflow |
+| `/data/studies/<study>` | Inputs and outputs of later studies | The study's workflow |
+
+The study code reads `~/data/egobody`, `~/data/body_models` and `~/data/observer`, so each container links `~/data` to `/data`.
 
 The shared provisioner holds sample data and sample models.

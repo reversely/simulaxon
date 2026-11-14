@@ -14,26 +14,33 @@ The target is [image.png](image.png). Each step below adds one box or arrow from
 ## 0. Before you start
 
 - Fuzzball runs on the cluster (Rocky Linux), and both nodes appear in `fuzzball node list --available-resources` with `nvidia.com/gpu`.
-- Your CLI is logged in: `fuzzball context login`, then `fuzzball group use <team group>`.
+- Your CLI is logged in: `fuzzball context login`, then `fuzzball group use <team group>`. Install and context setup for the hackathon cluster: [fuzzball-cli.md](fuzzball-cli.md).
 - A Hugging Face token is stored as a secret: `fuzzball secret create secret://user/hf-token --type hf '{"token":"hf_…"}'`.
 
 ## 1. The volume at `/data`
 
-- Add the storage provisioner for the VAST export (Volume Configuration and Management, Driver Types).
-- Create one persistent volume, mounted at `/data` by every service, with the folders in [../data/README.md](../data/README.md).
-- Put sample data and sample models on the shared provisioner.
+- On the hackathon cluster the organizers provide a storage provisioner per team (`team13`, NFS on the VAST export) and a read-only `datasets` volume on the `shared` provisioner. Elsewhere, add the provisioner yourself (Volume Configuration and Management, Driver Types).
+- Create one persistent volume, mounted at `/data` by every service: `fuzzball volume create team13 simulaxon-data`.
+- Run [../fuzzball/check-data.fz](../fuzzball/check-data.fz). It makes the folders in [../data/README.md](../data/README.md).
 
-**Check:** a one-line job that mounts the volume and runs `ls /data` prints `weights chunks predictions log studies`.
+**Check:** the job's log lists `chunks log predictions studies weights` under `/data`.
 
 ## 2. Weights and study data on `/data`
 
-| What | Goes to | Used by |
-|---|---|---|
-| TRIBE v2 (`facebook/tribev2`) and V-JEPA 2 | `/data/weights/` | render-score |
-| Cosmos3-Nano-Sim-Transfer, its text tokenizer, the Wan2.2 VAE | `/data/weights/` | render-score |
-| Nemotron Super 120B, NVFP4 | `/data/weights/` | planner |
-| SMPL-X v1.1 body model | `/data/studies/observer/` | observer study |
-| EgoBody: the six recordings in `studies/observer` | `/data/studies/observer/` | observer study |
+| What | Goes to | Source | Used by |
+|---|---|---|---|
+| TRIBE v2 | `/data/weights/facebook--tribev2` | `hf://facebook/tribev2` | render-score |
+| V-JEPA 2 | `/data/weights/facebook--vjepa2-vitg-fpc64-256` | `hf://facebook/vjepa2-vitg-fpc64-256` | render-score |
+| Cosmos3-Nano-Sim-Transfer | `/data/weights/nvidia--cosmos3-nano-sim-transfer` | `hf://nvidia/Cosmos3-Nano-Sim-Transfer` | render-score |
+| Cosmos3-Nano text tokenizer, Wan2.2 VAE | `/data/weights/nvidia--cosmos3-nano/text_tokenizer`, `/data/weights/wan-ai--wan2.2-ti2v-5b` | Single files at the revisions `cosmos_worker.py` pins | render-score |
+| Nemotron 3 Super 120B, NVFP4 | `/data/weights/nvidia--nemotron-3-super-120b-a12b-nvfp4` | `hf://nvidia/NVIDIA-Nemotron-3-Super-120B-A12B-NVFP4` | planner |
+| SMPL-X v1.1 body model | `/data/body_models/models/smplx` | The Spark's `~/data/body_models` | observer study |
+| EgoBody: the six recordings, scene meshes and `work/` | `/data/egobody` | The Spark's `~/data/egobody` | observer study |
+| Observer outputs | `/data/observer` | The Spark's `~/data/observer` | observer study, app |
+
+The weights come from Hugging Face. Every repo above is public, so no token is needed. Run the five files in [../fuzzball/weights/](../fuzzball/weights/) one at a time, each after the previous finishes. Thirteen transfers in one workflow stalled its volume stage until Fuzzball cancelled it.
+
+The study code reads the Spark's layout under `~/data` (`motion_lib.py`, `body_scene.py`, `g1_execute.py`), so the study data keeps that layout at `/data`, and each container links `~/data` to `/data`. The SMPL-X and EgoBody files sit behind registration and come from the Spark: start [../fuzzball/receive.fz](../fuzzball/receive.fz) and stream them in with `fuzzball workflow exec` (see the file's header).
 
 The six EgoBody recordings:
 - `recording_20210923_S05_S13_02`
@@ -56,7 +63,7 @@ Code: [../services/render-score/](../services/render-score/).
 
 **Image.** Build it with an `images:` section in the Fuzzfile, so it is built on the cluster for its own architecture and CUDA version:
 - Isaac Sim 6.2
-- the Cosmos framework at `c3a2e37`
+- the Cosmos framework at `c3a2e37`, cloned from `github.com/NVIDIA/cosmos-framework`. The Spark's `feasibility/cosmos-src` that `cosmos_worker.py` expects is a clean checkout of that commit, so nothing is vendored.
 - TRIBE v2 at `af58661`
 - torch with CUDA
 
