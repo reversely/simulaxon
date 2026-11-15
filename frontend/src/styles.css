@@ -482,3 +482,26 @@ aside.left .convo { padding-bottom: 28px; }
 .tabs { gap: 2px; }
 .tab { padding: 6px 9px; gap: 6px; }
 .switch > button { max-width: 360px; }
+
+/* results dashboard (#19) */
+.dash { display: flex; flex-direction: column; gap: 16px; }
+.dashbar { flex-wrap: wrap; gap: 8px 14px; }
+.dashbar .exports { margin-left: auto; flex-wrap: wrap; gap: 8px; }
+.dashbar .btn { display: inline-flex; align-items: center; gap: 8px; }
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; }
+.stat { background: var(--panel); border: 1px solid var(--rule); border-radius: var(--radius); padding: 12px 14px; display: flex; flex-direction: column; gap: 2px; }
+.stat .k { color: var(--ink-2); font-size: 14px; }
+.stat .v { font-family: var(--display); font-size: 30px; font-weight: 300; font-variant-numeric: tabular-nums; }
+.grid2 { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 16px; }
+@media (max-width: 900px) { .grid2 { grid-template-columns: 1fr; } }
+.dash .card { margin: 0; }
+.kv.made { grid-template-columns: max-content 1fr; gap: 6px 14px; }
+table.data td.num, table.data th.num { text-align: right; font-variant-numeric: tabular-nums; }
+table.data tr.on td { background: rgba(214, 162, 74, 0.08); }
+table.data.contrasts td:first-child { max-width: 260px; }
+.tablewrap.tall { max-height: 420px; overflow: auto; }
+td.clipname { max-width: 280px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.chip.tiny { font-size: 12px; padding: 0 7px; margin-left: 8px; }
+.readouts { display: flex; flex-direction: column; gap: 3px; margin-top: 8px; }
+.readline { display: flex; justify-content: space-between; gap: 12px; font-size: 15px; }
+.dash table.data td:not(.num), .dash table.data th:not(.num) { text-align: left; }

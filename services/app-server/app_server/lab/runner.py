@@ -10,7 +10,7 @@ Factorial plans run every unit in every cell of the template's factors, such as 
 from __future__ import annotations
 import hashlib, json, threading
 from pathlib import Path
-from . import plans, worlds
+from . import plans, runinfo, worlds
 from .ingest import FILES
 from .preview import render_and_read, REVISION, _label
 
@@ -36,6 +36,8 @@ def start(tools, broadcast, project_id: str, actor: str):
     tools.call('project_update', actor, project_id=project_id, expect_version=P.version, status='Running')
     out = FILES / 'runs' / 'clips'   # shared by content key, so a clip rendered ahead for a demo, or by another run, is reused
 
+    info, revs = runinfo.start(actor), set()   # how the run was made, saved with its results (#19)
+
     def go():
         ev = lambda **k: broadcast({'run': project_id, **k})
         try:
@@ -45,7 +47,7 @@ def start(tools, broadcast, project_id: str, actor: str):
                 for cond, change in (('a', a), ('b', b)):
                     change = change if isinstance(change, dict) else {'item': change}   # older projects stored bare asset ids
                     vals = {**params, **change}; aid = change.get('item', '')
-                    inputs = worlds.job(w['kind'], vals, assets, w)
+                    inputs = worlds.job(w['kind'], vals, assets, w); revs.add(inputs.get('renderer') or REVISION)
                     key = hashlib.sha1(json.dumps([REVISION, inputs], sort_keys=True).encode()).hexdigest()[:14]
                     res = render_and_read(inputs, out, key, 'batch', ctx={'project': project_id, 'title': d.get('title'), 'label': _label(vals, assets), 'source': f'Run, {k + 1} of {total}', 'actor': actor}); k += 1; ev(done=k, total=total, image=f'/files/runs/clips/{key}.png')
                     side[cond] = {'label': assets.get(aid, {}).get('label', aid), 'image': Path(res['rgb']), 'clip': Path(res['clip_on']), 'preds': Path(res['preds'])}
@@ -56,7 +58,8 @@ def start(tools, broadcast, project_id: str, actor: str):
                 plans.matched(s, step, project_id, units, (0, 3), labels, FILES, url)
             cur = s.get('project', project_id)
             tools.call('project_update', actor, project_id=project_id, expect_version=cur.version, status='Done',
-                       counts={'units': len(units), 'clips': total}, run_values=params)
+                       counts={'units': len(units), 'clips': total}, run_values=params,
+                       run_info=runinfo.finish(info, {'tribe_v2', runinfo.renderer_for(w['kind'])}, revs))
             ev(stage='done')
         except Exception as e:
             if SHUTTING_DOWN.is_set(): return   # the server is stopping, not the run failing; start-up resumes it
@@ -79,6 +82,8 @@ def _factorial(tools, broadcast, project_id: str, actor: str):
     tools.call('project_update', actor, project_id=project_id, expect_version=P.version, status='Running')
     out = FILES / 'runs' / 'clips'
 
+    info, revs = runinfo.start(actor), set()   # how the run was made, saved with its results (#19)
+
     def go():
         ev = lambda **k: broadcast({'run': project_id, **k})
         try:
@@ -87,7 +92,7 @@ def _factorial(tools, broadcast, project_id: str, actor: str):
                 cl = {}
                 for c in cells:
                     vals = {**params, unit_param: u, **c['values']}
-                    inputs = worlds.job(w['kind'], vals, assets, w)
+                    inputs = worlds.job(w['kind'], vals, assets, w); revs.add(inputs.get('renderer') or REVISION)
                     key = hashlib.sha1(json.dumps([REVISION, inputs], sort_keys=True).encode()).hexdigest()[:14]
                     res = render_and_read(inputs, out, key, 'batch', ctx={'project': project_id, 'title': d.get('title'), 'label': _label(vals, assets),
                                                                          'source': f'Run, {done + 1} of {total}', 'actor': actor})
@@ -103,7 +108,8 @@ def _factorial(tools, broadcast, project_id: str, actor: str):
                 rec.apply(s, step)
             cur = s.get('project', project_id)
             tools.call('project_update', actor, project_id=project_id, expect_version=cur.version, status='Done',
-                       counts={'units': len(rows), 'clips': total}, run_values=params)
+                       counts={'units': len(rows), 'clips': total}, run_values=params,
+                       run_info=runinfo.finish(info, {'tribe_v2', runinfo.renderer_for(w['kind'])}, revs))
             ev(stage='done')
         except Exception as e:
             if SHUTTING_DOWN.is_set(): return

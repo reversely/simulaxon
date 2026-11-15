@@ -28,7 +28,7 @@ export type MapRow = { title: string; kind: string; views: Record<string, string
 const AREA_NAMES: Record<string, string> = {
   V1: 'Primary visual cortex', V2: 'Visual area 2', V3: 'Visual area 3', V4: 'Visual area 4', V3A: 'Visual area 3A', V6: 'Visual area 6',
   MT: 'Middle temporal motion area', MST: 'Medial superior temporal area', FFC: 'Fusiform face area', VVC: 'Ventral visual complex',
-  PHA1: 'Parahippocampal area 1', PHA2: 'Parahippocampal area 2', PHA3: 'Parahippocampal area 3', 'Place area': 'Parahippocampal place area',
+  PPA: 'Parahippocampal place area', FFA: 'Fusiform face area', V5: 'Motion area V5', PHA1: 'Parahippocampal area 1', PHA2: 'Parahippocampal area 2', PHA3: 'Parahippocampal area 3', 'Place area': 'Parahippocampal place area',
   LO1: 'Lateral occipital area 1', LO2: 'Lateral occipital area 2', LO3: 'Lateral occipital area 3', AIP: 'Anterior intraparietal area',
   STV: 'Superior temporal visual area', TPOJ1: 'Temporal, parietal and occipital junction 1', A1: 'Primary auditory cortex', '4': 'Primary motor cortex',
 }

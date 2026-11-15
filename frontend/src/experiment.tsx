@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { call, fmt, regionLabel, type Row, type Sample } from './api'
+import { call, fmt, regionLabel, regionInText, type Row, type Sample } from './api'
 import { Icon } from './icons'
 
 export type Origin = { kind: 'dataset' | 'isaac' | 'file' | 'generated' | 'cosmos'; label: string; title?: string; ref?: string; licence?: string | null; dataset_id?: string; from?: Origin; prompt?: string; seeds?: number[] }
@@ -140,7 +140,7 @@ export function ConditionCourse({ pid, region, onS }: { pid: string; region: str
 }
 
 /** One trial of an experiment, every trial's value by condition, and the region's time course. */
-export function ExperimentRoom({ pid, samples, idx, setIdx, region, onS }: { pid: string; samples: Row<Sample & { origin?: Origin; items?: string[] }>[]; idx: number; setIdx: (i: number) => void; region: string; onS?: number }) {
+export function ExperimentRoom({ pid, samples, idx, setIdx, region, onS, chosen = true }: { pid: string; samples: Row<Sample & { origin?: Origin; items?: string[] }>[]; idx: number; setIdx: (i: number) => void; region: string; onS?: number; chosen?: boolean }) {
   const s = samples[Math.min(idx, samples.length - 1)]?.data
   if (!s) return null
   const conds = [...new Set(samples.map(x => x.data.condition))]
@@ -158,9 +158,11 @@ export function ExperimentRoom({ pid, samples, idx, setIdx, region, onS }: { pid
         <button className="btn" aria-label="Next" disabled={idx >= samples.length - 1} onClick={() => setIdx(idx + 1)}>›</button>
       </span>
     </div>
-    <div className="headline"><span className="big">{fmt(s.readout[region])}</span><span className="ink2">TRIBE response in the {regionLabel(region).toLowerCase()} for this trial</span></div>
+    {chosen ? <div className="headline"><span className="big">{fmt(s.readout[region])}</span><span className="ink2">TRIBE response in the {regionInText(region)} for this trial</span></div>
+      : <div className="readouts"><div className="ink2">TRIBE response by region for this trial, highest first</div>
+        {Object.entries(s.readout).sort((x, y) => y[1] - x[1]).slice(0, 6).map(([r, v]) => <div key={r} className="readline"><span title={r}>{regionLabel(r)}</span><span className="num">{fmt(v)}</span></div>)}</div>}
     <ConditionCourse pid={pid} region={region} onS={onS} />
-    <div className="card"><h3>Every trial in the {regionLabel(region).toLowerCase()}</h3>
+    <div className="card"><h3>Every trial in the {regionInText(region)}</h3>
       {conds.map((c, ci) => { const mine = samples.map((r, i) => ({ r, i })).filter(o => o.r.data.condition === c); const mean = mine.reduce((t, o) => t + (o.r.data.readout[region] ?? 0), 0) / mine.length
         return <div key={c} className="condstrip"><span className="ink2">{c}</span><div className="strip">
           {mine.map(o => <button key={o.i} className={`dot ${o.i === idx ? 'sel' : ''}`} style={{ left: `${x(o.r.data.readout[region] ?? 0)}%`, background: o.i === idx ? undefined : SERIES[ci % SERIES.length] }} onClick={() => setIdx(o.i)} aria-label={o.r.data.label} />)}

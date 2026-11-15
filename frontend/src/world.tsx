@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { call, fmt, ROLE_NAMES, type Row, regionInText, upload as sendFile } from './api'
+import { call, fmt, ROLE_NAMES, type Row, regionInText, regionLabel, upload as sendFile } from './api'
 import { Icon } from './icons'
 
 export type Param = { name: string; type: string; value: any; role: string; unit?: string; range?: [number, number]; options?: string[]; label?: string; project_id: string }
@@ -14,9 +14,9 @@ const fmtVal = (v: any, unit?: string) => typeof v === 'number' ? `${+v.toFixed(
 const same = (a: Record<string, any>, b: Record<string, any>) => Object.keys(b).every(k => JSON.stringify(a[k]) === JSON.stringify(b[k]))
 
 /** The world and the brain side by side, with the scene script's parameters as controls underneath. Person and agent move the same controls. */
-export function WorldPanel({ pid, world, script, params, previews, assets, event, steps, region, onChanged }: {
+export function WorldPanel({ pid, world, script, params, previews, assets, event, steps, region, chosen = true, onChanged }: {
   pid: string; world: { kind: string; name: string }; script: string; params: Row<Param>[]; previews: Row<Preview>[]; assets: Record<string, Asset>
-  event?: PreviewEvent; steps: any[]; region: string; onChanged: () => void
+  event?: PreviewEvent; steps: any[]; region: string; chosen?: boolean; onChanged: () => void
 }) {
   const values = Object.fromEntries(params.map(p => [p.data.name, p.data.value]))
   const current = previews.find(p => same(p.data.values, values))?.data
@@ -61,8 +61,11 @@ export function WorldPanel({ pid, world, script, params, previews, assets, event
         {latest ? <>
           <img src={`/files/${latest.map.views[view]}`} alt={`TRIBE prediction, ${VIEW_NAMES[view]}`} />
           <div className="seg" role="group" aria-label="Brain view">{Object.keys(VIEW_NAMES).map(v => <button key={v} className={view === v ? 'on' : ''} onClick={() => setView(v)}>{VIEW_NAMES[v]}</button>)}</div>
-          <div className="big" style={{ fontSize: 34 }}>{fmt(latest.readout[region])}</div>
-          <div className="ink2">TRIBE response in the {regionInText(region)} for this render</div>
+          {chosen ? <><div className="big" style={{ fontSize: 34 }}>{fmt(latest.readout[region])}</div>
+            <div className="ink2">TRIBE response in the {regionInText(region)} for this render</div></>
+            : <div className="readouts"><div className="ink2">TRIBE response by region for this render, highest first</div>
+              {Object.entries(latest.readout as Record<string, number>).sort((x, y) => y[1] - x[1]).slice(0, 6).map(([r, v]) =>
+                <div key={r} className="readline"><span title={r}>{regionLabel(r)}</span><span className="num">{fmt(v)}</span></div>)}</div>}
         </> : <div className="empty">TRIBE reads the world here once a control changes</div>}
       </div>
     </div>

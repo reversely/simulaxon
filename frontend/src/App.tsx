@@ -7,25 +7,34 @@ import { WorldPanel, type Param, type Preview, type PreviewEvent } from './world
 import { LiveWorkspace, type Job } from './live'
 import { DemoBar, NarrationMsg, type DemoInfo, type DemoState, type Narration } from './demo'
 import { SelectionView } from './selection'
+import { ResultsView } from './results'
 import { SessionDock, Chat, type SessionInfo } from './agent'
 type Example = { id: string; title: string; what: string; source: string; doi: string | null; goal: string; media: string[]; project_id: string | null; here: string }
 import { ExperimentSetup, ExperimentRoom, ReportedCard, OriginChip, type Setup, type Reported } from './experiment'
 
-type View = 'room' | 'samples' | 'brain' | 'search' | 'data' | 'findings' | 'sources' | 'agent'
-const WIDE: View[] = ['search', 'data', 'findings', 'sources', 'agent']
+type View = 'room' | 'results' | 'samples' | 'brain' | 'search' | 'data' | 'findings' | 'sources' | 'agent'
+const WIDE: View[] = ['results', 'search', 'data', 'findings', 'sources', 'agent']
 type Unit = { key: string; label: string; variants: Row<Sample>[]; labels: string[] }
-const VIEW_ICON: Record<string, IconName> = { room: 'room', samples: 'samples', brain: 'brain', search: 'search', data: 'table', findings: 'findings', sources: 'book' }
-const VIEWS: [View, string][] = [['room', 'Room'], ['samples', 'Samples'], ['brain', 'Brain'], ['search', 'Search'], ['data', 'Data'], ['findings', 'Findings'], ['sources', 'Sources']]
+const VIEW_ICON: Record<string, IconName> = { room: 'room', results: 'gauge', samples: 'samples', brain: 'brain', search: 'search', data: 'table', findings: 'findings', sources: 'book' }
+const VIEWS: [View, string][] = [['room', 'Room'], ['results', 'Results'], ['samples', 'Samples'], ['brain', 'Brain'], ['search', 'Search'], ['data', 'Data'], ['findings', 'Findings'], ['sources', 'Sources']]
 const ANALYSIS_NAMES: Record<string, string> = { paired: 'Difference per region', items_needed: 'Pairs needed', time_course: 'Response by second', per_object: 'Effect of each object' }
 const VIEW_NAMES: Record<string, string> = { left: 'Left', right: 'Right', ventral: 'Underside', posterior: 'Back' }
 
 /** The region a project leads with, from its own results: the largest paired effect, the first selection region,
  * the region where objects move the cortex most, or the first region read. Never a fixed name. */
+/** The region the project itself named: its question's region, its experiment's regions, its paper's reported result. */
+function ownRegion(a: AnalysisItem[], s: Row<Sample>[], P?: Project): string | null {
+  const read = [...(a.find(x => x.analysis.data.kind === 'paired')?.result?.data.regions ?? []).map((r: Region) => r.region), ...Object.keys(s[0]?.data.readout ?? {})]
+  const exp = (P as any)?.experiment ?? (P as any)?.setup
+  const own = [...((P as any)?.setup?.reported ?? []).map((r: Reported) => r.region), ...(exp?.regions ?? []).map((r: any) => typeof r === 'string' ? r : r?.name),
+    String((P?.bindings as any)?.region ?? '').trim().toLowerCase().replace(/^the\s+/, '')].filter(Boolean)
+  for (const o of own) { const lo = String(o).toLowerCase(); const hit = read.find(n => n.toLowerCase() === lo || regionLabel(n).toLowerCase() === lo); if (hit) return hit }
+  return null
+}
+
 function headlineRegion(a: AnalysisItem[], s: Row<Sample>[], P?: Project): string {
   const res = (k: string) => a.find(x => x.analysis.data.kind === k)
-  const read = [...(res('paired')?.result?.data.regions ?? []).map((r: Region) => r.region), ...Object.keys(s[0]?.data.readout ?? {})]
-  const own = [...((P as any)?.setup?.reported ?? []).map((r: Reported) => r.region), String((P?.bindings as any)?.region ?? '').trim().toLowerCase().replace(/^the\s+/, '')]
-  for (const o of own) { const hit = read.find(n => n.toLowerCase() === String(o).toLowerCase()); if (hit) return hit }
+  const mine = ownRegion(a, s, P); if (mine) return mine
   const paired = res('paired')?.result?.data.regions?.[0]?.region
   if (paired) return paired
   const sel = res('selection')?.analysis.data.regions?.[0]
@@ -43,6 +52,7 @@ export default function App() {
   const [analyses, setAnalyses] = useState<AnalysisItem[]>([])
   const [steps, setSteps] = useState<any[]>([])
   const [view, setView] = useState<View>(() => (new URLSearchParams(location.search).get('view') as View) || 'room')
+  const [picked, setPicked] = useState(false)   // a person or a demo chose the region shown; else only the project's own region counts as chosen (#19)
   const [region, setRegion] = useState('')   // set from the first project's own results; a person's or a demo's choice carries over
   const [unitIdx, setUnitIdx] = useState(0)
   const [variant, setVariant] = useState(0)
@@ -90,7 +100,7 @@ export default function App() {
       call<Row<Param>[]>('parameter_list', { project_id: id }), call<Row<Preview>[]>('preview_list', { project_id: id }), call<Record<string, any>>('asset_list', { project_id: id }).catch(() => ({}))])
     setSamples(s); setAnalyses(a); setSteps(st); setParams(pr); setPreviews(pv); setAssets(as); setLoading(false)
     const P = projRef.current.find(x => x.id === id)?.data; const shown = demoRegion.current?.pid === id ? demoRegion.current.region : null
-    if (!quiet) demoRegion.current = null
+    if (!quiet) { demoRegion.current = null; setPicked(!!shown) }
     const names = [...((a.find(x => x.analysis.data.kind === 'paired')?.result?.data.regions ?? []) as Region[]).map(r => r.region), ...Object.keys(s[0]?.data.readout ?? {})]
     // a project opens on its own region (the one its question or paper names); a demo's choice wins; a quiet reload keeps the person's
     setRegion(r => shown ?? (quiet && r && names.includes(r) ? r : headlineRegion(a, s, P)) ?? r)
@@ -121,7 +131,7 @@ export default function App() {
       if (msg.demo_writing) { call<DemoInfo[]>('demo_list').then(setDemos); setWriteErr(e => ({ ...e, [msg.demo_writing]: msg.stage === 'failed' ? msg.error : '' })); return }
       if ('demo' in msg && 'status' in msg) {
         call<DemoState>('demo_get').then(setDemo)
-        if (msg.show?.project) { setPid(msg.show.project); if (msg.show.view) setView(msg.show.view); if (msg.show.region) { setRegion(msg.show.region); demoRegion.current = { pid: msg.show.project, region: msg.show.region } } follow.current = { unit: msg.show.unit }; setShowCond(msg.show.condition); if (msg.narration && !msg.narration.reading) document.querySelector('.centre')?.scrollTo({ top: 0, behavior: 'smooth' }) }
+        if (msg.show?.project) { setPid(msg.show.project); if (msg.show.view) setView(msg.show.view); if (msg.show.region) { setRegion(msg.show.region); setPicked(true); demoRegion.current = { pid: msg.show.project, region: msg.show.region } } follow.current = { unit: msg.show.unit }; setShowCond(msg.show.condition); if (msg.narration && !msg.narration.reading) document.querySelector('.centre')?.scrollTo({ top: 0, behavior: 'smooth' }) }
         if (msg.narration) setNarr(ns => [...ns.filter(n => !(n.demo === msg.demo && n.step === msg.step)), { demo: msg.demo, step: msg.step, ...msg.narration }])
         if (msg.status === 'idle') setNarr([])
         return
@@ -161,6 +171,9 @@ export default function App() {
     samples.forEach(s => g.set(s.data.unit, [...(g.get(s.data.unit) ?? []), s]))
     return [...g.entries()].map(([k, v]) => ({ key: k, label: v.length === 2 && v[0].data.label !== v[1].data.label ? `${v[0].data.label} and ${v[1].data.label}` : v[0].data.label, variants: v, labels: v.map(x => x.data.condition) }))
   }, [samples, P?.plan])
+  const regionChosen = picked || (!!region && ownRegion(analyses, samples, P) === region)
+  const pickRegion = (r: string) => { setRegion(r); setPicked(true) }
+  const openTrial = (i: number, unitKey: string) => { if (P?.plan === 'experiment') setUnitIdx(i); else setUnitIdx(Math.max(0, units.findIndex(u => u.key === unitKey))); setView('room') }
   const diff = (u: Unit, r = region) => (u.variants[0].data.readout[r] ?? 0) - (u.variants[1]?.data.readout[r] ?? 0)
   const unit = units[Math.min(unitIdx, Math.max(0, units.length - 1))]
   const regionsPaired: Region[] = paired?.result?.data.regions ?? []
@@ -198,7 +211,7 @@ export default function App() {
     if ((P as any).search && view !== 'search') out.push({ label: 'How were the items chosen?', run: () => setView('search') })
     const sibs = projects.filter(p => p.data.template_id === P.template_id && p.id !== pid && p.data.status === 'Done')
     if (sibs.length && view !== 'findings') out.push({ label: 'Compare with the other runs', run: () => setView('findings') })
-    out.push({ label: `Why is the ${regionLabel(region).toLowerCase()} the headline?`, run: () => send(`Why is ${region} shown first, and which region has the largest effect in this project?`) })
+    if (regionChosen) out.push({ label: `Why is the ${regionInText(region)} the headline?`, run: () => send(`Why is ${region} shown first, and which region has the largest effect in this project?`) })
     if (template?.controls[0]) out.push({ label: 'What should challenge this next?', run: () => send(`Which control from this template would challenge this project most, what would it take to run, and what would each outcome mean?`) })
     return out.slice(0, 4)
   }
@@ -271,13 +284,13 @@ export default function App() {
             : P.status !== 'Done' && P.plan === 'experiment' && (P as any).setup ? <ExperimentSetup setup={(P as any).setup as Setup} paper={(P as any).paper}
               running={P.status === 'Running'} progress={runProg[pid!]} onRun={() => call('project_run', { project_id: pid }).then(() => refreshProjects())} onAsk={text => send(text)} />
             : P.status !== 'Done' ? <>{(P as any).world && <WorldPanel pid={pid!} world={(P as any).world} script={(P as any).script} params={params} previews={previews} assets={assets}
-              event={pev[pid!]} steps={steps} region={region} onChanged={reloadWorld} />}
+              event={pev[pid!]} steps={steps} region={region} chosen={regionChosen} onChanged={reloadWorld} />}
               <NotRun P={P} template={template} progress={runProg[pid!]} building={!!buildingChat} onOpenChat={() => { if (buildingChat) { setOpenSession(buildingChat.id); setView('agent') } }} onAsk={() => send(`Build and run this project: ${P.question}`)} onRun={(P as any).pairs || (P as any).units ? () => call('project_run', { project_id: pid }).then(() => refreshProjects()) : undefined} /></> : <>
             {view === 'room' && P.plan === 'selection' && byKind('selection')?.result && <SelectionView result={byKind('selection')!.result!.data} regions={byKind('selection')!.analysis.data.regions} samples={samples} condition={showCond} />}
             {view === 'room' && (P as any).world && <WorldPanel pid={pid!} world={(P as any).world} script={(P as any).script} params={params} previews={previews} assets={assets}
-              event={pev[pid!]} steps={steps} region={region} onChanged={reloadWorld} />}
+              event={pev[pid!]} steps={steps} region={region} chosen={regionChosen} onChanged={reloadWorld} />}
 
-            {view === 'room' && P.plan === 'experiment' && <ExperimentRoom pid={pid!} samples={samples as any} idx={unitIdx} setIdx={setUnitIdx} region={region} onS={(P as any).setup?.trial?.on_s} />}
+            {view === 'room' && P.plan === 'experiment' && <ExperimentRoom pid={pid!} samples={samples as any} idx={unitIdx} setIdx={setUnitIdx} region={region} chosen={regionChosen} onS={(P as any).setup?.trial?.on_s} />}
             {view === 'room' && unit && P.plan !== 'selection' && P.plan !== 'experiment' && <h2 className="section-title">The run, {P.counts?.clips} clips</h2>}
             {view === 'room' && unit && P.plan !== 'selection' && P.plan !== 'experiment' && <RoomView P={P} template={template} unit={unit} units={units} unitIdx={unitIdx} setUnitIdx={i => { setUnitIdx(i); setVariant(P.plan === 'leave_one_out' ? 1 : 0) }} variant={variant} setVariant={setVariant}
               region={region} diff={diff} objects={objects} onPickObject={pickUnitByKey} paired={regionsPaired.find(r => r.region === region)} />}
@@ -285,6 +298,7 @@ export default function App() {
             {view === 'brain' && <BrainView P={P} unit={unit} variant={variant} objects={objects} analyses={analyses} course={course} region={region} />}
             {view === 'data' && <DataView units={units} regions={regionNames} onOpen={i => { setUnitIdx(i); setView('room') }} />}
           </>}
+          {view === 'results' && <ResultsView pid={pid!} status={P.status} region={region} onPickRegion={pickRegion} onOpenTrial={openTrial} />}
           {view === 'search' && <SearchView search={(P as any).search} />}
           {view === 'findings' && <FindingsView P={P} pid={pid!} projects={projects} region={region} analysesFor={id => call('analysis_list', { project_id: id })} onOpen={id => { setPid(id) }} onAsk={send} />}
           {view === 'sources' && <SourcesView />}
@@ -293,7 +307,7 @@ export default function App() {
         </main>
 
         {!WIDE.includes(view) && <aside className="col right">
-          <Inspector P={P} pid={pid!} template={template} projects={projects} paired={paired} needed={needed} objects={objects} perObject={perObject} region={region} setRegion={setRegion}
+          <Inspector P={P} pid={pid!} template={template} projects={projects} paired={paired} needed={needed} objects={objects} perObject={perObject} region={region} setRegion={pickRegion} chosen={regionChosen} onAsk={send}
             unit={unit} diff={diff} units={units} samples={samples} onFork={(c) => template && createFromTemplate(template, `${P.title}, ${c.toLowerCase()}`, { ...(P.bindings as Record<string, string>), control: c }, pid!)}
             onOpenProject={setPid} onPickObject={k => { pickUnitByKey(k); setView('room') }} template_analyses={template?.analyses ?? []} analyses={analyses} />
         </aside>}
@@ -480,9 +494,9 @@ function DataView({ units, regions, onOpen }: { units: Unit[]; regions: string[]
   </>
 }
 
-function Inspector({ P, pid, template, projects, paired, needed, objects, perObject, region, setRegion, unit, diff, samples, onFork, onOpenProject, template_analyses, analyses, onPickObject }: {
+function Inspector({ P, pid, template, projects, paired, needed, objects, perObject, region, setRegion, chosen, onAsk, unit, diff, samples, onFork, onOpenProject, template_analyses, analyses, onPickObject }: {
   P: Project; pid: string; template?: Template; projects: Row<Project>[]; paired?: AnalysisItem; needed?: AnalysisItem; objects: any[]; perObject?: AnalysisItem
-  region: string; setRegion: (r: string) => void; unit?: Unit; diff: (u: Unit, r?: string) => number; units: Unit[]; samples: Row<Sample>[]
+  region: string; setRegion: (r: string) => void; chosen: boolean; onAsk: (text: string) => void; unit?: Unit; diff: (u: Unit, r?: string) => number; units: Unit[]; samples: Row<Sample>[]
   onFork: (control: string) => void; onOpenProject: (id: string) => void; template_analyses: string[]; analyses: AnalysisItem[]; onPickObject: (k: string) => void
 }) {
   const regs: Region[] = paired?.result?.data.regions ?? []
@@ -500,7 +514,9 @@ function Inspector({ P, pid, template, projects, paired, needed, objects, perObj
   const reported = analyses.flatMap(a => (a.result?.data.reported ?? []) as Reported[])
   return <>
     {P.status === 'Done' && <ReportedCard items={reported} />}
-    {P.status === 'Done' && cur && <div className="card">
+    {P.status === 'Done' && !chosen && <div className="card"><h3>No target region</h3>
+      <p className="ink2" style={{ margin: 0 }}>This project chose none, so no region leads. Pick one under Regions to follow it through the views.</p></div>}
+    {P.status === 'Done' && cur && chosen && <div className="card">
       <h3 title={region}>{regionLabel(region)}</h3>
       <div className="big" style={{ color: 'var(--ink)' }}>{fmt(cur.value)}</div>
       <div className="ink2 num">Interval {fmt(cur.interval_95[0])} to {fmt(cur.interval_95[1])}</div>
@@ -550,7 +566,9 @@ function Inspector({ P, pid, template, projects, paired, needed, objects, perObj
       <ul className="list">{template_analyses.map(k => { const a = analyses.find(x => x.analysis.data.kind === k); return <li key={k}><span>{a?.analysis.data.title ?? ANALYSIS_NAMES[k] ?? k}</span><span className="ink2">{a?.result ? (a.stale ? 'Out of date' : 'Done') : 'Not run'}</span></li> })}</ul>
     </div>
     <div className="card"><h3>Challenge</h3>
-      <ul className="list">{template?.controls.map(c => <li key={c}><span>{c}</span><button className="btn" onClick={() => onFork(c)}><Icon name="branch" size={16} />Fork</button></li>)}</ul>
+      {((P as any).controls ?? []).length ? <ul className="list">{((P as any).controls as string[]).map(c => <li key={c}><span>{c}</span><button className="btn" onClick={() => onFork(c)}><Icon name="branch" size={16} />Fork</button></li>)}</ul>
+        : <><p className="ink2" style={{ marginTop: 0 }}>No controls for this project yet.</p>
+          <button className="btn" onClick={() => onAsk(`Which controls would challenge this project's result most? Write them for its own stimuli and regions, and save them on the project with project_update(controls=[...]).`)}><Icon name="chat" size={16} />Ask the agent for controls</button></>}
       {siblings.length > 0 && <><div className="ink2" style={{ margin: '10px 0 4px' }}>Same template</div><ul className="list">{siblings.map(s => <li key={s.id}><button className="tab" style={{ padding: 0, textAlign: 'left' }} onClick={() => onOpenProject(s.id)}>{s.data.title}</button><span className="chip">{s.data.status}</span></li>)}</ul></>}
     </div>
     <div className="card"><h3>Parameters</h3>
@@ -562,6 +580,8 @@ function Inspector({ P, pid, template, projects, paired, needed, objects, perObj
 function TemplateSheet({ examples, onOpenProject, onGoal, onChat, templates, demos, writeErr, onWrite, onClose, onCreate, onPlay }: { examples: Example[]; onOpenProject: (id: string) => void; onGoal: (goal: string) => void; onChat: () => void; templates: Template[]; demos: DemoInfo[]; writeErr: Record<string, string>; onWrite: (id: string) => void; onClose: () => void; onCreate: (t: Template, title: string, b: Record<string, string>) => void; onPlay: (id: string) => void }) {
   const [pick, setPick] = useState<Template | null>(null); const [vals, setVals] = useState<Record<string, string>>({}); const [title, setTitle] = useState('')
   const blanks = pick ? [...new Set([...pick.question.matchAll(/\{(\w+)\}/g)].map(m => m[1]))] : []
+  const [atlas, setAtlas] = useState<any>(null)
+  useEffect(() => { if (blanks.includes('region') && !atlas) call<any>('region_search', { query: '' }).then(setAtlas).catch(() => {}) }, [pick])
   return <div className="overlay" onClick={onClose}>
     <div className="sheet" onClick={e => e.stopPropagation()} role="dialog" aria-label="New project">
       <div className="sheethead"><h2>New project</h2><button className="iconbtn" onClick={onClose} aria-label="Close" title="Close"><Icon name="close" size={20} /></button></div>
@@ -609,7 +629,12 @@ function TemplateSheet({ examples, onOpenProject, onGoal, onChat, templates, dem
         <div className="mid">{pick.title}</div>
         <div className="q" style={{ fontSize: 22 }}>{pick.question.replace(/\{(\w+)\}/g, (_, k) => vals[k] || '…')}</div>
         <label className="field"><span>Project name</span><input value={title} onChange={e => setTitle(e.target.value)} /></label>
-        {blanks.map(b => <label key={b} className="field"><span>{b === 'a' ? 'First condition' : b === 'b' ? 'Second condition' : b.replace(/_/g, ' ').replace(/^./, c => c.toUpperCase())}</span><input value={vals[b] ?? ''} onChange={e => setVals(v => ({ ...v, [b]: e.target.value }))} /></label>)}
+        {blanks.map(b => <label key={b} className="field"><span>{b === 'a' ? 'First condition' : b === 'b' ? 'Second condition' : b.replace(/_/g, ' ').replace(/^./, c => c.toUpperCase())}</span>{b === 'region' ? <select value={vals[b] ?? ''} onChange={e => setVals(v => ({ ...v, [b]: e.target.value }))}>
+          <option value="">{atlas ? 'Choose a region' : 'Loading the atlas'}</option>
+          {atlas?.named_areas?.length > 0 && <optgroup label="Named areas">{atlas.named_areas.map((x: any) => { const n = x.about.split(':')[0]; return <option key={x.region} value={`the ${n.toLowerCase()}`}>{n} ({x.region})</option> })}</optgroup>}
+          {atlas?.named_groups?.length > 0 && <optgroup label="Region groups">{atlas.named_groups.map((x: any) => <option key={x.region} value={`the ${x.region.toLowerCase()}`}>{x.region}: {x.known_for.toLowerCase()}</option>)}</optgroup>}
+          {atlas?.hcp_codes?.length > 0 && <optgroup label="HCP areas">{atlas.hcp_codes.map((c: string) => <option key={c} value={c}>{regionLabel(c) !== c ? `${regionLabel(c)} (${c})` : c}</option>)}</optgroup>}
+        </select> : <input value={vals[b] ?? ''} onChange={e => setVals(v => ({ ...v, [b]: e.target.value }))} />}</label>)}
         <div className="bar"><button className="btn" onClick={() => setPick(null)}><Icon name="back" size={16} />Back</button><button className="btn primary" disabled={!title.trim() || blanks.some(b => !vals[b]?.trim())} onClick={() => onCreate(pick, title.trim(), vals)}>Create project</button></div>
       </div>}
     </div>

@@ -190,11 +190,14 @@ def register(tools, broadcast=lambda m: None):
 
     @tools.tool('project', 'update')
     def project_update(step, actor, project_id, expect_version, title=None, bindings: dict | None = None, status=None, counts=None,
-                       run_values=None, pairs=None, labels=None):
-        """Change a project's title or blanks, or its run bookkeeping: status, counts, pairs to run and condition labels.
-        Only a change to the blanks marks results out of date; the rest is metadata."""
+                       run_values=None, pairs=None, labels=None, run_info=None, controls: list[str] | None = None):
+        """Change a project's title or blanks, or its run bookkeeping: status, counts, pairs to run, condition labels and
+        run_info (how the run was made, which the run itself writes). controls: the checks that would challenge this
+        project's result, each a short name a fork can carry ("Houses and faces matched in brightness"), written for
+        this project's own stimuli and regions, never a stock list. Only a change to the blanks marks results out of date;
+        the rest is metadata."""
         cur = s.get('project', project_id); d = {}
-        for k, v in (('title', title), ('status', status), ('counts', counts), ('run_values', run_values), ('pairs', pairs), ('labels', labels)):
+        for k, v in (('title', title), ('status', status), ('counts', counts), ('run_values', run_values), ('pairs', pairs), ('labels', labels), ('run_info', run_info), ('controls', controls)):
             if v is not None: d[k] = v
         if status is not None and status not in ('Draft', 'Running', 'Done'): raise ValueError('status must be Draft, Running or Done')
         if bindings is not None:
@@ -392,8 +395,11 @@ def register(tools, broadcast=lambda m: None):
     @tools.tool('region', 'search', writes_project=False)
     def region_search(actor, query: str = ''):
         """Regions an experiment can name: TRIBE's HCP-MMP1 areas by code (FFC, PPA, V1, MT ...; L_ or R_ for one hemisphere),
-        Destrieux labels, and the named groups. Empty query: the groups and all HCP codes."""
-        return regions.search(query)
+        Destrieux labels, and the named groups. Empty query: the groups, the named areas (PPA, FFA, V5) and all HCP codes."""
+        out = regions.search(query)
+        if not query.strip() and isinstance(out, dict):
+            out = {**out, 'named_areas': [{'region': k, 'about': v[1]} for k, v in regions.ALIASES.items()]}
+        return out
 
     @tools.tool('experiment', 'create')
     def experiment_create(step, actor, title, question, conditions: list[dict], regions: list, contrasts: list[dict] | None = None,
@@ -445,6 +451,73 @@ def register(tools, broadcast=lambda m: None):
                 'reported': a['result'].data.get('reported'), 'note': a['result'].data.get('vjepa_note')}
                for a in analysis_list(actor, project_id) if a['result']]
         return {'title': P.get('title'), 'question': P.get('question'), 'status': P.get('status'), 'experiment': P.get('experiment'), 'results': res}
+
+    @tools.tool('run', 'get', writes_project=False)
+    def run_get(actor, project_id):
+        """How a project's last run was made, and every number it produced, as tables: the record behind the results
+        dashboard and its exports (#19). made: when it ran and for how long, who started it, the code, connector and
+        renderer versions, the design, and the stimuli by condition with where they came from (and any Cosmos settings).
+        regions_chosen: the regions the project itself named (empty when it named none: no region is promoted for it).
+        contrasts: one row per contrast and region. trials: one row per clip with its read-out in every region. A run from
+        before runs kept this record lists in missing what could not be recovered."""
+        from . import runinfo
+        P = s.get('project', project_id).data
+        if P.get('status') != 'Done': raise ValueError(f"project {project_id} has no finished run (status {P.get('status')})")
+        info, missing = dict(P.get('run_info') or {}), []
+        exp = P.get('experiment') or P.get('setup') or {}
+        conds = exp.get('conditions') or []
+        if not info.get('finished_at'):   # a run from before run records: its times from the step log, its versions unknown
+            mine = [st for st in s.steps() if st['tool'] == 'project_update' and f'"{project_id}"' in (st['args'] or '')]
+            done = [st for st in mine if '"status": "Done"' in (st['args'] or '')]
+            if done:
+                info['finished_at'] = float(done[-1]['ts'])
+                began = [st for st in mine if '"status": "Running"' in (st['args'] or '') and float(st['ts']) <= info['finished_at']]
+                if began: info.update(started_at=float(began[-1]['ts']), started_by=began[-1]['actor'])
+            used = {'tribe_v2'} | ({runinfo.renderer_for((P.get('world') or {}).get('kind', ''))} if P.get('world') and P.get('plan') != 'experiment' else set()) \
+                | ({'cosmos_sim_transfer'} if any(c.get('cosmos') for c in conds if isinstance(c, dict)) else set())
+            info['connectors'] = [{'name': c, 'role': runinfo.ROLES.get(c, ''), 'version': runinfo.VERSIONS.get(c, 'unknown'), 'recorded': False} for c in sorted(used)]
+            missing = ['the code version', 'the connector versions at run time (today\'s are shown)', 'the renderer revision']
+        if info.get('started_at') and info.get('finished_at'): info['minutes'] = round((info['finished_at'] - info['started_at']) / 60, 1)
+        analyses = analysis_list(actor, project_id)
+        samples = sorted((r.data for r in s.list('sample') if r.data.get('project_id') == project_id), key=lambda d: d.get('index', 0))
+        regions_read = list((samples[0].get('readout') or {}).keys()) if samples else []
+        chosen = [r if isinstance(r, str) else r.get('name') for r in (exp.get('regions') or [])]
+        chosen += [r.get('region') for r in (exp.get('reported') or []) if isinstance(r, dict)]
+        b = str((P.get('bindings') or {}).get('region') or '').strip().lower().removeprefix('the ').strip()
+        if b: chosen += [n for n in regions_read if n.lower() in {b, (regions.alias(b) or '').lower()}]
+        chosen = [c for i, c in enumerate(chosen) if c and c not in chosen[:i]]
+        stimuli = []
+        for c in conds:
+            if not isinstance(c, dict): continue
+            mine = [x for x in samples if x.get('condition') == c.get('name')]
+            o = (mine[0].get('origin') or {}) if mine else {}
+            stimuli.append({'condition': c.get('name'), 'clips': len(mine), 'files': len(c.get('files') or []), 'origin': o.get('label') or c.get('origin'),
+                            'dataset': o.get('dataset_id') or c.get('dataset_id'), 'cosmos': c.get('cosmos')})
+        if not stimuli:   # world plans: one row per cell or side, from the clips themselves
+            for name in dict.fromkeys(x.get('condition') for x in samples):
+                stimuli.append({'condition': name, 'clips': sum(1 for x in samples if x.get('condition') == name), 'origin': 'Isaac Sim' if P.get('world') else None})
+        contrasts, other = [], []
+        for a in analyses:
+            ad, r = a['analysis'].data, (a['result'].data if a['result'] else None)
+            if not r: continue
+            if ad.get('kind') != 'paired': other.append({'kind': ad.get('kind'), 'title': ad.get('title'), 'result': {k: v for k, v in r.items() if k not in ('analysis_id', 'project_id')}}); continue
+            for row in r.get('regions') or []:
+                n = row.get('n'); ci = row.get('interval_95') or [None, None]; sh = row.get('shuffled_labels_95') or [None, None]
+                contrasts.append({'contrast': ad.get('title'), 'region': row.get('region'), 'chosen': row.get('region') in chosen, 'value': row.get('value'),
+                                  'ci_low': ci[0], 'ci_high': ci[1], 'n': sum(n.values()) if isinstance(n, dict) else n,
+                                  'n_by_condition': n if isinstance(n, dict) else None, 'units_positive': row.get('units_positive'),
+                                  'area_rank_pct': row.get('area_rank_pct'), 'shuffled_low': sh[0], 'shuffled_high': sh[1],
+                                  'shuffled_at_least_as_far': row.get('shuffled_at_least_as_far'), 'vjepa_random_map': row.get('vjepa_random_map'),
+                                  'pairs_needed': row.get('pairs_needed'), 'window_s': ad.get('window_s'), 'units': ad.get('units'), 'design': ad.get('design')})
+        trials = [{'index': x.get('index'), 'unit': x.get('unit'), 'condition': x.get('condition'), 'label': x.get('label'), 'clip': x.get('clip'), 'image': x.get('image'),
+                   'origin': (x.get('origin') or {}).get('label'), 'readout': x.get('readout') or {}} for x in samples]
+        made = {**info, 'plan': P.get('plan'), 'template_id': P.get('template_id'), 'world': (P.get('world') or {}).get('kind'),
+                'brain_model': 'TRIBE v2, average-viewer prediction of fMRI from the video', 'trial': exp.get('trial'),
+                'contrast_weights': [{'name': c.get('name'), 'weights': c.get('weights')} for c in (exp.get('contrasts') or []) if isinstance(c, dict)],
+                'parameters': P.get('run_values'), 'counts': P.get('counts'), 'paper_id': exp.get('paper_id')}
+        return {'project': {'id': project_id, 'title': P.get('title'), 'question': P.get('question'), 'status': P.get('status')},
+                'made': made, 'stimuli': stimuli, 'regions_chosen': chosen, 'regions_read': regions_read,
+                'contrasts': contrasts, 'trials': trials, 'other_analyses': other, 'missing': missing}
 
     for fn in (project_create_from, project_update, experiment_create):   # the title argument says how to title (#11)
         fn.__doc__ = (fn.__doc__ or '').rstrip() + f'\n        title: {titles.ARG}.'

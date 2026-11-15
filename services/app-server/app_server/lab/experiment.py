@@ -266,6 +266,9 @@ def run(tools, broadcast, project_id: str, actor: str) -> dict:
     tools.call('project_update', actor, project_id=project_id, expect_version=Prow.version, status='Running')
     import uuid
     token = uuid.uuid4().hex; runner.LIVE[project_id] = token
+    from . import runinfo
+    info = runinfo.start(actor)   # how the run was made, saved with its results (#19)
+    used = {'tribe_v2'} | ({'cosmos_sim_transfer'} if any(isinstance(x, dict) for tr in P['trials'] for x in tr['items']) else set())
 
     def go():
         ev = lambda **k: broadcast({'run': project_id, **k})
@@ -308,7 +311,8 @@ def run(tools, broadcast, project_id: str, actor: str) -> dict:
                         if row.data.get('project_id') == project_id: s.delete(step, kind, row.id, row.version)
                 rec.apply(s, step)
             cur = s.get('project', project_id)
-            tools.call('project_update', actor, project_id=project_id, expect_version=cur.version, status='Done', counts={'units': total, 'clips': total})
+            tools.call('project_update', actor, project_id=project_id, expect_version=cur.version, status='Done', counts={'units': total, 'clips': total},
+                       run_info=runinfo.finish(info, used))
             ev(stage='done')
         except Exception as e:
             if runner.SHUTTING_DOWN.is_set(): return
