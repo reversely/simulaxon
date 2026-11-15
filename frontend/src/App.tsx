@@ -27,6 +27,7 @@ type View = 'room' | 'results' | 'datasets' | 'experimental' | 'samples' | 'brai
 const WIDE: View[] = ['results', 'datasets', 'experimental', 'search', 'data', 'findings', 'sources', 'agent']
 type Unit = { key: string; label: string; variants: Row<Sample>[]; labels: string[] }
 const VIEW_ICON: Record<string, IconName> = { room: 'room', results: 'gauge', samples: 'samples', brain: 'brain', search: 'search', data: 'table', findings: 'findings', sources: 'book' }
+const PROJECT_VIEWS: View[] = ['room', 'results', 'samples', 'brain', 'search', 'data', 'findings', 'sources']   // views of the open project; Datasets, Experimental and the chat are not
 const VIEWS: [View, string][] = [['room', 'Room'], ['results', 'Results'], ['samples', 'Samples'], ['brain', 'Brain'], ['search', 'Search'], ['data', 'Data'], ['findings', 'Findings'], ['sources', 'Sources']]
 const ANALYSIS_NAMES: Record<string, string> = { paired: 'Difference per region', items_needed: 'Pairs needed', time_course: 'Response by second', per_object: 'Effect of each object' }
 const VIEW_NAMES: Record<string, string> = { left: 'Left', right: 'Right', ventral: 'Underside', posterior: 'Back' }
@@ -362,7 +363,7 @@ export default function App() {
         </aside>}
       </div>
 
-      {view !== 'agent' && <footer className="prov" aria-label="Provenance">
+      {PROJECT_VIEWS.includes(view) && <footer className="prov" aria-label="Provenance">
         {P.provenance?.length ? (P.plan === 'experiment' && (P as any).setup ? [...P.provenance.slice(0, -1).map(provShort), regionCount((P as any).setup.regions as string[])] : P.provenance.map(provShort))
           .map((s, i) => <span key={i} style={{ display: 'contents' }}>{i > 0 && <span className="arrow">→</span>}<span title={typeof s === 'string' ? undefined : s.title}>{typeof s === 'string' ? s : s.text}</span></span>) : <span>Nothing has run in this project yet</span>}
       </footer>}
