@@ -199,7 +199,20 @@ class BrainGL {
     gl.enable(gl.BLEND); gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA); gl.depthMask(false); gl.drawElements(gl.TRIANGLES, this.hcount, gl.UNSIGNED_SHORT, 0); gl.depthMask(true)
     gl.bindVertexArray(null); this.lastDrawMs = performance.now() - t0; c.dataset.drawMs = this.lastDrawMs.toFixed(2); c.dataset.draws = String(Number(c.dataset.draws ?? 0) + 1)   // for page checks: each redraw is visible
   }
-  dispose() { this.gl.getExtension('WEBGL_lose_context')?.loseContext() }
+  /** Free the brain's GPU memory without holding up the click that unmounts it (#33). Deleting the buffers and shrinking
+   * the canvas are quick everywhere; loseContext took 2.4 s on software WebGL (SwiftShader, llvmpipe), so there the
+   * context is left to garbage collection, and on a GPU it is released once the page is idle. */
+  dispose() {
+    const gl = this.gl
+    if (gl.isContextLost()) return
+    gl.deleteVertexArray(this.vao); gl.deleteVertexArray(this.hvao); gl.deleteBuffer(this.val); gl.deleteProgram(this.prog); gl.deleteProgram(this.hprog)
+    Object.values(this.ramps).forEach(t => gl.deleteTexture(t)); this.canvas.width = 1; this.canvas.height = 1
+    const info = gl.getExtension('WEBGL_debug_renderer_info')
+    const renderer = String(info ? gl.getParameter(info.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER))
+    if (/swiftshader|llvmpipe|softpipe|software/i.test(renderer)) return
+    const lose = () => gl.getExtension('WEBGL_lose_context')?.loseContext()
+    if ('requestIdleCallback' in window) requestIdleCallback(lose, { timeout: 5000 }); else setTimeout(lose, 1000)
+  }
 }
 
 /** Values of one moment: rows linearly interpolated at t seconds, scaled for the shader. */
