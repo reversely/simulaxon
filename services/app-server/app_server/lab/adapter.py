@@ -127,6 +127,46 @@ def benchmark(row: dict) -> str:
     return f"Benchmark: {where} of the {str(row.get('source', 'dataset')).split(',')[0]}"
 
 
+class Applied:
+    """An adapter applied to TRIBE v2's output in an experiment (#28 item 3): each trial's cortex, averaged per HCP-MMP1
+    area, goes through the saved ridge map, and each area's predicted measured response is spread back over its
+    vertices, so every region read-out and contrast works as with TRIBE v2 alone. Every input's distance from the
+    adapter's training inputs is kept (#37): the root mean square of its z-scored areas, against the training
+    categories' own distances. A stimulus beyond the farthest training category lies outside what the adapter was fitted on."""
+
+    def __init__(self, adapter_id: str, row: dict, files: Path):
+        z = np.load(files / row['weights']); self.id, self.name = adapter_id, row['name']
+        self.mu, self.sd, self.coef, self.intercept = z['mu'], z['sd'], z['coef'], z['intercept']
+        names = list(regions.hcp_names()); masks = regions.hcp_areas()
+        self.masks = [masks[names.index(a['area'])] for a in row['areas']]   # the fit's area order
+        cache = files / 'adapters' / f"{row['dataset_id']}_tribe_areas.npz"
+        T = np.load(cache)['T'] if cache.exists() else None
+        self.train = None if T is None else self.distance(T[np.abs(T).sum(1) > 0])
+        self.distances: list[float] = []
+
+    def areas(self, cortex: np.ndarray) -> np.ndarray:
+        return np.array([cortex[m].mean() for m in self.masks])
+
+    def distance(self, X: np.ndarray) -> np.ndarray:
+        return np.sqrt((((X - self.mu) / self.sd) ** 2).mean(-1))
+
+    def __call__(self, cortex: np.ndarray) -> np.ndarray:
+        x = self.areas(cortex); self.distances.append(round(float(self.distance(x)), 4))
+        y = ((x - self.mu) / self.sd) @ self.coef.T + self.intercept
+        out = np.zeros_like(cortex, dtype=np.float32)
+        for m, v in zip(self.masks, y): out[m] = v
+        return out
+
+    def model(self) -> dict:
+        """What produced a result, for the record and the page: the adapter's name and how far the stimuli lay from its fit."""
+        d = np.array(self.distances); far = float(self.train.max()) if self.train is not None else None
+        outside = int((d > far).sum()) if far is not None and len(d) else None
+        note = None if far is None else (f"{outside} of {len(d)} stimuli lie outside what {self.name} was fitted on: their TRIBE v2 areas are farther from its training inputs than any training category ({far:.2f})"
+                                         if outside else f"Every stimulus lies within the range of {self.name}'s training inputs")
+        return {'name': f'TRIBE v2 with {self.name}', 'adapter_id': self.id, 'adapter': self.name, 'distances': self.distances,
+                'training_distance_max': None if far is None else round(far, 4), 'outside_fit': outside, 'note': note}
+
+
 def area_map(areas: list[dict], key: str) -> np.ndarray:
     """A per-area value spread over its fsaverage5 vertices, for the brain view."""
     names = list(regions.hcp_names()); masks = regions.hcp_areas(); out = np.zeros(20484, np.float32)

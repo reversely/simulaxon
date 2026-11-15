@@ -142,7 +142,8 @@ export function ResultsView({ pid, status, progress, live, focus, agentName, onP
         {m.started_at && <span><span className="k">Started</span> {when(m.started_at)}{m.started_by ? `, by ${by(m.started_by)}` : ''}</span>}
         {m.minutes != null && <span><span className="k">Took</span> {m.minutes} min</span>}
         <span><span className="k">Trials</span> {rec.trials.length}</span>
-        <span><span className="k">Model</span> TRIBE v2, average subject{tribe ? ` (${tribe.version}${tribe.recorded === false ? ', current' : ''})` : ''}</span>
+        <span><span className="k">Model</span> {m.adapter ? m.adapter.name : 'TRIBE v2'}, average subject{tribe ? ` (${tribe.version}${tribe.recorded === false ? ', current' : ''})` : ''}</span>
+        {m.adapter?.note && <span><span className="k">Adapter range</span> {m.adapter.note}. A prediction on new stimuli: no measured fMRI, so no r.</span>}
         {sources.length > 0 && <span><span className="k">Stimuli</span> {sources.join('; ')}</span>}
         {seed != null && <span><span className="k">Seed</span> {seed}</span>}
       </div>
@@ -176,7 +177,7 @@ export function ResultsView({ pid, status, progress, live, focus, agentName, onP
         </div>}
       </div>
       <div className="tablewrap"><table className="data contrasts">
-        <thead><tr>{head('contrast', 'Contrast', false)}{head('region', 'Region', false)}<th>Named by</th>{has('expected') && <th>Expected</th>}{head('value', 'TRIBE value', true, 'Mean difference over the read-out window')}
+        <thead><tr>{head('contrast', 'Contrast', false)}{head('region', 'Region', false)}<th>Named by</th>{has('expected') && <th>Expected</th>}{head('value', m.adapter ? 'Adapter value' : 'TRIBE value', true, 'Mean difference over the read-out window')}
           {head('ci_low', '95% interval')}<th aria-hidden />{head('n', 'n')}{has('units_positive') && head('units_positive', 'Above zero')}
           {has('area_rank_pct') && head('area_rank_pct', 'Rank among 360 areas')}{has('shuffled_high') && head('shuffled_high', 'Shuffled labels, 95%')}
           {has('shuffled_at_least_as_far') && head('shuffled_at_least_as_far', 'Shuffles as far')}{has('vjepa_random_map') && head('vjepa_random_map', 'Video features only', true, 'V-JEPA 2 features through a fixed random map: no brain mapping')}</tr></thead>
@@ -192,6 +193,7 @@ export function ResultsView({ pid, status, progress, live, focus, agentName, onP
           {has('vjepa_random_map') && <td className="num">{r.vjepa_random_map == null ? '–' : fmt(r.vjepa_random_map)}</td>}</tr>)}</tbody>
       </table></div>
       <div className="tablenote">
+        {m.adapter && <p>Every value here is TRIBE v2's prediction passed through {m.adapter.adapter}, a map fitted to measured fMRI from another dataset (Datasets, Adapters): a predicted measured response, not TRIBE v2 as released.</p>}
         <p>TRIBE v2 is Meta's model that predicts an average viewer's fMRI response from video. Values are its output (z-scored BOLD), the mean over seconds {window ? `${window[0]} to ${window[1]}` : 'on screen'} of each clip. Click a row to highlight its region.</p>
         <p>Expected: the direction recorded before the run, from the paper or the project's question. Rank among 360 areas: where the value falls among TRIBE's 360 HCP-MMP1 areas (Glasser et al., 2016). Shuffled labels: the same contrast with the condition labels shuffled, and the share of shuffles at least as far from zero. Video features only: V-JEPA 2 video features through a fixed random map, with no brain mapping.</p>
         {named.length ? named.map(n => <p key={n.region}><b>{n.region}</b>, named by {by(n.named_by)}: {n.definition}.</p>) : <p>No region was named for this project; every region read is listed.</p>}

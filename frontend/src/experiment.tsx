@@ -8,7 +8,7 @@ export type Setup = {
   conditions: { name: string; files_available: number; origin: Origin; trials: number }[]
   trial: { design: string; item_s: number; gap_s: number; items_per_trial: number; trials_per_condition: number; rest_s: number; on_s: number; clip_s: number; read_s: [number, number] }
   clips: number; minutes_estimate: number; contrasts: { name: string; weights: Record<string, number> }[]; regions: string[]
-  reported: Reported[]
+  reported: Reported[]; brain_model?: { adapter_id: string; name: string } | null
 }
 export type Reported = { contrast: string; region: string; direction?: string; where?: string; quote?: string; tribe_value?: number; tribe_interval_95?: [number, number]; area_rank_pct?: number; shuffled_labels_95?: [number, number]; result?: string }
 export type Paper = { title?: string; authors?: string; year?: string | number; venue?: string; doi?: string; source?: string; full_text?: boolean }
@@ -48,7 +48,7 @@ export function ExperimentSetup({ setup, paper, onRun, onAsk, running, progress 
       <h3>Conditions</h3>
       {setup.conditions.map(c => <div key={c.name} className="entryrow">
         <span className="letter">{letter[c.name]}</span><b>{words(c.name)}</b>
-        <span className="routechips"><OriginChip o={c.origin} long />{c.origin.kind === 'cosmos' && <span className="origin cosmos">Cosmos, seeds {c.origin.seeds?.join(' and ')}</span>}<span className="arrow" aria-hidden>→</span><span className="origin stagechip">TRIBE v2</span></span>
+        <span className="routechips"><OriginChip o={c.origin} long />{c.origin.kind === 'cosmos' && <span className="origin cosmos">Cosmos, seeds {c.origin.seeds?.join(' and ')}</span>}<span className="arrow" aria-hidden>→</span><span className="origin stagechip">{setup.brain_model?.name ?? 'TRIBE v2'}</span></span>
         <span className="ink2 num count">{c.files_available} files, {c.trials} trials</span>
       </div>)}
       {!running && <button className="addentry" onClick={() => onAsk('Suggest one more condition for this experiment. Set it up only if I agree.')}><Icon name="plus" size={16} />Add condition</button>}
@@ -156,7 +156,7 @@ export function ReadoutTable({ title, readout, named, focus, bare }: { title: st
   return bare ? <div className="readouts"><div className="ink2">{title}</div><div className="tablescroll">{table}</div></div> : <div className="card"><h3>{title}</h3><div className="tablewrap">{table}</div></div>
 }
 
-export function ExperimentRoom({ pid, samples, idx, setIdx, region, onS, named = [], tag = '' }: { pid: string; samples: Row<Sample & { origin?: Origin; items?: string[] }>[]; idx: number; setIdx: (i: number) => void; region: string; onS?: number; named?: string[]; tag?: string }) {
+export function ExperimentRoom({ pid, samples, idx, setIdx, region, onS, named = [], tag = '' }: { pid: string; samples: Row<Sample & { origin?: Origin; items?: string[]; brain_model?: string }>[]; idx: number; setIdx: (i: number) => void; region: string; onS?: number; named?: string[]; tag?: string }) {
   const row = samples[Math.min(idx, samples.length - 1)]; const s = row?.data
   if (!s) return null
   const conds = [...new Set(samples.map(x => x.data.condition))]
@@ -172,7 +172,7 @@ export function ExperimentRoom({ pid, samples, idx, setIdx, region, onS, named =
         <button className="btn" aria-label="Next trial" disabled={idx >= samples.length - 1} onClick={() => setIdx(idx + 1)}>›</button>
       </span>
     </div>
-    <ReadoutTable title="This trial, TRIBE value by region" readout={s.readout} named={named} focus={region} />
+    <ReadoutTable title={s.brain_model && s.brain_model !== 'TRIBE v2' ? `This trial, ${s.brain_model}, by region` : 'This trial, TRIBE value by region'} readout={s.readout} named={named} focus={region} />
     {region ? <><ConditionCourse pid={pid} region={region} onS={onS} />
     <div className="card"><h3>Every trial: {regionLabel(region)}{tag && <span className="chip tiny">{tag}</span>}</h3>
       {conds.map((c, ci) => { const mine = samples.map((r, i) => ({ r, i })).filter(o => o.r.data.condition === c); const mean = mine.reduce((t, o) => t + (o.r.data.readout[region] ?? 0), 0) / mine.length

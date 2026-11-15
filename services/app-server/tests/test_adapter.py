@@ -35,3 +35,20 @@ class Adapter(unittest.TestCase):
         held = [f'c{i}' for i in range(0, 60, 4)]
         r = adapter.fit('toy', self.cache, held_out=held); self.assertEqual((r['split']['held_out'], r['split']['training']), (15, 45))
         with self.assertRaises(ValueError): adapter.fit('toy', self.cache, held_out=['nope'])
+
+    def test_applied_in_an_experiment_matches_the_fit_and_flags_far_stimuli(self):
+        """An experiment reading through the adapter (#28 item 3) gets the fit's prediction per area, spread over the area's
+        vertices, and a stimulus far beyond the training inputs is counted outside the fit (#37)."""
+        from unittest import mock
+        from app_server.lab import regions
+        r = adapter.fit('toy', self.cache); w = r.pop('weights'); names = tuple(a['area'] for a in r['areas'])
+        files = Path(self.tmp.name) / 'files'; (files / 'adapters').mkdir(parents=True)
+        np.savez(files / 'adapters' / 'a1.npz', **w); np.savez(files / 'adapters' / 'toy_tribe_areas.npz', T=self.T, n=np.full(60, 20))
+        masks = [np.isin(np.arange(720), [2 * k, 2 * k + 1]) for k in range(360)]   # two vertices an area
+        with mock.patch.object(regions, 'hcp_names', lambda: names), mock.patch.object(regions, 'hcp_areas', lambda: masks):
+            A = adapter.Applied('adapter_x', {'name': 'adapter 1', 'weights': 'adapters/a1.npz', 'dataset_id': 'toy', 'areas': r['areas']}, files)
+            near, far = np.repeat(self.T[3], 2), np.repeat(self.T[3] * 25, 2)
+            out = A(near); want = ((self.T[3] - w['mu']) / w['sd']) @ w['coef'].T + w['intercept']
+            np.testing.assert_allclose(out[::2], want, rtol=1e-5); np.testing.assert_allclose(out[1::2], want, rtol=1e-5)
+            A(far); m = A.model()
+        self.assertEqual(m['name'], 'TRIBE v2 with adapter 1'); self.assertEqual(m['outside_fit'], 1); self.assertIn('1 of 2 stimuli lie outside', m['note'])

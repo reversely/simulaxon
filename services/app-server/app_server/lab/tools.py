@@ -459,7 +459,8 @@ def register(tools, broadcast=lambda m: None):
 
     @tools.tool('experiment', 'create')
     def experiment_create(step, actor, title, question, conditions: list[dict], regions: list, contrasts: list[dict] | None = None,
-                          trial: dict | None = None, reported: list[dict] | None = None, paper_id: str | None = None, project_id: str | None = None):
+                          trial: dict | None = None, reported: list[dict] | None = None, paper_id: str | None = None, project_id: str | None = None,
+                          brain_model: str | None = None):
         """Set up an experiment as a project, or replace a draft project's experiment. Checks everything and returns the trials it will run.
         conditions: [{name, dataset_id, files: [glob patterns relative to the dataset]}] (or files: paths under the lab's data folder,
           with origin "isaac" for Isaac Sim renders). Every stimulus keeps where it came from.
@@ -475,6 +476,8 @@ def register(tools, broadcast=lambda m: None):
         reported: the paper's result to compare against: [{contrast, region, direction: higher or lower, where: "Figure 2", quote}];
           region is a name from regions, including a group defined there, or an atlas name.
         A condition may instead be {name, view_id}: a saved view of a dataset (view_create); its items are the condition's files.
+        brain_model: an adapter's id (adapter_list) to read every trial through TRIBE v2 with that adapter instead of TRIBE v2 as
+          released; results then name it and say how many stimuli lie outside what it was fitted on. Its benchmark r never applies here.
         Run it with project_run; progress is broadcast; results come back as analyses with baselines and match or no match."""
         conditions = [_from_view(c) if isinstance(c, dict) and c.get('view_id') else c for c in conditions]   # curated stimuli (#22)
         regs = regions   # the argument, not the module: this function never needs the module
@@ -482,15 +485,20 @@ def register(tools, broadcast=lambda m: None):
                  if isinstance(n, str) and '_' in n and not any(ch.isspace() for ch in n)]
         if snake: raise ValueError(f'name conditions and contrasts in words, as the page shows them ("Faces against objects"), not {", ".join(snake)}')   # #39
         spec = {'conditions': conditions, 'regions': regs, 'contrasts': contrasts, 'trial': trial, 'reported': reported, 'paper_id': paper_id}
+        model = None
+        if brain_model:
+            arow = s.get('adapter', brain_model)
+            if arow is None: raise ValueError(f'no adapter {brain_model}; adapter_list lists them')
+            spec['brain_model'] = arow.id; model = {'adapter_id': arow.id, 'name': f"TRIBE v2 with {arow.data['name']}"}
         P = experiment.plan(spec)
         origins = sorted({tr['origin']['label'] for tr in P['trials']})
-        prov = [' and '.join(origins), f"{P['clips']} trials, one {P['trial']['clip_s']:g} s clip each", f"TRIBE v2, video only, seconds {P['trial']['read_s'][0]} to {P['trial']['read_s'][1]}",
+        prov = [' and '.join(origins), f"{P['clips']} trials, one {P['trial']['clip_s']:g} s clip each", f"{model['name'] if model else 'TRIBE v2'}, video only, seconds {P['trial']['read_s'][0]} to {P['trial']['read_s'][1]}",
                 ', '.join(_name(r) for r in regs)]
         per = {}
         for tr in P['trials']: per.setdefault(tr['condition'], {'files_available': tr['files_available'], 'origin': tr['origin'], 'trials': 0}); per[tr['condition']]['trials'] += 1
         paper = s.get('paper', paper_id).data if paper_id and s.get('paper', paper_id) else None
         setup = {'conditions': [{'name': c, **v} for c, v in per.items()], 'trial': P['trial'], 'clips': P['clips'], 'minutes_estimate': P['minutes_estimate'],
-                 'contrasts': P['contrasts'], 'regions': [_name(r) for r in regs], 'reported': P['reported']}
+                 'contrasts': P['contrasts'], 'regions': [_name(r) for r in regs], 'reported': P['reported'], 'brain_model': model}
         data = {'title': title, 'question': question, 'template_id': None, 'plan': 'experiment', 'status': 'Draft', 'experiment': spec, 'paper_id': paper_id,
                 'paper': paper, 'setup': setup, 'provenance': prov, 'made_by': actor, 'bindings': {}, 'parameters': []}
         if project_id:
@@ -711,7 +719,8 @@ def register(tools, broadcast=lambda m: None):
         match or no match; for any other plan (matched, selection, leave one out), its plan and the results of its analyses."""
         P = _project(project_id)
         res = [{'contrast': a['analysis'].data.get('title'), 'regions': a['result'].data.get('regions'), 'baselines': a['result'].data.get('baselines'),
-                'reported': a['result'].data.get('reported'), 'note': a['result'].data.get('vjepa_note')}
+                'reported': a['result'].data.get('reported'), 'note': a['result'].data.get('vjepa_note'),
+                'brain_model': {k: v for k, v in (a['result'].data.get('brain_model') or {'name': 'TRIBE v2'}).items() if k != 'distances'}}
                for a in analysis_list(actor, project_id) if a['result']]
         return {'title': P.get('title'), 'question': P.get('question'), 'plan': P.get('plan'), 'status': P.get('status'), 'experiment': P.get('experiment'), 'results': res}
 
@@ -805,8 +814,9 @@ def register(tools, broadcast=lambda m: None):
         cmaps = export.contrast_maps(s, project_id)
         figures = [{'title': m['title'], 'weights': m['weights'], 'window_s': m['window_s'], 'views': {v: '/files/' + p for v, p in (m.get('views') or {}).items()},
                     'areas': export.areas(m['map'])} for m in cmaps]
+        bm = next((a['result'].data['brain_model'] for a in analyses if a['result'] and a['result'].data.get('brain_model')), None)   # what produced the results (#28)
         made = {**info, 'plan': P.get('plan'), 'template_id': P.get('template_id'), 'world': (P.get('world') or {}).get('kind'),
-                'brain_model': 'TRIBE v2, average-viewer prediction of fMRI from the video', 'trial': exp.get('trial'),
+                'brain_model': (bm or {}).get('name', 'TRIBE v2') + ', average-viewer prediction of fMRI from the video', 'adapter': bm if (bm or {}).get('adapter_id') else None, 'trial': exp.get('trial'),
                 'contrast_weights': [{'name': c.get('name'), 'weights': c.get('weights')} for c in (exp.get('contrasts') or []) if isinstance(c, dict)],
                 'parameters': P.get('run_values'), 'counts': P.get('counts'), 'paper_id': exp.get('paper_id')}
         out = {'project': {'id': project_id, 'title': P.get('title'), 'question': P.get('question'), 'status': P.get('status')},

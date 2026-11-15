@@ -194,10 +194,12 @@ def _boot_diff(groups: dict[str, np.ndarray], w: dict, rng, n=4000) -> list[floa
     return [round(float(x), 4) for x in np.percentile(sims, [2.5, 97.5])]
 
 
-def analyse(trials: list[dict], P: dict, out_url) -> dict:
-    """Every contrast in every region with its baselines, then match or no match against the reported result."""
+def analyse(trials: list[dict], P: dict, out_url, cortex=None) -> dict:
+    """Every contrast in every region with its baselines, then match or no match against the reported result.
+    cortex: a trial's predictions file to its read-out cortex; default TRIBE v2's mean over read_s (run() passes an adapter's)."""
     t = P['trial']; a, b = t['read_s']; rng = np.random.default_rng(0)
-    on = {i: np.load(x['preds'])[a:b].mean(0) for i, x in enumerate(trials)}
+    cortex = cortex or (lambda p: np.load(p)[a:b].mean(0))
+    on = {i: cortex(x['preds']) for i, x in enumerate(trials)}
     stats = {i: plans._clip_stats(x['clip']) for i, x in enumerate(trials)}   # motion energy, brightness
     names = list(dict.fromkeys(x['condition'] for x in trials))
     idx = {c: [i for i, x in enumerate(trials) if x['condition'] == c] for c in names}
@@ -269,6 +271,22 @@ def run(tools, broadcast, project_id: str, actor: str) -> dict:
     from . import runinfo
     info = runinfo.start(actor)   # how the run was made, saved with its results (#19)
     used = {'tribe_v2'} | ({'cosmos_sim_transfer'} if any(isinstance(x, dict) for tr in P['trials'] for x in tr['items']) else set())
+    model = None   # the brain model: TRIBE v2 as released, or through an adapter the experiment names (#28 item 3)
+    if spec.get('brain_model'):
+        from . import adapter
+        arow = s.get('adapter', spec['brain_model'])
+        if arow is None: raise ValueError(f"no adapter {spec['brain_model']}; adapter_list lists them")
+        model = adapter.Applied(arow.id, arow.data, FILES)
+    model_name = f'TRIBE v2 with {model.name}' if model else 'TRIBE v2'
+    read, dist = {}, {}
+
+    def cortex(pred) -> np.ndarray:
+        """A trial's read-out cortex, once per clip: TRIBE v2's mean over read_s, through the adapter when there is one."""
+        k = str(pred)
+        if k not in read:
+            o = np.load(pred)[P['trial']['read_s'][0]:P['trial']['read_s'][1]].mean(0); read[k] = model(o) if model else o
+            if model: dist[k] = model.distances[-1]
+        return read[k]
 
     def go():
         ev = lambda **k: broadcast({'run': project_id, **k})
@@ -284,26 +302,29 @@ def run(tools, broadcast, project_id: str, actor: str) -> dict:
                     j = preview.queue().submit('tribe_v2', {'clip': str(clip)}, {'on_s': P['trial']['read_s']}, lane='batch'); j.done.wait(3600)
                     if j.status != 'done': raise RuntimeError(j.error or 'TRIBE failed')
                 done.append({**tr, 'clip': str(clip), 'still': str(still), 'preds': str(pred)})
-                o = np.load(pred)[P['trial']['read_s'][0]:P['trial']['read_s'][1]].mean(0)   # as the saved sample reads it, so the live table and the record agree (#20)
+                o = cortex(pred)   # as the saved sample reads it, so the live table and the record agree (#20)
                 ev(done=k + 1, total=total, image=out_url(still), trial={'index': k, 'unit': f"{tr['condition']}, trial {tr['index'] + 1}", 'condition': tr['condition'],
                                                                        'label': f"{tr['condition']}, trial {tr['index'] + 1}", 'image': out_url(still), 'clip': out_url(clip),
                                                                        'readout': {_region_name(r): round(float(o[_region_mask(r)].mean()), 4) for r in P['regions']}})
                 if runner.SHUTTING_DOWN.is_set(): return
                 if token in runner.STOP: raise RuntimeError(f"Stopped by {runner.STOP[token]} after {k + 1} of {total} clips; running it again picks up from there")
             ev(stage='comparing')
-            res = analyse(done, P, out_url)
+            res = analyse(done, P, out_url, cortex)
+            bm = model.model() if model else {'name': model_name}
             rec = plans.Deferred()
             for i, tr in enumerate(done):
-                o = np.load(tr['preds'])[P['trial']['read_s'][0]:P['trial']['read_s'][1]].mean(0)
-                rec.create(None, 'sample', {'project_id': project_id, 'index': i, 'unit': f"{tr['condition']}, trial {tr['index'] + 1}", 'condition': tr['condition'],
+                o = cortex(tr['preds'])
+                rec.create(None, 'sample', {'project_id': project_id, 'index': i, 'unit': f"{tr['condition']}, trial {tr['index'] + 1}", 'condition': tr['condition'], 'brain_model': model_name,
+                                            **({'fit_distance': dist.get(str(tr['preds']))} if model else {}),
                                             'label': f"{tr['condition']}, trial {tr['index'] + 1}", 'image': out_url(tr['still']), 'clip': out_url(tr['clip']), 'preds': tr['preds'],
                                             'origin': tr['origin'], 'items': [Path(x).name for x in tr.get('sources', tr['items'])], 'sources': tr.get('sources'),
                                             'readout': {_region_name(r): round(float(o[_region_mask(r)].mean()), 4) for r in P['regions']}}, depends_on=[('project', project_id)])
             for c in res['contrasts']:
                 nm = rec.create(None, 'neural_map', {'project_id': project_id, 'title': c['contrast'], 'kind': 'contrast', **c['map']}, depends_on=[('project', project_id)])
                 an = rec.create(None, 'analysis', {'project_id': project_id, 'kind': 'paired', 'title': c['contrast'], 'window_s': c['read_s'], 'weights': c['weights'],
-                                                   'units': f"TRIBE units, mean of seconds {c['read_s'][0]} to {c['read_s'][1]}", 'design': 'unpaired trials'}, depends_on=[('project', project_id)])
-                rec.create(None, 'result', {'analysis_id': an.id, 'project_id': project_id, 'regions': c['regions'], 'map_id': nm.id, 'baselines': c['baselines'],
+                                                   'units': f"{'TRIBE units' if not model else model_name + ', predicted measured response (z)'}, mean of seconds {c['read_s'][0]} to {c['read_s'][1]}",
+                                                   'design': 'unpaired trials', 'brain_model': model_name}, depends_on=[('project', project_id)])
+                rec.create(None, 'result', {'analysis_id': an.id, 'project_id': project_id, 'regions': c['regions'], 'map_id': nm.id, 'baselines': c['baselines'], 'brain_model': bm,
                                             'reported': c['reported'], 'vjepa_note': c['vjepa_note'],
                                             'baselines_note': 'Each region also carries its rank among the 360 HCP areas TRIBE reports, the same contrast with condition labels shuffled, and V-JEPA 2 features through a fixed random cortex map'},
                            depends_on=[('analysis', an.id)])
