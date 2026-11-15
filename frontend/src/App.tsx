@@ -63,7 +63,8 @@ export default function App() {
   const [steps, setSteps] = useState<any[]>([])
   const [view, setView] = useState<View>(() => (new URLSearchParams(location.search).get('view') as View) || 'room')
   const [hist, setHist] = useState(false)   // the project's History menu (#21), closed until asked for
-  const [guide, setGuide] = useState<number | null>(null)   // demo mode (#26): the guide's step, or null when it is closed
+  // demo mode (#26): the guide's step, or null when it is closed. The walkthrough is the first page; ?home opens the app itself.
+  const [guide, setGuide] = useState<number | null>(() => new URLSearchParams(location.search).has('home') ? null : 0)
   const [dsShow, setDsShow] = useState<{ id: string; tab?: 'samples' | 'adapters' } | null>(null)
   const [picked, setPicked] = useState(false)   // a person or a demo chose the region shown; else only the project's own region counts as chosen (#19)
   const [region, setRegion] = useState('')   // set from the first project's own results; a person's or a demo's choice carries over

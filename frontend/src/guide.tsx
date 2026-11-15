@@ -117,7 +117,7 @@ export function IntroSlide({ onStep, onClose }: { onStep: (i: number) => void; o
       <p className="gslide-run">Runs on <b>Fuzzball</b> by CIQ, across two workstations that share one <b>VAST</b> volume.</p>
       <div className="gslide-nav">
         <a className="btn gslide-demo" href="/demo/" target="_blank" rel="noreferrer"><Icon name="open" size={16} />Open the demo page</a>
-        <button className="btn" onClick={onClose}>Close</button>
+        <a className="btn" href="?home" onClick={e => { e.preventDefault(); history.replaceState(null, '', '?home'); onClose() }}>Open the app</a>
         <button className="btn primary" onClick={() => onStep(1)}>Start</button>
       </div>
     </section>
