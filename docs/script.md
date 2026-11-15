@@ -98,7 +98,8 @@ memory in use on each node, planner tokens per second. Sound: `click_digital1`.
 
 **On screen:** One card per step. Step 1 is the agent's chat. Step 2 is an upload into a dataset from the chat. Step 3 is
 Results for the busts against vases project. Step 4 is the Human Action Dataset's adapter card, labelled as a benchmark on
-held-out categories, with no r shown beside any live result. Step 5 is a simulated SO-101 grasp from Experimental.
+held-out categories, with readouts fitted on SigLIP and low-level features under its bars, then the faces against objects
+result (Kanwisher 1997) holding both with the adapter and without it, shown as a live result with no r. Step 5 is a simulated SO-101 grasp from Experimental.
 Sound: `click_digital1` per card.
 
 ## 12. Close
