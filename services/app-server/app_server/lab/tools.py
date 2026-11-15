@@ -313,7 +313,9 @@ def register(tools, broadcast=lambda m: None):
         """A region's response second by second, the mean over each condition's samples, from the saved predictions:
         {seconds, conditions: [{name, values, n}]}. Region: a name from region_search, or a list of names for a group."""
         import numpy as np
-        m = regions.mask_for(region); by: dict[str, list] = {}
+        P = s.get('project', project_id).data   # a group the project's experiment defines is resolved by its name first (#12)
+        groups = {r['name']: r['areas'] for r in ((P.get('experiment') or {}).get('regions') or []) if isinstance(r, dict)}
+        m = regions.mask_for(groups[region] if isinstance(region, str) and region in groups else region); by: dict[str, list] = {}
         for r in of('sample', project_id):
             pr = r.data.get('preds')
             if not pr: continue
