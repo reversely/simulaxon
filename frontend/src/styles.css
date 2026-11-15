@@ -677,12 +677,12 @@ table.data.compact td, table.data.compact th { padding: 3px 8px; font-size: 14px
 .gframe { fill: none; stroke: var(--rule-strong); stroke-dasharray: 4 4; }
 .gbox { fill: none; stroke: var(--rule-strong); }
 /* Back and Next stay in reach while the diagrams scroll under them */
-.gnav { position: sticky; bottom: 0; z-index: 1; background: var(--panel); padding: 10px 0; border-top: 1px solid var(--rule); }
+.gnav { position: sticky; bottom: -20px; z-index: 1; background: var(--panel); margin: 0 -20px -20px; padding: 10px 20px 20px; border-top: 1px solid var(--rule); }   /* reaches over the column's 20 px padding, or the diagrams show in a strip below it */
 .gdots { display: flex; flex-wrap: wrap; gap: 4px; list-style: none; margin: 0; padding: 0; }
 .gdots button { width: 22px; height: 22px; border: 0; background: none; padding: 0; display: grid; place-items: center; cursor: pointer; }
 .gdots button::after { content: ''; width: 10px; height: 10px; border-radius: 50%; border: 1px solid var(--ink-3); }
 .gdots button.on::after { background: var(--accent); border-color: var(--accent); }
-@media (max-width: 760px) { .right.guidecol { order: -1; border-top: 0; border-bottom: 1px solid var(--rule); } }
+@media (max-width: 760px) { .right.guidecol { order: -1; border-top: 0; border-bottom: 1px solid var(--rule); } .gnav { bottom: -16px; margin: 0 -16px -16px; padding: 10px 16px 16px; } }
 /* The Experimental section (#25, experimental.tsx) */
 .exppage { display: flex; flex-direction: column; gap: 14px; }
 .expstudy { display: flex; flex-direction: column; gap: 14px; }
