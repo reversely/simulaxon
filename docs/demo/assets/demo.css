@@ -217,8 +217,8 @@ body.light .live { border-color: #cfc7ba; }
 .grab video { width: 100%; height: auto; border-radius: 12px; border: 1px solid var(--rule); }
 .grab img { width: 100%; height: auto; border-radius: 12px; border: 1px solid var(--rule); box-shadow: 0 30px 80px rgba(0, 0, 0, 0.35); }
 .grab figcaption { font-size: 15px; color: var(--ink-3); }
-.stations .frames .grab { height: 100%; grid-template-rows: minmax(0, 1fr) auto; justify-items: center; }   /* the picture shrinks to leave the caption room inside the frame */
-.stations .frames .grab img { height: 100%; width: auto; max-width: 100%; min-height: 0; object-fit: contain; }
+.stations .frames .grab { height: 100%; grid-template-rows: minmax(0, auto) auto; align-content: center; justify-items: center; }   /* the picture shrinks to leave the caption room inside the frame */
+.stations .frames .grab img { width: auto; height: auto; max-width: 100%; max-height: 100%; min-height: 0; }
 .stations .frames .grab figcaption { text-align: center; }
 
 /* The adapter's map, large: the result the fitting chapter is about */
