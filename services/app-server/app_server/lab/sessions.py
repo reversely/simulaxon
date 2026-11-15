@@ -41,6 +41,11 @@ def _mcp_config(base_url: str) -> str:
     f = tempfile.NamedTemporaryFile('w', suffix='.json', delete=False); json.dump(cfg, f); f.close(); return f.name
 
 
+def _internal(res) -> bool:
+    """A tool's own fault (500), as opposed to a refusal of the request (#14)."""
+    return isinstance(res, dict) and res.get('error') == 500
+
+
 def _refused(res) -> bool:
     """A tool result the page marks refused: an error with a value. A success may carry "error": null, such as a fetch's status."""
     return isinstance(res, dict) and bool(res.get('error'))
@@ -112,7 +117,7 @@ class Session:
             rec['tool_calls'].append(call); self.emit(stage='tool', n=n, **call); self.save()
         def on_result(name, args, res):
             call = rec['tool_calls'][-1]; body = json.dumps(res, default=str)
-            call['result'] = body[:600]; call['error'] = _refused(res)
+            call['result'] = body[:600]; call['error'] = _refused(res); call['internal'] = _internal(res)
             self._linked(call, res.get('result') if isinstance(res, dict) else None); self.save()
         def on_text(text):
             rec['text'].append(text); self.emit(stage='text', n=n, text=text)
@@ -156,7 +161,7 @@ class Session:
                             call = next((x for x in reversed(rec['tool_calls']) if x.get('id') and x['id'] == c.get('tool_use_id')), rec['tool_calls'][-1])   # parallel calls: each result to its own call
                             res = _unwrap(body)
                             call['result'] = body[:600]
-                            call['error'] = bool(c.get('is_error')) or _refused(res)
+                            call['error'] = bool(c.get('is_error')) or _refused(res); call['internal'] = _internal(res)
                             self._linked(call, res)
                 if ev.get('type') == 'result':
                     rec['reply'] = ev.get('result', ''); rec['cost_usd'] = ev.get('total_cost_usd')
@@ -252,7 +257,8 @@ def listing(project_id: str | None = None) -> list[dict]:
         d = json.loads(f.read_text())
         if project_id and d.get('project_id') != project_id: continue
         out.append({k: d.get(k) for k in ('id', 'goal', 'project_id', 'mode', 'status', 'why', 'started', 'updated', 'agent', 'waiting_for')} | {
-            'turns': len(d['turns']), 'tool_calls': sum(len(t['tool_calls']) for t in d['turns']), 'errors': sum(sum(1 for c in t['tool_calls'] if c.get('error')) for t in d['turns'])})
+            'turns': len(d['turns']), 'tool_calls': sum(len(t['tool_calls']) for t in d['turns']), 'errors': sum(sum(1 for c in t['tool_calls'] if c.get('error') and not c.get('internal')) for t in d['turns']),
+            'internal_errors': sum(sum(1 for c in t['tool_calls'] if c.get('internal')) for t in d['turns'])})
     return out
 
 

@@ -438,6 +438,7 @@ def register(tools, broadcast=lambda m: None):
     def experiment_get(actor, project_id):
         """An experiment's set-up, status and, when done, every contrast with its baselines and match or no match."""
         P = s.get('project', project_id).data
+        if P.get('plan') != 'experiment': raise ValueError(f"project {project_id} is a {P.get('plan')} project, not an experiment; read its results with analysis_list")
         res = [{'contrast': a['analysis'].data.get('title'), 'regions': a['result'].data.get('regions'), 'baselines': a['result'].data.get('baselines'),
                 'reported': a['result'].data.get('reported'), 'note': a['result'].data.get('vjepa_note')}
                for a in analysis_list(actor, project_id) if a['result']]

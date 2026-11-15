@@ -88,7 +88,7 @@ class WarmWorker:
         self.p.stdin.write(json.dumps({'job_id': job_id, 'inputs': inputs, 'settings': settings}) + '\n'); self.p.stdin.flush()
         while True:
             line = self.p.stdout.readline()
-            if not line: raise RuntimeError(f'{self.c.connector_id} worker exited')
+            if not line: self.dead = True; raise RuntimeError(f'{self.c.connector_id} worker exited')   # its output ended: gone, even if the process hasn't finished exiting
             msg = _protocol(line)
             if msg and msg.get('job_id') == job_id and ('outputs' in msg or 'error' in msg): return msg
 
@@ -239,8 +239,10 @@ class Queue:
                 except Exception as e:
                     j.status, j.error = 'failed', f'{type(e).__name__}: {e}'
                     dead = self.workers.get(c.connector_id)
-                    if isinstance(dead, WarmWorker) and dead.p.poll() is not None:   # stopped at its limit, or crashed: the next job starts a fresh one
+                    if isinstance(dead, WarmWorker) and (getattr(dead, 'dead', False) or dead.p.poll() is not None):   # stopped at its limit, or crashed: the next job starts a fresh one
                         self.workers.pop(c.connector_id, None)
+                        try: dead.p.kill()
+                        except Exception: pass
                     if j.timed_out: j.error = f'{c.connector_id} ran past its limit of {job_limit(c):.0f} s, so its worker was stopped; the next job starts a fresh one'
                 j.seconds = round(time.time() - t0, 3); self._emit(j)
                 if j.lane in ('fast', 'batch'): self.last_live = time.time()   # before done: the waiting preview's next step lands inside the hold

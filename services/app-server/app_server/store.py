@@ -11,6 +11,11 @@ from dataclasses import dataclass
 import duckdb
 
 
+
+class Missing(ValueError, KeyError):
+    """A row, step, template or demo the caller named that isn't there: the caller's mistake, refused with 422 (#14)."""
+    def __str__(self): return str(self.args[0]) if self.args else 'not found'
+
 class Conflict(Exception):
     """The object changed since the caller read it."""
 
@@ -98,13 +103,13 @@ class Store:
     def update(self, step_id: str, kind: str, id: str, changes: dict, expect_version: int, mark_stale: bool = True) -> Row:
         """mark_stale=False for metadata, such as a status or a title, that nothing computed from the row depends on."""
         cur = self.get(kind, id)
-        if cur is None: raise KeyError(f'{kind} {id}')
+        if cur is None: raise Missing(f'no {kind} {id}')
         return self._write(step_id, kind, id, {**cur.data, **changes}, expect_version, mark_stale=mark_stale)
 
     @_locked
     def delete(self, step_id: str, kind: str, id: str, expect_version: int) -> Row:
         cur = self.get(kind, id)
-        if cur is None: raise KeyError(f'{kind} {id}')
+        if cur is None: raise Missing(f'no {kind} {id}')
         return self._write(step_id, kind, id, cur.data, expect_version, deleted=True)
 
     @_locked
@@ -126,7 +131,7 @@ class Store:
         to its version before the step's first write and after its last. Every row is checked before any is written:
         if one changed after the step, nothing is undone."""
         touched = self.db.execute('select kind, id, min(before_version), max(after_version) from touched where step_id=? group by kind, id', [step_id]).fetchall()
-        if not touched: raise KeyError(f'step {step_id} changed nothing')
+        if not touched: raise Missing(f'step {step_id} changed nothing')
         for kind, id, before, after in touched:
             latest = self.db.execute('select max(version) from rows where kind=? and id=?', [kind, id]).fetchone()[0]
             if latest != after:

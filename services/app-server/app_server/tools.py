@@ -17,6 +17,8 @@ VIEWS = {'lateral', 'ventral', 'medial', 'posterior'}
 LAYERS = {'full', 'background', 'object', 'mask', 'depth'}
 
 
+ID_KINDS = {'project_id': 'project', 'parameter_id': 'parameter', 'sample_id': 'sample', 'analysis_id': 'analysis', 'map_id': 'neural_map'}   # arguments that name a row, checked before a tool runs
+
 class NeedsPerson(Exception):
     pass
 
@@ -46,8 +48,23 @@ class Tools:
         with self.lock:   # one writer at a time: panels, the agent and background previews share one store
             return self._call(name, actor, **args)
 
+    def _check(self, name: str, t, args: dict):
+        """The caller's mistakes, refused before the tool runs (#14): arguments it doesn't take or needs, and ids that name nothing."""
+        import inspect
+        from .store import Missing
+        sig = inspect.signature(t.fn); ps = {k: p for k, p in sig.parameters.items() if k not in ('step', 'actor')}
+        if not any(p.kind == p.VAR_KEYWORD for p in ps.values()):
+            extra = [k for k in args if k not in ps]
+            if extra: raise ValueError(f"{name} takes no argument {', '.join(extra)}; it takes {', '.join(ps) or 'none'}")
+        needed = [k for k, p in ps.items() if p.default is p.empty and p.kind not in (p.VAR_KEYWORD, p.VAR_POSITIONAL) and k not in args]
+        if needed: raise ValueError(f"{name} needs {', '.join(needed)}")
+        for arg, kind in ID_KINDS.items():
+            v = args.get(arg)
+            if isinstance(v, str) and v and self.store.get(kind, v) is None: raise Missing(f"no {kind.replace('_', ' ')} {v}")
+
     def _call(self, name: str, actor: str, **args):
         t = self.registry[name]
+        self._check(name, t, args)
         if t.person_only and actor != 'person':
             raise NeedsPerson(f'{name} needs a person')
         if t.writes_project and t.verb not in ('get', 'list', 'search', 'query'):

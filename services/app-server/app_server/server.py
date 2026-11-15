@@ -41,7 +41,10 @@ def create_app(store: Store | None = None) -> FastAPI:
             out = await asyncio.to_thread(tools.call, name, x_actor, **body)   # off the event loop: a slow tool never stalls other requests or /events
         except NeedsPerson as e: raise HTTPException(403, {'needs_person': str(e)})
         except Conflict as e: raise HTTPException(409, {'conflict': str(e)})
-        except (ScriptError, ValueError, KeyError, TypeError) as e: raise HTTPException(422, {'invalid': str(e)})
+        except (ScriptError, ValueError) as e: raise HTTPException(422, {'invalid': str(e)})   # the caller's mistake, with what to do
+        except Exception as e:   # anything else is a fault in the tool: say so, and keep the traceback in the log, never in the answer (#14)
+            import traceback; traceback.print_exc()
+            raise HTTPException(500, {'internal': f'internal error in {name}: {type(e).__name__}: {e}'})
         t = tools.registry[name]
         if (t.writes_project and t.verb not in ('get', 'list', 'search', 'query')) or name == 'step_undo':   # reads never broadcast, so panels never loop
             msg = json.dumps({'tool': name, 'actor': x_actor})
@@ -53,6 +56,8 @@ def create_app(store: Store | None = None) -> FastAPI:
         await ws.accept(); q: asyncio.Queue = asyncio.Queue(); listeners.add(q)
         try:
             while True: await ws.send_text(await q.get())
+        except Exception as e:   # a page closing or navigating away is normal, not an error (#14)
+            if type(e).__name__ not in ('WebSocketDisconnect', 'ClientDisconnected', 'ConnectionClosed', 'ConnectionClosedError', 'ConnectionClosedOK'): raise
         finally:
             listeners.discard(q)
 

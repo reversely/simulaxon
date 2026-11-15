@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { upload as sendFile } from './api'
 
-export type ToolCall = { tool: string; arguments: Record<string, unknown>; at: number; result?: string; error?: boolean; project_id?: string }
+export type ToolCall = { tool: string; arguments: Record<string, unknown>; at: number; result?: string; error?: boolean; internal?: boolean; project_id?: string }
 export type Turn = { n: number; from?: 'person' | 'wake' | 'goal'; mode?: 'discuss' | 'through'; prompt: string; started: string; ended?: string; seconds?: number; tool_calls: ToolCall[]; text: string[]; reply: string | null }
-export type SessionInfo = { id: string; goal: string; project_id: string | null; mode?: string; status: 'working' | 'waiting' | 'idle' | 'done' | 'stopped' | 'failed'; why?: string; started: string; updated?: string; agent: string; waiting_for?: string[]; turns: number; tool_calls: number; errors: number }
+export type SessionInfo = { id: string; goal: string; project_id: string | null; mode?: string; status: 'working' | 'waiting' | 'idle' | 'done' | 'stopped' | 'failed'; why?: string; started: string; updated?: string; agent: string; waiting_for?: string[]; turns: number; tool_calls: number; errors: number; internal_errors?: number }
 export type Session = SessionInfo & { turns: Turn[] }
 
 const STATUS: Record<string, string> = { working: 'Working', waiting: 'Waiting for a run', idle: 'Waiting for you', done: 'Finished', stopped: 'Stopped', failed: 'Failed' }
@@ -38,7 +38,7 @@ export function SessionDock({ sessions, onOpen, onStop }: { sessions: SessionInf
       <span className={`pulse ${s.status === 'working' ? 'on' : ''}`} aria-hidden />
       <span className="sgoal" title={s.goal}>{s.goal}</span>
       <span className="chip">{STATUS[s.status]}</span>
-      <span className="ink2 num">{s.tool_calls} steps{s.errors ? `, ${s.errors} refused` : ''}</span>
+      <span className="ink2 num">{s.tool_calls} steps{s.errors ? `, ${s.errors} refused` : ''}{s.internal_errors ? `, ${s.internal_errors} ${s.internal_errors === 1 ? 'error' : 'errors'}` : ''}</span>
       <span className="bar" style={{ marginLeft: 'auto' }}>
         <button className="btn" onClick={() => onOpen(s.id)}>Open</button>
         <button className="btn" onClick={() => onStop(s.id)}>Stop</button>
@@ -96,9 +96,9 @@ export function Chat({ sid, projectId, live, compact, header, footer, chips, onS
           <div className="msg agent">
             <div className="who">Agent{t.seconds != null ? <span className="ink3 num">, {t.seconds} s</span> : ''}</div>
             {steps.length > 0 && <button className="stepsbtn" onClick={() => setOpen(o => ({ ...o, [t.n]: !o[t.n] }))} aria-expanded={!!open[t.n]}>
-              {open[t.n] ? 'Hide' : 'Show'} {steps.length} {steps.length === 1 ? 'step' : 'steps'}{steps.some(c => c.error) ? `, ${steps.filter(c => c.error).length} refused` : ''}</button>}
+              {open[t.n] ? 'Hide' : 'Show'} {steps.length} {steps.length === 1 ? 'step' : 'steps'}{steps.some(c => c.error && !c.internal) ? `, ${steps.filter(c => c.error && !c.internal).length} refused` : ''}{steps.some(c => c.internal) ? `, ${steps.filter(c => c.internal).length} ${steps.filter(c => c.internal).length === 1 ? 'error' : 'errors'}` : ''}</button>}
             {open[t.n] && <ol className="calls">{steps.map((c, i) => <li key={i} className={c.error ? 'refused' : ''}>
-              <details><summary className="callrow"><span>{toolName(c.tool)}</span>{!compact && <span className="ink2 about">{about(c)}</span>}{c.error && <span className="chip flag">Refused</span>}</summary>
+              <details><summary className="callrow"><span>{toolName(c.tool)}</span>{!compact && <span className="ink2 about">{about(c)}</span>}{c.error && <span className="chip flag">{c.internal ? 'Error' : 'Refused'}</span>}</summary>
                 <pre className="codebox">{`${c.tool}(${JSON.stringify(args(c), null, 1)})\n\n${c.result ?? 'No result yet'}`}</pre></details></li>)}</ol>}
             {made && <button className="madecard" onClick={() => onOpenProject(made.project_id!)}><span className="ink2">Set up</span><span>{String(args(made).title ?? 'Experiment')}</span><span className="ink2">Open</span></button>}
             {t.reply === null ? <div className="ink2"><span className="spin" /> {steps.length ? toolName(steps[steps.length - 1].tool) : 'Thinking'}</div>

@@ -33,7 +33,8 @@ DEMOS = load()
 def get(demo_id: str) -> dict:
     for d in load():   # read fresh, so an edited or added demo file plays without a restart
         if d['id'] == demo_id: return d
-    raise KeyError(demo_id)
+    from ..store import Missing
+    raise Missing(f"no demo {demo_id}")
 
 
 class Player:

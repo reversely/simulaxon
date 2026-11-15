@@ -180,7 +180,8 @@ TEMPLATES = [
 def get(template_id: str) -> dict:
     for t in TEMPLATES:
         if t['id'] == template_id: return t
-    raise KeyError(template_id)
+    from ..store import Missing
+    raise Missing(f"no template {template_id}")
 
 
 def fill(text, bindings: dict):
