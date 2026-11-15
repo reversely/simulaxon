@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { call, count, fmt, regionLabel, describeStep, whoName, type Step, PLAN_NAMES, PLAN_INFO, PLAN_ICON, ROLE_NAMES, type AnalysisItem, type MapRow, type Project, type Region, type Row, type Sample, type Template } from './api'
 import { Icon, type IconName } from './icons'
 import { DotStrip, MiniInterval, SignedBars, TimeCourse } from './charts'
@@ -734,19 +734,28 @@ function History({ pid, agent, tick, onUndo, onClose }: { pid: string; agent: st
     document.addEventListener('mousedown', off); document.addEventListener('keydown', esc)
     return () => { document.removeEventListener('mousedown', off); document.removeEventListener('keydown', esc) }
   }, [onClose])
+  const [all, setAll] = useState(false)
   const byId = Object.fromEntries((steps ?? []).map(s => [s.step_id, s]))
+  // A change worth listing alters the project. Picking which item the scene shows is viewing, a preview is a by-product,
+  // and a change that was undone cancels out with its undo; all three stay behind the switch at the bottom.
+  const quiet = (s: Step) => { let a: any = {}; try { a = JSON.parse(s.args || '{}') ?? {} } catch { /* unreadable args: list it */ }
+    return !!s.undone_by || s.tool === 'step_undo' || s.tool.startsWith('preview_') || (s.tool === 'parameter_update' && /(^|\.)item$/.test(String(a.parameter_id ?? ''))) }
+  const hidden = (steps ?? []).filter(quiet).length
   const rows: { text: string; who: string; steps: Step[] }[] = []
-  for (const s of [...(steps ?? [])].reverse()) {
+  for (const s of [...(steps ?? [])].filter(s => all || !quiet(s)).reverse()) {
     const text = describeStep(s, byId); const who = whoName(s.actor, agent); const last = rows[rows.length - 1]
     if (last && last.text === text && last.who === who && !s.undone_by && !last.steps[0].undone_by) last.steps.push(s); else rows.push({ text, who, steps: [s] })
   }
+  const day = (ts: string | number) => { const d = new Date(Number(ts) * 1000), t = new Date(); const n = Math.round((new Date(t.toDateString()).getTime() - new Date(d.toDateString()).getTime()) / 864e5)
+    return n === 0 ? 'Today' : n === 1 ? 'Yesterday' : d.toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' }) }
   const ago = (ts: string | number) => { const m = Math.round((Date.now() / 1000 - Number(ts)) / 60); return m < 1 ? 'just now' : m < 60 ? `${m} min ago` : m < 1440 ? `${Math.round(m / 60)} h ago` : `${Math.round(m / 1440)} d ago` }
   const call_ = (s: Step) => { try { return JSON.stringify(JSON.parse(s.args || '{}'), null, 1) } catch { return s.args } }
   return <div className="histpop" role="dialog" aria-label="Project history" ref={ref}>
     <div className="histhead"><b>History</b><button className="iconbtn" aria-label="Close" onClick={onClose}><Icon name="close" size={16} /></button></div>
     {steps === null ? <div className="ink2 wait" role="status"><span className="spin" /> Reading the history</div> : !rows.length ? <p className="ink2">No changes to this project yet.</p> :
-      <ul className="histlist">{rows.map(r => { const s = r.steps[0]; const canUndo = !s.undone_by && s.tool !== 'step_undo' && !s.undoes
-        return <li key={s.step_id} className={s.undone_by ? 'undone' : ''}>
+      <ul className="histlist">{rows.map((r, i) => { const s = r.steps[0]; const canUndo = !s.undone_by && s.tool !== 'step_undo' && !s.undoes
+        const head = i === 0 || day(rows[i - 1].steps[0].ts) !== day(s.ts)
+        return <Fragment key={s.step_id}>{head && <li className="histday">{day(s.ts)}</li>}<li className={s.undone_by ? 'undone' : ''}>
           <div className="histrow">
             <span className="what">{r.text}{r.steps.length > 1 ? ` ${r.steps.length} times` : ''}{s.undone_by && <span className="chip tiny">Undone</span>}</span>
             <button className="iconbtn" aria-label={`More actions: ${r.text}`} aria-haspopup="menu" aria-expanded={menu === s.step_id} onClick={() => setMenu(m => m === s.step_id ? null : s.step_id)}>⋯</button>
@@ -758,7 +767,8 @@ function History({ pid, agent, tick, onUndo, onClose }: { pid: string; agent: st
           </div>}
           {failed?.id === s.step_id && <div className="dsnote" role="alert">Not undone: {failed.why}</div>}
           {shown === s.step_id && <pre className="codebox">{`${s.tool}(${call_(s)})`}</pre>}
-        </li> })}</ul>}
+        </li></Fragment> })}</ul>}
+    {steps !== null && hidden > 0 && <label className="histall"><input type="checkbox" checked={all} onChange={e => setAll(e.target.checked)} />Show item picks, previews and undone changes ({hidden})</label>}
   </div>
 }
 

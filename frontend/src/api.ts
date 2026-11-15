@@ -111,6 +111,7 @@ export function describeStep(s: Step, byId: Record<string, Step> = {}): string {
   if (s.tool === 'project_update') {
     if (a.bindings) return 'Changed the question'
     if (a.title) return 'Renamed the project'
+    if (a.question) return 'Rewrote the question'
     if (a.controls) return 'Saved the controls'
     if (a.status === 'Running') return 'Started a run'
     if (a.status === 'Done') return a.counts?.clips ? `Finished a run of ${a.counts.clips} trials` : 'Finished a run'
@@ -119,7 +120,8 @@ export function describeStep(s: Step, byId: Record<string, Step> = {}): string {
   }
   if (s.tool === 'parameter_update' && a.parameter_id && 'value' in a) {   // name the control and its new value, so two changes never read as one
     const v = typeof a.value === 'string' ? a.value.replace(/_/g, ' ') : typeof a.value === 'number' ? String(a.value) : JSON.stringify(a.value)
-    return `Set ${String(a.parameter_id).split('.').pop()!.replace(/_/g, ' ')} to ${v}`
+    const id = String(a.parameter_id).split('.').pop()!, deg = /_deg$/.test(id)   // a unit suffix becomes the value's unit
+    return `Set ${id.replace(/_deg$/, '').replace(/_/g, ' ')} to ${v}${deg ? '°' : ''}`
   }
   return toolName(s.tool)
 }
