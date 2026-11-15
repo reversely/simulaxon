@@ -62,6 +62,12 @@ function DatasetView({ id, ds, projects, onBack, onOpenProject, onChanged }: { i
   const [tab, setTab] = useState<'samples' | 'projects'>('samples'); const [stages, setStages] = useState<Stage[]>([]); const [res, setRes] = useState<Query | null>(null)
   const [limit, setLimit] = useState(60); const [indexing, setIndexing] = useState<{ indexed: number; total: number } | null>(null); const [importing, setImporting] = useState(false)
   const [sample, setSample] = useState<Item | null>(null); const [openField, setOpenField] = useState<string | null>(null); const [err, setErr] = useState('')
+  const [picked, setPicked] = useState<string[]>([]); const [tag, setTag] = useState(''); const [views, setViews] = useState<{ view_id: string; name: string; stages: Stage[]; items: number }[]>([])
+  const [saving, setSaving] = useState(false); const [viewTitle, setViewTitle] = useState('')
+  const loadViews = () => call<any[]>('view_list', { dataset_id: id }).then(setViews).catch(() => {})
+  useEffect(() => { loadViews() }, [id])
+  const tagPicked = async () => { await call('item_update', { item_ids: picked, add_tags: [tag.trim()] }); setPicked([]); setTag(''); load() }
+  const saveView = async () => { await call('view_create', { dataset_id: id, title: viewTitle.trim(), stages }); setSaving(false); setViewTitle(''); loadViews() }
   const load = () => call<Query>('item_query', { dataset_id: id, stages, limit }).then(r => { setRes(r); setErr('') }).catch(e => setErr(String(e?.message ?? e)))
   useEffect(() => { load() }, [id, JSON.stringify(stages), limit])
   useEffect(() => {
@@ -95,6 +101,8 @@ function DatasetView({ id, ds, projects, onBack, onOpenProject, onChanged }: { i
       </div>
     : <div className="dsbody">
         <aside className="dsfields" aria-label="Fields">
+          {views.length > 0 && <><div className="ink2 small">Saved views</div>
+            {views.map(v => <button key={v.view_id} className="dsfieldhead" onClick={() => { setLimit(60); setStages(v.stages) }}><span>{v.name}</span><span className="ink2 num">{n(v.items)}</span></button>)}</>}
           <div className="ink2 small">{fields.length} fields</div>
           {fields.map(f => { const fc = res.facets[f.path]; const on = openField === f.path
             return <div key={f.path} className="dsfield">
@@ -113,12 +121,19 @@ function DatasetView({ id, ds, projects, onBack, onOpenProject, onChanged }: { i
           <div className="bar dsviewbar">
             <span className="num">{n(res.total)} of {n(res.trail[0]?.count ?? res.total)} samples</span>
             {stages.map((s, i) => <span key={i} className="chip">{res.trail[i + 1]?.text ?? s.stage}<button className="iconbtn" aria-label={`Remove ${res.trail[i + 1]?.text ?? s.stage}`} onClick={() => setStages(st => st.filter((_, j) => j !== i))}><Icon name="close" size={13} /></button></span>)}
+            {saving ? <span className="bar"><input aria-label="View title" placeholder="Houses" value={viewTitle} onChange={e => setViewTitle(e.target.value)} />
+                <button className="btn" disabled={!viewTitle.trim()} onClick={saveView}>Save</button><button className="btn" onClick={() => setSaving(false)}>Cancel</button></span>
+              : <button className="btn" onClick={() => setSaving(true)}>Save view</button>}
+            {picked.length > 0 && <span className="bar"><span className="ink2">{picked.length} picked</span>
+              <input aria-label="Tag" placeholder="Tag" value={tag} onChange={e => setTag(e.target.value)} /><button className="btn" disabled={!tag.trim()} onClick={tagPicked}>Tag</button>
+              <button className="btn" onClick={() => setPicked([])}>Clear</button></span>}
             <label className="dssort">Sort <select value={stages.find(s => s.stage === 'sort_by')?.path ?? ''} onChange={e => setStages(st => [...st.filter(s => s.stage !== 'sort_by'), ...(e.target.value ? [{ stage: 'sort_by', path: e.target.value, reverse: true }] : [])])}>
               <option value="">File order</option>{fields.filter(f => f.type === 'int' || f.type === 'float').map(f => <option key={f.path} value={f.path}>{f.path}, largest first</option>)}</select></label>
           </div>
-          <div className="dsgrid">{res.items.map(x => <button key={x.id} className="dstile" onClick={() => setSample(x)} title={x.path}>
-            {x.thumb ? <img src={x.thumb} alt={x.path} loading="lazy" /> : <span className="dsnothumb">{x.media_type}</span>}
-            <span className="dscap">{x.path.split('/').pop()}</span></button>)}</div>
+          <div className="dsgrid">{res.items.map(x => <div key={x.id} className={`dstile ${picked.includes(x.id) ? 'picked' : ''}`}>
+            <button className="dstilemedia" onClick={() => setSample(x)} title={x.path}>{x.thumb ? <img src={x.thumb} alt={x.path} loading="lazy" /> : <span className="dsnothumb">{x.media_type}</span>}</button>
+            <label className="dscap"><input type="checkbox" aria-label={`Pick ${x.path}`} checked={picked.includes(x.id)} onChange={e => setPicked(p => e.target.checked ? [...p, x.id] : p.filter(i => i !== x.id))} />
+              <span>{x.path.split('/').pop()}</span>{x.tags.length > 0 && <span className="chip tiny">{x.tags.join(', ')}</span>}</label></div>)}</div>
           {res.items.length < res.total && <div className="bar" style={{ justifyContent: 'center' }}><button className="btn" onClick={() => setLimit(l => l + 120)}>Show more ({n(res.total - res.items.length)} left)</button></div>}
         </section>
       </div>}

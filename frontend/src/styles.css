@@ -593,3 +593,8 @@ table.data.compact td, table.data.compact th { padding: 3px 8px; font-size: 14px
 .uppop > button { background: none; border: 0; color: var(--ink); text-align: left; padding: 6px 8px; border-radius: 6px; }
 .uppop > button:hover { background: var(--panel); }
 .uppop input { flex: 1; min-width: 0; background: var(--panel); border: 1px solid var(--rule-strong); border-radius: 6px; color: var(--ink); padding: 5px 8px; }
+.dstile.picked { border-color: var(--sel); }
+.dstilemedia { background: none; border: 0; padding: 0; display: block; width: 100%; }
+.dscap { display: flex; align-items: center; gap: 6px; }
+.dscap span:first-of-type { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dsviewbar input { background: var(--raise); border: 1px solid var(--rule-strong); border-radius: 6px; color: var(--ink); padding: 4px 8px; width: 120px; }

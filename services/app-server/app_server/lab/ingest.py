@@ -117,7 +117,7 @@ def build(store: Store, p: dict) -> dict:
     step = store.begin('agent', 'project_create', {'template_id': t['id'], 'bindings': b})
     params = [{**x, 'value': templates.fill(x['value'], b)} for x in t['parameters']]
     status = 'Done' if ready(p) else 'Running'
-    data = {'title': p['title'], 'question': templates.fill(t['question'], b), 'template_id': t['id'], 'bindings': b, 'parameters': params,
+    data = {'title': p['title'], 'question': p.get('question') or templates.fill(t['question'], b), 'question_written': bool(p.get('question')), 'template_id': t['id'], 'bindings': b, 'parameters': params,
             'plan': t['plan'], 'provenance': p['provenance'], 'note': p.get('note', ''), 'status': status, 'created_order': PROJECTS.index(p)}
     if p.get('run_in_app'):   # rendered and read by the app's own runner: a draft with its world, pairs and controls
         units = p['source']()[0]
@@ -208,8 +208,8 @@ def main(db: str):
                 store.update(step, 'project', p['id'], {'pairs': new}, cur.version, mark_stale=False)
             refresh_controls(store, p['id'])
             cur = store.get('project', p['id']); t = templates.get(p['template']); b = {**cur.data.get('bindings', {}), **{k: v for k, v in p['bindings'].items() if k not in cur.data.get('bindings', {})}}
-            q = templates.fill(t['question'], b)
-            if q != cur.data.get('question'):   # the template's wording changed: the question follows it, results stay valid
+            q = p.get('question') or templates.fill(t['question'], b)   # a written question (#24) over the template's fill
+            if q != cur.data.get('question') and not cur.data.get('question_written'):   # never replaces a question someone wrote
                 step = store.begin('app', 'project_update', {'project_id': p['id'], 'question': 'template wording'})
                 store.update(step, 'project', p['id'], {'bindings': b, 'question': q}, cur.version, mark_stale=False)
             print({'project': p['id'], 'status': 'kept'}); continue
