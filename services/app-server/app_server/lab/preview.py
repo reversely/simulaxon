@@ -26,8 +26,8 @@ CONNECTORS = [('isaac_counter', 'renderer', 'isaac-6.2.0-counter'), ('isaac_stag
 
 
 def remote() -> bool:
-    """On the cluster the app server has no GPU: every connector runs on render-score's queue (RENDER_SCORE_URL, or
-    found through Fuzzball). Where the warm workers can run here (the Spark), they do."""
+    """Every connector runs on render-score's queue: on the node it is found through Fuzzball, elsewhere RENDER_SCORE_URL
+    names it (on the Spark, the same server started locally)."""
     return bool(os.environ.get('RENDER_SCORE_URL') or os.environ.get('FB_WORKFLOW_ID'))
 
 
@@ -37,15 +37,8 @@ def queue() -> Queue:
         if _q is None and remote():
             from ..config import render_score_url
             _q = Queue([Connector(cid, kind, '', '', rev, url=render_score_url) for cid, kind, rev in CONNECTORS])
-        if _q is None:
-            env = {'OMNI_KIT_ACCEPT_EULA': 'YES', 'LD_PRELOAD': '/lib/aarch64-linux-gnu/libgomp.so.1'}
-            W = str(ROOT / 'backend/workers/isaac_scene_worker.py'); py = str(FE / 'isaac/.venv/bin/python')
-            _q = Queue([Connector('isaac_counter', 'renderer', py, W, 'isaac-6.2.0-counter', env=env, memory_gb=10, args=['counter']),
-                        Connector('isaac_stage', 'renderer', py, W, 'isaac-6.2.0-stage', env=env, memory_gb=10, args=['stage']),
-                        Connector('isaac_body', 'renderer', py, str(ROOT / 'backend/workers/isaac_body_worker.py'), 'isaac-6.2.0-body', env=env, memory_gb=12),
-                        Connector('tribe_v2', 'neural model', str(FE / '.venv/bin/python'), str(ROOT / 'backend/workers/tribe_worker.py'), 'tribev2-bf16', memory_gb=15),
-                        Connector('cosmos_sim_transfer', 'generator', str(FE / 'cosmos-src/.venv/bin/python'), str(ROOT / 'backend/workers/cosmos_worker.py'),
-                                  'cosmos3-nano-sim-transfer-c3a2e37', memory_gb=48)])   # restyles a clip toward photoreal; idle workers unload to make room
+        if _q is None:   # no worker server named: say so rather than start workers from somewhere else
+            raise RuntimeError('no worker server: start services/render-score/server.py and set RENDER_SCORE_URL (docs/spark-layout.md)')
         if not getattr(_q, '_holds', False):   # renders made ahead wait for any run in progress (#13)
             from . import runner; _q.hold_ahead = lambda: bool(runner.LIVE); _q._holds = True
         return _q
@@ -101,7 +94,7 @@ def render_and_read(inputs: dict, out: Path, key: str, lane: str = 'fast', on_re
         return {'rgb': str(done['rgb']), 'clip_on': str(done['clip_on']), 'preds': str(done['preds']), 'on': np.load(done['on']), 'mask_labels': [], 'cached': True}
     job('waiting')   # queued: the GPU runs one job at a time, runs before previews before options
     if inputs['kind'] == 'body':   # the moment's motion for both bodies, built once per moment and keyframe spacing
-        import sys; sys.path.insert(0, str(FE / 'observer')); from motion_lib import build as build_motion
+        import sys; sys.path.insert(0, str(Path(__file__).resolve().parents[4] / 'studies' / 'observer')); from motion_lib import build as build_motion   # Simulaxon's own study code
         mf = FILES / 'motion' / f"{inputs['rec']}_{inputs['k']:03d}_k{inputs['keyframe_s']}.npz"; build_motion(inputs['rec'], inputs['k'], inputs['keyframe_s'], str(mf))
         r = queue().submit('isaac_body', {**inputs, 'motion_file': str(mf), 'out_dir': str(out), 'name': key}, {}, lane=lane)
     else:

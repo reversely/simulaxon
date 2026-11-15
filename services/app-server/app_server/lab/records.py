@@ -154,7 +154,7 @@ def search_egobody_moments(n: int = 6) -> dict:
     import os, sys, glob
     cache = ROOT / 'backend' / 'data' / 'files' / 'search' / f'egobody_moments_{n}.json'
     if cache.exists(): return json.load(open(cache))
-    sys.path.insert(0, str(FE / 'observer')); from motion_lib import pick_moments, WORK, ROOT as EGO
+    sys.path.insert(0, str(Path(__file__).resolve().parents[4] / 'studies' / 'observer')); from motion_lib import pick_moments, WORK, ROOT as EGO   # Simulaxon's own study code
     E = np.load(os.path.join(WORK, 'episodes.npz'), allow_pickle=True); recs = sorted(set(E['rec']))
     def usable(r):
         sc = str(np.load(os.path.join(WORK, 'cams', r + '.npz'), allow_pickle=True)['scene'])
