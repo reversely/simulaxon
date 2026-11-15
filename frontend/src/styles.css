@@ -791,37 +791,40 @@ table.data.compact td, table.data.compact th { padding: 3px 8px; font-size: 14px
 .seg button { flex: 1 0 auto; white-space: nowrap; padding: 6px 10px; }
 .ctl .seg, .clipbrain .seg { flex-wrap: nowrap; }
 
-/* The guide's first page: one slide centred over the app, in the guide's light glass */
+/* The guide's first page: one slide centred over the app, white on the guide's blue. The title and its line lead, the
+   loop follows straight under them. */
 .gslide-scrim { position: fixed; inset: 0; z-index: 50; display: grid; place-items: center; padding: 16px; background: rgba(8, 7, 6, 0.6); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
-.gslide { position: relative; width: min(1000px, 100%); max-height: calc(100vh - 32px); overflow: auto; padding: 44px 44px 28px; border-radius: 22px; color: #171513;
-  --ink: #171513; --ink-2: #4a453e; --ink-3: #6f695f; --rule: rgba(23, 21, 19, 0.12); --rule-strong: rgba(23, 21, 19, 0.22); --raise: rgba(255, 255, 255, 0.85);
-  background: #f5f3ef; box-shadow: 0 30px 80px rgba(0, 0, 0, 0.55), inset 0 1px 0 #ffffff;
+.gslide { position: relative; width: min(1080px, 100%); max-height: calc(100vh - 32px); overflow: auto; padding: 56px 56px 28px; border-radius: 22px; color: #ffffff;
+  --ink: #ffffff; --ink-2: rgba(255, 255, 255, 0.86); --ink-3: rgba(255, 255, 255, 0.7); --rule: rgba(255, 255, 255, 0.22); --rule-strong: rgba(255, 255, 255, 0.42); --raise: rgba(255, 255, 255, 0.1);
+  background: #1f6fb2; box-shadow: 0 30px 80px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.25);
   animation: guidein 260ms cubic-bezier(0.22, 1, 0.36, 1); }
-.gslide h2 { margin: 0; font-size: clamp(26px, 3.4vw, 38px); font-weight: 600; letter-spacing: -0.01em; }
-.gslide-lede { margin: 10px 0 0; font-size: 17px; color: var(--ink-2); max-width: 52ch; }
-.gslide-x { position: absolute; top: 16px; right: 16px; }
-.gloop { margin-top: 36px; }
+.gslide h2 { margin: 0; font-size: clamp(36px, 5.4vw, 64px); font-weight: 600; line-height: 1.04; letter-spacing: -0.02em; }
+.gslide-lede { margin: 16px 0 0; font-size: clamp(19px, 2.1vw, 25px); line-height: 1.35; color: var(--ink-2); max-width: 40ch; }
+.gslide-x { position: absolute; top: 16px; right: 16px; color: #ffffff; }
+.gloop { margin-top: 44px; }
 .gstages { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 36px; }
 .gstages li { position: relative; display: flex; }
 .gstage { flex: 1; display: grid; justify-items: start; align-content: start; gap: 6px; text-align: left; font: inherit; color: var(--ink); cursor: pointer;
-  background: rgba(255, 255, 255, 0.8); border: 1px solid var(--rule-strong); border-radius: 14px; padding: 16px; }
-.gstage svg { color: #2f7fc1; }
-.gstage b { font-size: 16px; font-weight: 600; margin-top: 4px; }
-.gstage .gdoes { font-size: 14px; color: var(--ink-2); }
-.gstage .gby { font-size: 12.5px; color: var(--ink-3); margin-top: auto; padding-top: 6px; }
-.gstage:hover { border-color: #2f7fc1; }
+  background: rgba(255, 255, 255, 0.1); border: 1px solid var(--rule-strong); border-radius: 14px; padding: 18px; }
+.gstage svg { color: #ffffff; }
+.gstage b { font-size: 18px; font-weight: 600; margin-top: 4px; }
+.gstage .gdoes { font-size: 15px; color: var(--ink-2); }
+.gstage .gby { font-size: 13px; color: var(--ink-3); margin-top: auto; padding-top: 6px; }
+.gstage:hover { border-color: #ffffff; background: rgba(255, 255, 255, 0.16); }
 .garr { position: absolute; right: -33px; top: 50%; width: 30px; height: 14px; transform: translateY(-50%); }
-.garr path, .greturn path { fill: none; stroke: #2f7fc1; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+.garr path, .greturn path { fill: none; stroke: #ffffff; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
 /* the way back: from under Next test to under Hypothesis, its head pointing up into Hypothesis */
-.greturn { position: relative; height: 34px; margin: 0 calc((100% - 108px) / 8); border: 1.6px solid #2f7fc1; border-top: 0; border-radius: 0 0 12px 12px; }
-.greturn svg { position: absolute; left: -7.5px; top: -9px; width: 14px; height: 12px; background: #f5f3ef; }
-.greturn span { position: absolute; left: 50%; bottom: -10px; transform: translateX(-50%); padding: 0 10px; font-size: 13px; color: var(--ink-2); background: #f5f3ef; }
+.greturn { position: relative; height: 34px; margin: 0 calc((100% - 108px) / 8); border: 1.6px solid #ffffff; border-top: 0; border-radius: 0 0 12px 12px; }
+.greturn svg { position: absolute; left: -7.5px; top: -9px; width: 14px; height: 12px; background: #1f6fb2; }
+.greturn span { position: absolute; left: 50%; bottom: -10px; transform: translateX(-50%); padding: 0 10px; font-size: 14px; color: var(--ink-2); background: #1f6fb2; }
 .gslide-run { margin: 34px 0 0; font-size: 15px; color: var(--ink-2); }
 .gslide-run b { color: var(--ink); font-weight: 600; }
 .gslide-nav { display: flex; justify-content: flex-end; gap: 10px; margin-top: 28px; padding-top: 18px; border-top: 1px solid var(--rule); }
-.gslide .btn.primary { background: #2f7fc1; border-color: #2f7fc1; color: #ffffff; }
+.gslide .btn { background: transparent; color: #ffffff; border-color: rgba(255, 255, 255, 0.5); }
+.gslide .btn:hover { border-color: #ffffff; }
+.gslide .btn.primary { background: #ffffff; border-color: #ffffff; color: #1f6fb2; }
 @media (max-width: 760px) {
-  .gslide { padding: 28px 20px 20px; }
+  .gslide { padding: 32px 20px 20px; }
   .gstages { grid-template-columns: minmax(0, 1fr); gap: 30px; }
   .garr { right: auto; left: 50%; top: auto; bottom: -26px; transform: translateX(-50%) rotate(90deg); }
   .greturn { display: none; }
