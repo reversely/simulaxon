@@ -18,6 +18,8 @@ type Stage = Record<string, any>
 const n = (x: number) => x.toLocaleString()
 const MEDIA_NAMES: Record<string, string> = { image: 'images', video: 'videos', audio: 'audio' }
 const HIDDEN = new Set(['file', 'sha', 'folder'])
+/** An image's shape from its indexed fields, so its place is held before it loads (#30). */
+const dims = (x: Item) => { const f = x.fields; const [w, h] = f.width && f.height ? [f.width, f.height] : Array.isArray(f.pixels) ? f.pixels : []; return w && h ? `${w} / ${h}` : undefined }
 const KEPT: { list: DS[] | null } = { list: null }   // the last list, kept for the page's life: a revisit shows it at once (#30)
 
 export function DatasetsPage({ projects, onOpenProject, show }: { projects: Row<Project>[]; onOpenProject: (id: string) => void; show?: { id: string; tab?: 'samples' | 'adapters' } | null }) {
@@ -177,7 +179,7 @@ function SampleView({ item, onClose, onSimilar }: { item: Item; onClose: () => v
       {onSimilar && <button className="btn" style={{ marginLeft: 'auto' }} onClick={onSimilar}>Show the most similar</button>}
       <button className="iconbtn" style={onSimilar ? undefined : { marginLeft: 'auto' }} aria-label="Close" onClick={onClose}><Icon name="close" size={18} /></button></div>
     <div className="dssamplebody">
-      <div className={`dsmedia ${item.media_type === 'recording' ? 'dsrec' : ''}`}>{item.media_type === 'recording' ? <RecordingView manifestUrl={item.media} /> : item.media_type === 'video' ? <video src={item.media} controls autoPlay muted playsInline /> : item.media_type === 'image' ? <img src={item.media} alt={item.path} />
+      <div className={`dsmedia ${item.media_type === 'recording' ? 'dsrec' : ''}`}>{item.media_type === 'recording' ? <RecordingView manifestUrl={item.media} /> : item.media_type === 'video' ? <video src={item.media} controls autoPlay muted playsInline /> : item.media_type === 'image' ? <img src={item.media} alt={item.path} style={dims(item) ? { aspectRatio: dims(item) } : undefined} />
         : item.media_type === 'audio' ? <audio src={item.media} controls /> : <span className="ink2">{item.media_type}</span>}</div>
       <table className="data compact"><thead><tr><th>Field</th><th>Value</th><th>From</th></tr></thead>
         <tbody>{Object.entries(item.fields).map(([k, v]) => <tr key={k}><td>{k}</td><td className="num">{typeof v === 'number' ? v.toLocaleString(undefined, { maximumFractionDigits: 4 }) : String(v)}</td><td className="ink2 small">{item.sources[k] ?? ''}</td></tr>)}
