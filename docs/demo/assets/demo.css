@@ -100,7 +100,7 @@ p { margin: 0; }
 /* The one ivory block: the benchmark, set apart from everything live */
 .block .inner { padding: 16vh var(--gutter); max-width: 1240px; margin: 0 auto; display: grid; gap: 56px; }
 .bars { display: grid; gap: 18px; }
-.bar { display: grid; grid-template-columns: minmax(150px, 220px) minmax(0, 1fr) 76px; gap: 18px; align-items: center; font-size: 18px; }
+.bar { display: grid; grid-template-columns: minmax(150px, 220px) minmax(0, 1fr) 96px; gap: 18px; align-items: center; font-size: 18px; }
 .lane { position: relative; height: 18px; background: #e4ddd1; border-radius: 3px; }
 .lane i { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 3px; width: 0; }
 .ceil { position: absolute; top: -8px; bottom: -8px; width: 2px; background: var(--paper-ink); left: 96.4%; }
@@ -131,7 +131,7 @@ p { margin: 0; }
   .stations .pin { position: relative; top: 0; height: auto; order: -1; }
   .stations .station { min-height: 0; padding: 6vh 0; opacity: 1; }
   .examples, .figures { grid-template-columns: minmax(0, 1fr); }
-  .bar { grid-template-columns: minmax(0, 1fr) 64px; } .bar .lane { grid-column: 1 / -1; grid-row: 2; }
+  .bar { grid-template-columns: minmax(0, 1fr) 84px; } .bar .lane { grid-column: 1 / -1; grid-row: 2; }
 }
 @media (prefers-reduced-motion: reduce) {
   .stations .station, body, .backdrop { transition: none; }
