@@ -75,7 +75,7 @@
     });
   };
 
-  // Runs on CIQ: the pinned deployment lights each step's services, and the dot travels the round's route between them.
+  // Runs on CIQ: the pinned deployment lights each step's services, and an arrowhead travels the round's route between them.
   // Points are in the diagram's own layout (offsets), so they hold when the diagram is scaled to fit the window.
   const arch = document.querySelector('[data-route]');
   if (arch) {
@@ -101,7 +101,10 @@
     const via = STEPS.flatMap(s => s.via), ends = []; STEPS.reduce((n, s) => (ends.push(n + s.via.length - 1), n + s.via.length), 0);
     let pts = [], cum = [], cur = 0;
     const EASE = 'cubic-bezier(0.645, 0.045, 0.355, 1)';
-    const place = p => { dot.style.transform = `translate(${p[0].toFixed(1)}px, ${p[1].toFixed(1)}px)`; };
+    const angle = (i, dir) => { const j = i - dir; if (j < 0 || j >= pts.length) return dir > 0 ? 0 : 180; const a = pts[j], b = pts[i]; return Math.hypot(b[0] - a[0], b[1] - a[1]) < 0.5 ? angle(j, dir) : Math.atan2(b[1] - a[1], b[0] - a[0]) * 180 / Math.PI; };
+    const at = (p, deg) => `translate(${p[0].toFixed(1)}px, ${p[1].toFixed(1)}px) rotate(${deg.toFixed(1)}deg)`;
+    let heading = 0;
+    const place = (p, deg = heading) => { heading = deg; dot.style.transform = at(p, deg); };
     const light = k => {
       const lit = new Set(STEPS[k].lit); arch.classList.add('routed');
       arch.querySelectorAll('[data-at]').forEach(el => { el.classList.toggle('on', lit.has(el.dataset.at)); el.classList.remove('held'); });
@@ -118,15 +121,15 @@
       const line = pts.map(p => p.map(v => v.toFixed(1)).join(',')).join(' ');
       all.setAttribute('points', line); done.setAttribute('points', line);
       const L = cum[cum.length - 1]; done.style.transition = 'none'; done.style.strokeDasharray = `${L} ${L}`; done.style.strokeDashoffset = L - cum[ends[cur]];
-      dot.getAnimations().forEach(a => a.cancel()); place(pts[ends[cur]]);
+      dot.getAnimations().forEach(a => a.cancel()); place(pts[ends[cur]], angle(ends[cur], 1));
     }
     function go(k) {
       const from = ends[cur], to = ends[k]; cur = k; light(k);
       const L = cum[cum.length - 1], dist = Math.abs(cum[to] - cum[from]);
-      if (reduced || !dist) { done.style.transition = 'none'; done.style.strokeDashoffset = L - cum[to]; place(pts[to]); return; }
+      if (reduced || !dist) { done.style.transition = 'none'; done.style.strokeDashoffset = L - cum[to]; place(pts[to], angle(to, 1)); return; }
       const dur = Math.min(900, Math.max(320, dist * 2.2)), step = to > from ? 1 : -1, frames = [];
-      for (let i = from; ; i += step) { const p = pts[i]; frames.push({ transform: `translate(${p[0]}px, ${p[1]}px)`, offset: Math.abs(cum[i] - cum[from]) / dist }); if (i === to) break; }
-      dot.getAnimations().forEach(a => a.cancel()); place(pts[to]);
+      for (let i = from; ; i += step) { const deg = i === from ? heading : angle(i, step); frames.push({ transform: at(pts[i], deg), offset: Math.abs(cum[i] - cum[from]) / dist }); if (i === to) break; }
+      dot.getAnimations().forEach(a => a.cancel()); place(pts[to], angle(to, step));
       dot.animate(frames, { duration: dur, easing: EASE });
       done.style.transition = `stroke-dashoffset ${dur}ms ${EASE}`; done.style.strokeDashoffset = L - cum[to];
     }
@@ -140,6 +143,19 @@
     const vids = [...document.querySelectorAll('.ciq video')];
     if (reduced) vids.forEach(v => { v.removeAttribute('autoplay'); v.pause(); v.controls = !v.closest('.crop'); });
     else { const vo = new IntersectionObserver(es => es.forEach(e => e.isIntersecting ? e.target.play().catch(() => {}) : e.target.pause())); vids.forEach(v => vo.observe(v)); }
+  }
+
+  // Develop the experiment: the section pins and vertical scroll moves the track sideways, one panel per step.
+  const hs = document.querySelector('.hscroll');
+  if (hs && hasGsap && !reduced) {
+    const track = hs.querySelector('.hs-track'), ticks = [...hs.querySelectorAll('.hs-ticks i')], n = ticks.length;
+    const mm = gsap.matchMedia();
+    mm.add('(min-width: 821px)', () => {
+      const dist = () => Math.max(0, track.scrollWidth - innerWidth);
+      gsap.to(track, { x: () => -dist(), ease: 'none', scrollTrigger: { trigger: hs, pin: hs.querySelector('.hs-pin'), start: 'top top', end: () => '+=' + dist(), scrub: 0.6, invalidateOnRefresh: true,
+        onUpdate: st => { const k = Math.round(st.progress * (n - 1)); ticks.forEach((t, i) => t.classList.toggle('on', i === k)); } } });
+    });
+    addEventListener('load', () => ScrollTrigger.refresh());
   }
 
   function frame() {
