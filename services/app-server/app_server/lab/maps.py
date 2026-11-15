@@ -40,8 +40,8 @@ def render(values: np.ndarray, kind: str, files: Path, vmax: float | None = None
     os.environ.setdefault('PYVISTA_OFF_SCREEN', 'true')
     if _plotter is None:
         try: from tribev2.plotting import PlotBrain
-        except ImportError as e:   # the plotter needs torch, neuralset and pyvista; the cluster's app container has none, so a run keeps its numbers without pictures
-            return {'views': {}, 'vmax': vmax, 'note': f'no brain pictures here: {e}'}
+        except ImportError as e:   # the plotter needs torch, neuralset and pyvista, which the cluster's app container lacks
+            return _elsewhere(values, kind, files, vmax, out, e)
         _plotter = PlotBrain(mesh='fsaverage5')
     (files / 'maps').mkdir(parents=True, exist_ok=True)
     for v, rel in out.items():
@@ -52,3 +52,25 @@ def render(values: np.ndarray, kind: str, files: Path, vmax: float | None = None
             _plotter.plot_surf(values, axes=ax, views=v, cmap=_signed(), vmin=-vmax, vmax=vmax, symmetric_cbar=True)
         fig.savefig(files / rel, bbox_inches='tight', pad_inches=0.02, facecolor='white'); plt.close(fig); _transparent(files / rel)
     return {'views': out, 'vmax': vmax}
+
+
+def _elsewhere(values: np.ndarray, kind: str, files: Path, vmax: float, out: dict, why: Exception) -> dict:
+    """Draw the maps with TRIBE v2's own Python (render-score's environment on the volume), which has the plotter; when
+    there is none, a run keeps its numbers without pictures."""
+    import subprocess, tempfile
+    py = Path(os.environ.get('SIMULAXON_ENVS', '/data/envs')) / 'tribe' / 'bin' / 'python'
+    if not py.exists() or os.environ.get('SIMULAXON_MAPS_CHILD'): return {'views': {}, 'vmax': vmax, 'note': f'no brain pictures here: {why}'}
+    with tempfile.NamedTemporaryFile(suffix='.npy', delete=False) as f: np.save(f, values); arr = f.name
+    try:
+        env = {**os.environ, 'PYTHONPATH': str(Path(__file__).resolve().parents[2]), 'MPLBACKEND': 'Agg', 'PYVISTA_OFF_SCREEN': 'true', 'SIMULAXON_MAPS_CHILD': '1'}
+        r = subprocess.run([str(py), '-m', 'app_server.lab.maps', arr, kind, str(files), repr(vmax)], env=env, capture_output=True, text=True, timeout=600)
+        if r.returncode != 0 or not all((files / p).exists() for p in out.values()):
+            return {'views': {}, 'vmax': vmax, 'note': f'no brain pictures here: {(r.stderr or r.stdout)[-300:]}'}
+        return {'views': out, 'vmax': vmax}
+    finally:
+        os.unlink(arr)
+
+
+if __name__ == '__main__':   # python -m app_server.lab.maps values.npy kind files_dir vmax: draw with this Python's plotter
+    a = sys.argv[1:]
+    render(np.load(a[0]), a[1], Path(a[2]), float(a[3]))
