@@ -25,17 +25,17 @@ class RunRecord(unittest.TestCase):
 
     def test_chosen_regions_marked(self):
         r = self.t.call('run_get', 'person', project_id=_project(self.t, ['PPA']))
-        self.assertEqual(r['regions_chosen'], ['PPA'])
-        self.assertEqual({c['region']: c['chosen'] for c in r['contrasts']}, {'PPA': True, 'MT': False})
+        self.assertEqual([x['region'] for x in r['regions_named']], ['PPA'])
+        self.assertEqual({c['region']: bool(c['named_by']) for c in r['contrasts']}, {'PPA': True, 'MT': False})
         self.assertEqual(r['made']['minutes'], 5.0); self.assertEqual(len(r['trials']), 4); self.assertEqual(r['contrasts'][0]['n'], 4)
 
     def test_no_region_promoted(self):
         r = self.t.call('run_get', 'person', project_id=_project(self.t, []))
-        self.assertEqual(r['regions_chosen'], []); self.assertFalse(any(c['chosen'] for c in r['contrasts']))
+        self.assertEqual(r['regions_named'], []); self.assertFalse(any(c['named_by'] for c in r['contrasts']))
 
     def test_named_area_in_the_question_counts(self):
         r = self.t.call('run_get', 'person', project_id=_project(self.t, [], {'region': 'the parahippocampal place area'}))
-        self.assertEqual(r['regions_chosen'], ['PPA'])
+        self.assertEqual([x['region'] for x in r['regions_named']], ['PPA'])
 
     def test_unfinished_refused(self):
         s = self.t.store; st = s.begin('agent', 'project_create', {}); p = s.create(st, 'project', {'title': 'x', 'status': 'Draft'})

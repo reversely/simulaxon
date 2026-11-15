@@ -34,7 +34,8 @@ def renderer_for(kind: str) -> str:
 
 
 def start(actor: str) -> dict:
-    return {'started_at': round(time.time(), 1), 'started_by': actor, 'code': CODE}
+    import uuid
+    return {'run_id': 'run_' + uuid.uuid4().hex[:8], 'started_at': round(time.time(), 1), 'started_by': actor, 'code': CODE}
 
 
 def finish(info: dict, connectors: set[str], renderer_revisions: set[str] | None = None) -> dict:

@@ -35,13 +35,10 @@ const AREA_NAMES: Record<string, string> = {
 export const regionLabel = (r: string): string => {
   if (AREA_NAMES[r]) return AREA_NAMES[r]
   const m = r.match(/^([LR])_(.+)$/)
-  if (m && AREA_NAMES[m[2]]) return `${m[1] === 'L' ? 'Left' : 'Right'} ${AREA_NAMES[m[2]].replace(/^./, c => c.toLowerCase())}`
+  if (m && AREA_NAMES[m[2]]) return `${AREA_NAMES[m[2]]} (${m[1] === 'L' ? 'left' : 'right'} hemisphere)`
   return r
 }
 /** A region's plain name inside a sentence: the full name in lower case, or the word itself. */
-export const regionInText = (r: string) => { const l = regionLabel(r); return l === r ? inText(r) : l.replace(/^./, c => c.toLowerCase()) }
-/** A region's name inside a sentence: words in lower case, atlas codes such as FFC or V1 kept as they are. */
-export const inText = (r: string) => /^[LR]?_?[A-Z0-9][A-Za-z0-9_-]*$/.test(r) && /[A-Z]{2}|\d/.test(r) ? r : r.toLowerCase()
 export const fmt = (v: number | null | undefined, d = 3) => v == null || Number.isNaN(v) ? 'None' : (v > 0 ? '+' : v < 0 ? '−' : '') + Math.abs(v).toFixed(d)
 /** How each plan works, in one plain sentence, shown wherever the plan is first met (a template card), and on hover elsewhere. */
 export const PLAN_INFO: Record<string, string> = {

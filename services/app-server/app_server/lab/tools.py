@@ -457,7 +457,10 @@ def register(tools, broadcast=lambda m: None):
         """How a project's last run was made, and every number it produced, as tables: the record behind the results
         dashboard and its exports (#19). made: when it ran and for how long, who started it, the code, connector and
         renderer versions, the design, and the stimuli by condition with where they came from (and any Cosmos settings).
-        regions_chosen: the regions the project itself named (empty when it named none: no region is promoted for it).
+        regions_named: the regions named at set-up, by the paper or in the question, each with who named it and its
+        definition (empty when none was named; no region is ever promoted for a project). figures: each contrast's
+        rendered views and its value in all 360 HCP areas, ranked. downloads: the file names /api/results/<id>/download/
+        serves, all.zip holding every one.
         contrasts: one row per contrast and region. trials: one row per clip with its read-out in every region. A run from
         before runs kept this record lists in missing what could not be recovered."""
         from . import runinfo
@@ -481,11 +484,31 @@ def register(tools, broadcast=lambda m: None):
         analyses = analysis_list(actor, project_id)
         samples = sorted((r.data for r in s.list('sample') if r.data.get('project_id') == project_id), key=lambda d: d.get('index', 0))
         regions_read = list((samples[0].get('readout') or {}).keys()) if samples else []
-        chosen = [r if isinstance(r, str) else r.get('name') for r in (exp.get('regions') or [])]
-        chosen += [r.get('region') for r in (exp.get('reported') or []) if isinstance(r, dict)]
+        actors = {st['step_id']: st['actor'] for st in s.steps()}
+        def who_set(key):   # the actor of the earliest version of the project that already had this key's current value
+            row = s.get('project', project_id); val = row.data.get(key); step = row.step_id
+            for v in range(row.version - 1, 0, -1):
+                old = s.version_of('project', project_id, v)
+                if not old or old.data.get(key) != val: break
+                step = old.step_id
+            return actors.get(step)
+        named = [(r if isinstance(r, str) else r.get('name'), who_set('experiment' if P.get('experiment') else 'setup')) for r in (exp.get('regions') or [])]
+        named += [(r.get('region'), 'paper') for r in (exp.get('reported') or []) if isinstance(r, dict)]
         b = str((P.get('bindings') or {}).get('region') or '').strip().lower().removeprefix('the ').strip()
-        if b: chosen += [n for n in regions_read if n.lower() in {b, (regions.alias(b) or '').lower()}]
-        chosen = [c for i, c in enumerate(chosen) if c and c not in chosen[:i]]
+        if b: named += [(n, who_set('bindings')) for n in regions_read if n.lower() in {b, (regions.alias(b) or '').lower()}]
+        named = [(n, by) for i, (n, by) in enumerate(named) if n and n not in [x for x, _ in named[:i]]]
+        groups = {r['name']: r['areas'] for r in (exp.get('regions') or []) if isinstance(r, dict)}
+        defs = {d['region']: f"{d['definition']}: {', '.join(d['atlas_labels'])}" for d in regions.table()}
+        def definition(n):
+            if n in groups: return f"Group named at set-up, HCP-MMP1 areas {', '.join(groups[n])}"
+            if regions.alias(n): return regions.ALIASES[regions.alias(n)][1]
+            return defs.get(n) or (regions.atlas()[n][1] if n in regions.atlas() else 'Not in the atlas')
+        def hcp_of(n):   # the HCP-MMP1 areas a named region covers, so Fig. 3 can colour them; Destrieux groups have none
+            codes = groups.get(n) or (regions.ALIASES[regions.alias(n)][0] if regions.alias(n) else None) or (regions.HCP[n][0] if n in regions.HCP else None)
+            if codes is None: codes = [n] if n in regions.hcp_names() or f'L_{n}' in regions.hcp_names() else []
+            return [x for c in codes for x in ([c] if c[:2] in ('L_', 'R_') else [f'L_{c}', f'R_{c}'])]
+        regions_named = [{'region': n, 'named_by': by or 'unknown', 'definition': definition(n), 'hcp_areas': hcp_of(n)} for n, by in named]
+        chosen = [n for n, _ in named]; by_of = dict(named)
         stimuli = []
         for c in conds:
             if not isinstance(c, dict): continue
@@ -503,7 +526,7 @@ def register(tools, broadcast=lambda m: None):
             if ad.get('kind') != 'paired': other.append({'kind': ad.get('kind'), 'title': ad.get('title'), 'result': {k: v for k, v in r.items() if k not in ('analysis_id', 'project_id')}}); continue
             for row in r.get('regions') or []:
                 n = row.get('n'); ci = row.get('interval_95') or [None, None]; sh = row.get('shuffled_labels_95') or [None, None]
-                contrasts.append({'contrast': ad.get('title'), 'region': row.get('region'), 'chosen': row.get('region') in chosen, 'value': row.get('value'),
+                contrasts.append({'contrast': ad.get('title'), 'region': row.get('region'), 'named_by': by_of.get(row.get('region')), 'value': row.get('value'),
                                   'ci_low': ci[0], 'ci_high': ci[1], 'n': sum(n.values()) if isinstance(n, dict) else n,
                                   'n_by_condition': n if isinstance(n, dict) else None, 'units_positive': row.get('units_positive'),
                                   'area_rank_pct': row.get('area_rank_pct'), 'shuffled_low': sh[0], 'shuffled_high': sh[1],
@@ -511,13 +534,19 @@ def register(tools, broadcast=lambda m: None):
                                   'pairs_needed': row.get('pairs_needed'), 'window_s': ad.get('window_s'), 'units': ad.get('units'), 'design': ad.get('design')})
         trials = [{'index': x.get('index'), 'unit': x.get('unit'), 'condition': x.get('condition'), 'label': x.get('label'), 'clip': x.get('clip'), 'image': x.get('image'),
                    'origin': (x.get('origin') or {}).get('label'), 'readout': x.get('readout') or {}} for x in samples]
+        from . import export
+        cmaps = export.contrast_maps(s, project_id)
+        figures = [{'title': m['title'], 'weights': m['weights'], 'window_s': m['window_s'], 'views': {v: '/files/' + p for v, p in (m.get('views') or {}).items()},
+                    'areas': export.areas(m['map'])} for m in cmaps]
         made = {**info, 'plan': P.get('plan'), 'template_id': P.get('template_id'), 'world': (P.get('world') or {}).get('kind'),
                 'brain_model': 'TRIBE v2, average-viewer prediction of fMRI from the video', 'trial': exp.get('trial'),
                 'contrast_weights': [{'name': c.get('name'), 'weights': c.get('weights')} for c in (exp.get('contrasts') or []) if isinstance(c, dict)],
                 'parameters': P.get('run_values'), 'counts': P.get('counts'), 'paper_id': exp.get('paper_id')}
-        return {'project': {'id': project_id, 'title': P.get('title'), 'question': P.get('question'), 'status': P.get('status')},
-                'made': made, 'stimuli': stimuli, 'regions_chosen': chosen, 'regions_read': regions_read,
-                'contrasts': contrasts, 'trials': trials, 'other_analyses': other, 'missing': missing}
+        out = {'project': {'id': project_id, 'title': P.get('title'), 'question': P.get('question'), 'status': P.get('status')},
+               'made': made, 'stimuli': stimuli, 'regions_named': regions_named, 'regions_read': regions_read,
+               'contrasts': contrasts, 'trials': trials, 'figures': figures, 'other_analyses': other, 'missing': missing}
+        out['downloads'] = list(export.files(out, cmaps).keys()) + ['all.zip']
+        return out
 
     for fn in (project_create_from, project_update, experiment_create):   # the title argument says how to title (#11)
         fn.__doc__ = (fn.__doc__ or '').rstrip() + f'\n        title: {titles.ARG}.'

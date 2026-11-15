@@ -46,8 +46,8 @@ def matched(store, step, project_id: str, units: list[dict], window: tuple[int, 
                      'pairs_needed': pairs_needed(v)})
     rows.sort(key=lambda x: -abs(x['value']))
     mp = maps.render(D.mean(0), 'contrast', files)
-    nm = store.create(step, 'neural_map', {'project_id': project_id, 'title': f'{labels[0]} minus {labels[1].lower()}', 'kind': 'contrast', **mp}, depends_on=[('project', project_id)])
-    an = store.create(step, 'analysis', {'project_id': project_id, 'kind': 'paired', 'title': f'{labels[0]} minus {labels[1].lower()}', 'window_s': list(window),
+    nm = store.create(step, 'neural_map', {'project_id': project_id, 'title': f'{labels[0]} minus {labels[1]}', 'kind': 'contrast', **mp}, depends_on=[('project', project_id)])
+    an = store.create(step, 'analysis', {'project_id': project_id, 'kind': 'paired', 'title': f'{labels[0]} minus {labels[1]}', 'window_s': list(window),
                                          'units': 'TRIBE output units, mean over the seconds on screen'}, depends_on=[('project', project_id)])
     store.create(step, 'result', {'analysis_id': an.id, 'project_id': project_id, 'regions': rows, 'map_id': nm.id}, depends_on=[('analysis', an.id)])
     an2 = store.create(step, 'analysis', {'project_id': project_id, 'kind': 'items_needed', 'title': 'Pairs needed',

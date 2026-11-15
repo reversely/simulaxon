@@ -284,7 +284,10 @@ def run(tools, broadcast, project_id: str, actor: str) -> dict:
                     j = preview.queue().submit('tribe_v2', {'clip': str(clip)}, {'on_s': P['trial']['read_s']}, lane='batch'); j.done.wait(3600)
                     if j.status != 'done': raise RuntimeError(j.error or 'TRIBE failed')
                 done.append({**tr, 'clip': str(clip), 'still': str(still), 'preds': str(pred)})
-                ev(done=k + 1, total=total, image=out_url(still))
+                o = np.load(pred)[P['trial']['read_s'][0]:P['trial']['read_s'][1]].mean(0)   # as the saved sample reads it, so the live table and the record agree (#20)
+                ev(done=k + 1, total=total, image=out_url(still), trial={'index': k, 'unit': f"{tr['condition']}, trial {tr['index'] + 1}", 'condition': tr['condition'],
+                                                                       'label': f"{tr['condition']}, trial {tr['index'] + 1}", 'image': out_url(still), 'clip': out_url(clip),
+                                                                       'readout': {_region_name(r): round(float(o[_region_mask(r)].mean()), 4) for r in P['regions']}})
                 if runner.SHUTTING_DOWN.is_set(): return
                 if token in runner.STOP: raise RuntimeError(f"Stopped by {runner.STOP[token]} after {k + 1} of {total} clips; running it again picks up from there")
             ev(stage='comparing')

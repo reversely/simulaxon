@@ -20,7 +20,7 @@ export function SelectionView({ result, regions, samples, condition }: { result:
       <div className="seg" role="group" aria-label="Selection condition">{keys.map(k => <button key={k} className={k === c ? 'on' : ''} onClick={() => setC(k)}>{result.conditions[k].name}</button>)}</div>
     </div>
     <div className="legend" style={{ marginBottom: 4 }}>
-      <span><svg width="14" height="14" aria-hidden><circle cx="7" cy="7" r="6" fill="var(--a)" /></svg> Kept, {cond.name.toLowerCase()}</span>
+      <span><svg width="14" height="14" aria-hidden><circle cx="7" cy="7" r="6" fill="var(--a)" /></svg> Kept, {cond.name}</span>
       <span><svg width="14" height="14" aria-hidden><circle cx="7" cy="7" r="4" fill="var(--b)" opacity="0.55" /></svg> Screened</span>
     </div>
     <svg className="chart" viewBox={`0 0 ${W} ${H}`} width="100%" role="img" aria-label={`${regions[0]} against ${regions[1]}`}>
@@ -34,7 +34,7 @@ export function SelectionView({ result, regions, samples, condition }: { result:
     </svg>
     {tip && <div className="tip" style={{ left: tip.x + 14, top: tip.y + 14 }}><b>{byId[tip.id]?.label ?? tip.id}</b><div className="num">{regions[0]} {fmt(result.points.find(p => p.id === tip.id)!.a)}</div><div className="num">{regions[1]} {fmt(result.points.find(p => p.id === tip.id)!.b)}</div></div>}
     <div className="headline" style={{ marginTop: 6 }}><span className="big">{cond.score.toFixed(2)}</span>
-      <span className="ink2">{cond.name.toLowerCase()}, mean scaled score of the {result.k} kept. Random sets of {result.k}: {cond.random_95[0].toFixed(2)} to {cond.random_95[1].toFixed(2)}. {(cond.share_random_at_least * 100).toFixed(2)}% of {result.n_random.toLocaleString()} reach it</span></div>
+      <span className="ink2">{cond.name}: mean scaled score of the {result.k} kept. Random sets of {result.k}: {cond.random_95[0].toFixed(2)} to {cond.random_95[1].toFixed(2)}. {(cond.share_random_at_least * 100).toFixed(2)}% of {result.n_random.toLocaleString()} reach it</span></div>
     <div className="thumbs">{cond.ids.map(id => <div key={id} className="thumbstatic">{byId[id]?.image && <img src={byId[id].image!} alt="" />}<span>{byId[id]?.label ?? id}</span></div>)}</div>
   </div>
 }

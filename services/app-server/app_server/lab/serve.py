@@ -167,6 +167,23 @@ def make(db: str, port: int = 8790):
             dst.parent.mkdir(parents=True, exist_ok=True); im = Image.open(src).convert('RGB'); im.thumbnail((480, 480)); im.save(dst, quality=82)
         return FileResponse(dst, media_type='image/jpeg', headers={'Cache-Control': 'max-age=86400'})
 
+    @app.get('/api/results/{project_id}/download/{name}')
+    def results_download(project_id: str, name: str):
+        """One file of a finished run's results, or all.zip with every one (#20): built from the store, as run_get lists them."""
+        import mimetypes, re as _re
+        from fastapi import HTTPException
+        from fastapi.responses import FileResponse, Response
+        from . import export
+        T = app.state.tools
+        try: rec = T.call('run_get', 'person', project_id=project_id)
+        except Exception as e: raise HTTPException(404, str(e))
+        fs = export.files(rec, export.contrast_maps(T.store, project_id)); folder = _re.sub(r'[^A-Za-z0-9]+', '_', rec['project']['title']).strip('_')[:60] or project_id
+        if name == 'all.zip':
+            return Response(export.zipped(fs, folder), media_type='application/zip', headers={'Content-Disposition': f'attachment; filename="{folder}.zip"'})
+        if name not in fs: raise HTTPException(404, f'no file {name} for this run')
+        data = fs[name]; head = {'Content-Disposition': f'attachment; filename="{name}"'}; mt = mimetypes.guess_type(name)[0] or 'application/octet-stream'
+        return FileResponse(data, media_type=mt, headers=head) if not isinstance(data, (bytes, bytearray)) else Response(bytes(data), media_type=mt, headers=head)
+
     from .. import runs
 
     def _grafana_on_cluster() -> str | None:

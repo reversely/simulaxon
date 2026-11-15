@@ -35,8 +35,8 @@ export function NarrationMsg({ n }: { n: Narration }) {
     <div className="who">Agent, step {n.step + 1}: {n.title}</div>
     <p><b>In the paper.</b> {n.paper}</p>
     <p><b>Here.</b> {n.here}</p>
-    {r && r.value !== undefined && <p className="reading"><span className="mid num">{fmt(r.value)}</span> in the {String(r.region).toLowerCase()}, interval {fmt(r.interval_95[0])} to {fmt(r.interval_95[1])}, {r.units_positive} of {r.n} above zero</p>}
-    {r && r.score !== undefined && <p className="reading"><span className="mid num">{r.score.toFixed(2)}</span> {r.condition.toLowerCase()}, against random sets {r.random_95[0].toFixed(2)} to {r.random_95[1].toFixed(2)}. {(r.share_random_at_least * 100).toFixed(2)}% of random sets reach it</p>}
+    {r && r.value !== undefined && <p className="reading"><span className="mid num">{fmt(r.value)}</span> · {String(r.region)}, interval {fmt(r.interval_95[0])} to {fmt(r.interval_95[1])}, {r.units_positive} of {r.n} above zero</p>}
+    {r && r.score !== undefined && <p className="reading"><span className="mid num">{r.score.toFixed(2)}</span> · {r.condition}, against random sets {r.random_95[0].toFixed(2)} to {r.random_95[1].toFixed(2)}. {(r.share_random_at_least * 100).toFixed(2)}% of random sets reach it</p>}
     {n.read && !r && <p className="ink2">The live result is not in yet.</p>}
   </div>
 }

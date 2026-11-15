@@ -128,7 +128,7 @@ def assumptions(store, project_id: str) -> list[dict]:
                     res = [r.data for r in store.list('result') if r.data.get('project_id') == p.id and r.data.get('regions') and 'interval_95' in r.data['regions'][0]]
                     if res:
                         top = res[0]['regions'][0]
-                        row.update(status='Tested', evidence=f"{p.data['title']}: {top['region'].lower()} {top['value']:+.3f}, interval {top['interval_95'][0]:+.3f} to {top['interval_95'][1]:+.3f}")
+                        row.update(status='Tested', evidence=f"{p.data['title']}: {top['region']} {top['value']:+.3f}, interval {top['interval_95'][0]:+.3f} to {top['interval_95'][1]:+.3f}")
                         break
         out.append(row)
     return out

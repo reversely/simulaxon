@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { call, fmt, regionLabel, regionInText, type Row, type Sample } from './api'
+import { call, fmt, regionLabel, type Row, type Sample } from './api'
 import { Icon } from './icons'
 
 export type Origin = { kind: 'dataset' | 'isaac' | 'file' | 'generated' | 'cosmos'; label: string; title?: string; ref?: string; licence?: string | null; dataset_id?: string; from?: Origin; prompt?: string; seeds?: number[] }
@@ -140,7 +140,15 @@ export function ConditionCourse({ pid, region, onS }: { pid: string; region: str
 }
 
 /** One trial of an experiment, every trial's value by condition, and the region's time course. */
-export function ExperimentRoom({ pid, samples, idx, setIdx, region, onS, chosen = true }: { pid: string; samples: Row<Sample & { origin?: Origin; items?: string[] }>[]; idx: number; setIdx: (i: number) => void; region: string; onS?: number; chosen?: boolean }) {
+/** One trial's TRIBE value in every region it was read in, names as written; regions named at set-up first and marked. */
+export function ReadoutTable({ title, readout, named, focus, bare }: { title: string; readout: Record<string, number>; named: string[]; focus?: string; bare?: boolean }) {
+  const rows = [...named.filter(r => r in readout), ...Object.keys(readout).filter(r => !named.includes(r))]
+  const table = <table className="data compact"><thead><tr><th>Region</th><th className="num">TRIBE value</th></tr></thead>
+    <tbody>{rows.map(r => <tr key={r} className={r === focus ? 'on' : ''}><td title={r}>{regionLabel(r)}{named.includes(r) && <span className="chip tiny">Named</span>}</td><td className="num">{fmt(readout[r])}</td></tr>)}</tbody></table>
+  return bare ? <div className="readouts"><div className="ink2">{title}</div>{table}</div> : <div className="card"><h3>{title}</h3>{table}</div>
+}
+
+export function ExperimentRoom({ pid, samples, idx, setIdx, region, onS, named = [], tag = '' }: { pid: string; samples: Row<Sample & { origin?: Origin; items?: string[] }>[]; idx: number; setIdx: (i: number) => void; region: string; onS?: number; named?: string[]; tag?: string }) {
   const s = samples[Math.min(idx, samples.length - 1)]?.data
   if (!s) return null
   const conds = [...new Set(samples.map(x => x.data.condition))]
@@ -158,15 +166,13 @@ export function ExperimentRoom({ pid, samples, idx, setIdx, region, onS, chosen 
         <button className="btn" aria-label="Next" disabled={idx >= samples.length - 1} onClick={() => setIdx(idx + 1)}>›</button>
       </span>
     </div>
-    {chosen ? <div className="headline"><span className="big">{fmt(s.readout[region])}</span><span className="ink2">TRIBE response in the {regionInText(region)} for this trial</span></div>
-      : <div className="readouts"><div className="ink2">TRIBE response by region for this trial, highest first</div>
-        {Object.entries(s.readout).sort((x, y) => y[1] - x[1]).slice(0, 6).map(([r, v]) => <div key={r} className="readline"><span title={r}>{regionLabel(r)}</span><span className="num">{fmt(v)}</span></div>)}</div>}
-    <ConditionCourse pid={pid} region={region} onS={onS} />
-    <div className="card"><h3>Every trial in the {regionInText(region)}</h3>
+    <ReadoutTable title="This trial, TRIBE value by region" readout={s.readout} named={named} focus={region} />
+    {region ? <><ConditionCourse pid={pid} region={region} onS={onS} />
+    <div className="card"><h3>Every trial: {regionLabel(region)}{tag && <span className="chip tiny">{tag}</span>}</h3>
       {conds.map((c, ci) => { const mine = samples.map((r, i) => ({ r, i })).filter(o => o.r.data.condition === c); const mean = mine.reduce((t, o) => t + (o.r.data.readout[region] ?? 0), 0) / mine.length
         return <div key={c} className="condstrip"><span className="ink2">{c}</span><div className="strip">
           {mine.map(o => <button key={o.i} className={`dot ${o.i === idx ? 'sel' : ''}`} style={{ left: `${x(o.r.data.readout[region] ?? 0)}%`, background: o.i === idx ? undefined : SERIES[ci % SERIES.length] }} onClick={() => setIdx(o.i)} aria-label={o.r.data.label} />)}
           <span className="mean" style={{ left: `${x(mean)}%` }} /></div><span className="num">{fmt(mean)}</span></div> })}
-    </div>
+    </div></> : <p className="ink2">Pick a region under Regions to plot it over time and across trials.</p>}
   </>
 }

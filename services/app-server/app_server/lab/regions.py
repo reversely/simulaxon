@@ -70,6 +70,16 @@ def table() -> list[dict]:
 
 
 @lru_cache(None)
+@lru_cache(None)
+def hcp_names() -> tuple[str, ...]:
+    """The 360 HCP-MMP1 areas' names in hcp_areas() order: L_ then R_ and the area's code, as TRIBE v2 labels them."""
+    import sys
+    from ..home import HOME; sys.path.insert(0, str(HOME / 'feasibility' / 'tribev2-src'))
+    from tribev2.utils import get_hcp_labels
+    return tuple(f"{h}_{k}" for h, hemi in (('L', 'left'), ('R', 'right')) for k in get_hcp_labels(mesh='fsaverage5', hemi=hemi) if k != '?')
+
+
+@lru_cache(None)
 def hcp_areas() -> list[np.ndarray]:
     """The 360 HCP-MMP1 areas TRIBE v2 reports, as vertex masks: the cortex any region is ranked against."""
     import sys
