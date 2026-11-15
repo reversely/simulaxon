@@ -62,7 +62,6 @@
         </div>
         <svg class="fc-cursor" viewBox="0 0 26 26" aria-hidden="true"><path d="M3 2 L3 21 L8.5 16 L12 24 L15.5 22.5 L12 15 L19 15 Z" fill="#f2efe8" stroke="#121110" stroke-width="1.6" stroke-linejoin="round"/></svg>
       </div>
-      <p class="note" style="margin-top:14px">$710 an hour: Harvard Center for Brain Science, academic external, weekday peak, FY27.</p>
     </div>
   </div>
 </section>
@@ -95,7 +94,6 @@
     <div class="lines reveal">
       <p>The predictions come from Meta's TRIBE v2, which trained on fMRI recordings of people watching films, television, and short videos of everyday events.</p>
       <p>In separate evaluations, it recovered known patterns of brain activity for seeing faces versus places and hearing descriptions of emotional versus physical pain.</p>
-      <p class="note">Trained on Friends and four films, 1,102 three-second clips of everyday events, silent video clips, and podcasts (Table 1). Faces and places: § 2.5. Emotional against physical pain: § 2.6.</p>
     </div>
   </div>
   <div class="examples">
@@ -146,17 +144,13 @@
     <div class="two top">
       <div class="lines reveal">
         <h3>Benchmark</h3>
-        <p class="note">Median r over 212 reliable brain areas, on action categories the fit never saw. The line on each bar is the noise ceiling, 0.675: the adapter moves from 38% to 60% of what the data allow, and is higher in 179 of the 212 areas. Same people, scanner and kind of stimulus it was fitted on; it says nothing yet about new stimuli.</p>
+        <p class="note">Median r over 212 reliable brain areas, on action categories the fit never saw. The line on each bar is the noise ceiling, 0.675. The adapter reaches 60% of the ceiling, up from 38%, and scores higher in 179 of the 212 areas.</p>
       </div>
       <div class="bars" role="img" aria-label="Median r: TRIBE v2 as released 0.257, adapter 0.407, labels shuffled −0.011, noise ceiling 0.675">
         <div class="bar"><span>TRIBE v2 as released</span><span class="lane"><i data-w="36.7%" style="background:var(--grey)"></i><span class="ceil"></span></span><span class="big num">0.257</span></div>
         <div class="bar"><span><b>Adapter</b></span><span class="lane"><i data-w="58.1%" style="background:var(--a)"></i><span class="ceil"></span></span><span class="big num"><b>0.407</b></span></div>
         <div class="bar"><span>Labels shuffled</span><span class="lane"><i data-w="0%"></i><span class="ceil"></span></span><span class="big num">−0.011</span></div>
       </div>
-    </div>
-    <div class="two top">
-      <div class="live reveal"><b>Live: new stimuli, no measured fMRI</b><span class="note">An experiment read through the adapter. Its results name the adapter, show no r, and say when the stimuli lie outside what it was fitted on. To build: #28 item 3, #37.</span></div>
-      <div class="live reveal"><b>To come</b><span class="note">Known results with and without the adapter (faces against objects); transfer to the Natural Object Dataset's images. #37.</span></div>
     </div>
   </div>
 </section>
@@ -168,8 +162,8 @@
     <div class="strip">
       <article class="stage"><span class="where">Fuzzball, two 128 GB workstations, one VAST volume</span><p>The app and the video pipeline together need an estimated 150 GB of memory, so Fuzzball starts them on separate 128 GB workstations and gives both access to the same VAST storage.</p></article>
       <article class="stage"><span class="where">Workstation 1</span><p>When you submit a hypothesis, Nemotron Super 120B plans the experiment on the first workstation.</p><div class="slot"><b>Nemotron planning</b><span>Recording to come: the plan streaming into the chat</span></div></article>
-      <article class="stage"><span class="where">Workstation 2</span><p>The app sends the scene specifications to the second, where Isaac Sim renders a reference video, NVIDIA Cosmos 3 Nano uses it to generate realistic footage, and TRIBE v2 predicts the fMRI response to each clip.</p><figure class="grab"><video src="assets/cluster/isaac-cosmos-vase.mp4" muted loop playsinline autoplay aria-label="An Isaac Sim render of a vase on a counter beside its Cosmos restyle"></video><figcaption>On the cluster, 15 Nov: Isaac Sim's render (left) and Cosmos 3 Nano's restyle (right, 181 s); TRIBE v2 read the restyle in 11 s.</figcaption></figure></article>
-      <article class="stage"><span class="where">Back to Workstation 1, then Fuzzball</span><p>The app sends the predictions back to Nemotron to compare conditions. If the agent chooses a follow-up, the app submits it to Fuzzball.</p><figure class="grab"><img src="assets/grafana/fuzzball-jobs.png" alt="Grafana: every job in the running Fuzzball workflows, with its node"><figcaption>The Fuzzball workflows running the demo: the planner and app server on one node, render-score on the other, Prometheus and Grafana beside them.</figcaption></figure></article>
+      <article class="stage"><span class="where">Workstation 2</span><p>The app sends the scene specifications to the second, where Isaac Sim renders a reference video, NVIDIA Cosmos 3 Nano uses it to generate realistic footage, and TRIBE v2 predicts the fMRI response to each clip.</p><figure class="grab"><video src="assets/cluster/isaac-cosmos-vase.mp4" muted loop playsinline autoplay aria-label="An Isaac Sim render of a vase on a counter beside its Cosmos restyle"></video><figcaption>Isaac Sim's render on the left, and Cosmos 3 Nano's restyle on the right, made in 181 s. TRIBE v2 predicted the response to the restyle in 11 s.</figcaption></figure></article>
+      <article class="stage"><span class="where">Back to Workstation 1, then Fuzzball</span><p>The app sends the predictions back to Nemotron to compare conditions. If the agent chooses a follow-up, the app submits it to Fuzzball.</p><figure class="grab"><img src="assets/grafana/fuzzball-jobs.png" alt="Grafana: every job in the running Fuzzball workflows, with its node"><figcaption>Fuzzball workflows: the planner and app server on one node, rendering and prediction on the other, with Prometheus and Grafana.</figcaption></figure></article>
       <article class="stage"><span class="where">VAST</span><p>Each round adds its clips, predictions, and log to the same VAST volume, so you can trace each result back to what the agent changed.</p></article>
     </div>
     <div class="dots" aria-hidden="true"></div>
@@ -198,7 +192,7 @@
           <tr><td>Fuzzball cluster, GB10 nodes</td><td>Production: the planner as a service, study runs as workflows and task arrays, Prometheus and Grafana</td><td>Rocky Linux; study steps in <code>rockylinux/rockylinux:10</code></td></tr>
         </tbody>
       </table>
-      <div class="slot" style="margin-top:28px;aspect-ratio:16/7"><b>RLC Pro AI's container, on the same weights</b><span>Benchmark to come: TRIBE v2, model loading, study steps and the planner against today's images (#36)</span></div>
+      <div class="slot" style="margin-top:28px;aspect-ratio:16/7"><b>RLC Pro AI's container, on the same weights</b><span>Benchmark to come: TRIBE v2, model loading, study steps and the planner </span></div>
     </div>
   </div>
 </section>
@@ -216,11 +210,11 @@
     <div class="pin">
       <div>
         <div class="frames">
-          <figure class="grab"><img src="assets/grafana/gpu-hours.png" alt="Grafana: busy GPUs by service over three hours, the planner and render-score stacked"><figcaption>Busy GPUs by service on the cluster, 15 Nov: render-score's Isaac, Cosmos and TRIBE v2 jobs, then the planner.</figcaption></figure>
+          <figure class="grab"><img src="assets/grafana/gpu-hours.png" alt="Grafana: busy GPUs by service over three hours, the planner and render-score stacked"><figcaption>Busy GPUs by service: the Isaac Sim, Cosmos and TRIBE v2 jobs, then the planner.</figcaption></figure>
           <figure class="grab"><img src="assets/grafana/busy-while-held.png" alt="Grafana: GPU utilisation per job while each job holds its GPU"><figcaption>Utilisation per job while it holds its GPU.</figcaption></figure>
           <figure class="grab"><img src="assets/grafana/memory-per-node.png" alt="Grafana: memory in use on each of the two GB10 nodes, under the 128 GB line"><figcaption>Memory in use on each GB10 node: the planner's node near 112 GiB, under the 128 GB line.</figcaption></figure>
           <figure class="grab"><img src="assets/grafana/planner-tokens.png" alt="Grafana: planner tokens per second"><figcaption>Planner tokens per second, with MTP speculative decoding: 21.5 tokens/s measured on one answer, against 11 to 16 before.</figcaption></figure>
-          <figure class="grab"><img src="assets/grafana/uptime.png" alt="Grafana: share of scrapes answered per target over 24 hours"><figcaption>Share of scrapes answered per target over 24 hours, the planner's restarts included.</figcaption></figure>
+          <figure class="grab"><img src="assets/grafana/uptime.png" alt="Grafana: share of scrapes answered per target over 24 hours"><figcaption>Share of scrapes answered per service over 24 hours.</figcaption></figure>
         </div>
         <div class="ticks" aria-hidden="true"></div>
       </div>
@@ -240,10 +234,6 @@
   </div>
 </section>
 
-<footer class="section end" data-biome="home">
-  <h2>Still to come</h2>
-  <p class="note">Recordings for the dashed frames; Grafana screenshots once the cluster is back (#35); the adapter's live use and transfer test (#37); RLC Pro AI's container on the same weights (#36).</p>
-</footer>
 
 </body>
 </html>
