@@ -7,7 +7,7 @@ import { MapBrain } from './brain3d'
 type Summary = { median: number; interval_95: [number, number] }
 type Area = { area: string; adapter_r: number; tribe_v2_r: number; shuffled_r: number; ceiling: number; reliable: boolean }
 type Adapter = { id: string; name: string; dataset_id: string; source: string; people: number; categories: number; clips: number; reliable_areas: number
-  split: { kind: string; held_out: number; training: number }; input: string; target: string; summary: Record<'adapter' | 'tribe_v2' | 'shuffled' | 'ceiling', Summary>; areas?: Area[] }
+  split: { kind: string; held_out: number; training: number }; input: string; target: string; summary: Record<'adapter' | 'tribe_v2' | 'shuffled' | 'ceiling', Summary>; areas?: Area[]; benchmark?: string }
 
 const ROWS: [keyof Adapter['summary'], string][] = [['adapter', 'Adapter'], ['tribe_v2', 'TRIBE v2 as released'], ['shuffled', 'Adapter, labels shuffled'], ['ceiling', 'Noise ceiling']]
 const MAPS: [string, string][] = [['adapter_r', 'Adapter'], ['tribe_v2_r', 'TRIBE v2'], ['gain', 'Adapter minus TRIBE v2']]
@@ -23,6 +23,7 @@ function AdapterCard({ a }: { a: Adapter }) {
   const head = (k: keyof Area, label: string, num = true) => <th className={num ? 'num' : ''} onClick={() => setSortBy(k)} aria-sort={sortBy === k ? 'descending' : 'none'} style={{ cursor: 'pointer' }}>{label}{sortBy === k ? ' ↓' : ''}</th>
   return <div className="card adaptercard">
     <h3>{a.name}</h3>
+    <div className="benchlabel"><span className="chip">Benchmark</span><span>{(a.benchmark ?? `Benchmark: held-out categories of the ${a.source.split(',')[0]}`).replace(/^Benchmark: /, '')}</span></div>
     <p className="ink2" style={{ marginTop: 0 }}>{a.source}: {a.clips.toLocaleString()} clips in {a.categories} categories. {a.split.kind === '10-fold over categories' ? 'Scored 10-fold over categories' : `${a.split.held_out} categories held out, ${a.split.training} trained on`}; every score is on categories the fit never saw.</p>
     <div className="tablescroll"><table className="data compact"><thead><tr><th>Model</th><th className="num">Median r</th><th className="num">95% interval</th></tr></thead>
       <tbody>{ROWS.map(([k, label]) => <tr key={k}><td>{label}</td><td className="num">{fmt(a.summary[k].median)}</td><td className="num">{fmt(a.summary[k].interval_95[0])} to {fmt(a.summary[k].interval_95[1])}</td></tr>)}</tbody></table></div>
@@ -56,7 +57,7 @@ export function AdaptersView({ datasetId, views, onChanged }: { datasetId: strin
       <select id="heldout" value={held} onChange={e => setHeld(e.target.value)}><option value="">10-fold over categories</option>{views.map(v => <option key={v.view_id} value={v.view_id}>Categories in {v.name}</option>)}</select>
       <button className="btn primary" onClick={fit} disabled={busy}>{busy ? <><span className="spin" /> Fitting</> : 'Fit an adapter'}</button>
     </div>
-    <p className="ink2 small" style={{ marginTop: 0 }}>An adapter maps TRIBE v2's predicted cortex to this dataset's measured fMRI, then is scored only on stimuli it never saw.</p>
+    <p className="ink2 small" style={{ marginTop: 0 }}>An adapter maps TRIBE v2's predicted cortex to this dataset's measured fMRI, then is scored only on categories it never saw. That score is a benchmark on this dataset's people and kind of stimulus; it does not measure new stimuli in an experiment, where no fMRI was recorded.</p>
     {err && <div className="dsnote">{err}</div>}
     {!list ? <div className="empty wait" role="status"><span className="spin" /> Reading the adapters</div>
       : !list.length ? <div className="empty">No adapter yet. Fit one to see how far it moves TRIBE v2 toward these people's measured responses.</div>

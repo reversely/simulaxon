@@ -579,7 +579,8 @@ def register(tools, broadcast=lambda m: None):
     def adapter_list(actor, dataset_id: str | None = None):
         """Adapters, newest first, with their dataset, split and summary (no per-area rows; adapter_get has them)."""
         rows = [a for a in s.list('adapter') if dataset_id is None or a.data.get('dataset_id') == dataset_id]
-        return [{'id': a.id, **{k: v for k, v in a.data.items() if k != 'areas'}} for a in sorted(rows, key=lambda a: a.id, reverse=True)]
+        from . import adapter
+        return [{'id': a.id, **{k: v for k, v in a.data.items() if k != 'areas'}, 'benchmark': adapter.benchmark(a.data)} for a in sorted(rows, key=lambda a: a.id, reverse=True)]
 
     @tools.tool('adapter', 'get', writes_project=False)
     def adapter_get(actor, adapter_id):

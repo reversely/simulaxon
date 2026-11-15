@@ -120,6 +120,13 @@ def fit(dataset_id: str, cache: Path, held_out: list[str] | None = None, on_even
             'weights': {'mu': mu, 'sd': sd, 'coef': m.coef_, 'intercept': m.intercept_, 'alpha': np.asarray(m.alpha_)}}
 
 
+def benchmark(row: dict) -> str:
+    """What an adapter's scores are (#37): a benchmark on held-out categories of the dataset it was fitted on, the same
+    people and kind of stimulus. They say nothing about new stimuli in an experiment, where no measured fMRI exists."""
+    where = 'held-out categories' if (row.get('split') or {}).get('kind') != 'held-out view' else 'the held-out categories of a saved view'
+    return f"Benchmark: {where} of the {str(row.get('source', 'dataset')).split(',')[0]}"
+
+
 def area_map(areas: list[dict], key: str) -> np.ndarray:
     """A per-area value spread over its fsaverage5 vertices, for the brain view."""
     names = list(regions.hcp_names()); masks = regions.hcp_areas(); out = np.zeros(20484, np.float32)

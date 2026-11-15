@@ -653,6 +653,7 @@ table.data.compact td, table.data.compact th { padding: 3px 8px; font-size: 14px
 /* A dataset's adapters (#28, adapters.tsx) */
 .adapters { display: flex; flex-direction: column; gap: 12px; }
 .adapters select { background: var(--raise); color: var(--ink); border: 1px solid var(--rule-strong); border-radius: 8px; padding: 6px 10px; max-width: 100%; }
+.benchlabel { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 2px 0 8px; font-weight: 600; }
 .adaptermaps { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; align-items: start; }
 .adaptermaps > div { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
 @media (max-width: 760px) { .adaptermaps { grid-template-columns: minmax(0, 1fr); } }
