@@ -1,25 +1,106 @@
-# Simulaxon
+<p align="center"><img src="assets/logo.png" width="96" alt="Simulaxon"></p>
 
-Neural experiments in simulated worlds. A world is built and rendered in Isaac Sim, restyled toward photoreal by Cosmos, and read by TRIBE v2 as a person's predicted cortical response. A planner model and the app server run studies on that pipeline. Fuzzball places every piece on a GB10 cluster.
+<h1 align="center">Simulaxon</h1>
 
-![Target architecture](docs/image.png)
+<p align="center"><b>Prototype neuroscience experiments in hours.</b><br>
+Simulaxon's AI agents turn a hypothesis into scenes they can generate, predict how the brain would respond, and use those predictions to decide what to test next.</p>
 
-## Start here
+<p align="center"><img src="docs/demo/assets/grabs/grab-trial.gif" width="860" alt="A rendered trial and its predicted cortex playing on one clock"></p>
 
-1. [docs/onboarding.md](docs/onboarding.md): the steps from an empty cluster to the picture above, each with its check.
-2. [docs/wiring-prompt.md](docs/wiring-prompt.md): one agent prompt that wires the frontend, the app server and the services together.
+## The problem
 
-## Layout
+How does the brain make sense of an event as it unfolds? To find out what drives a response, researchers need to vary what people see, hear, or know going into a scene. Testing those comparisons with people gets expensive fast, at tens of thousands of dollars per study.
 
-| Folder | What it is | In the picture |
+Simulaxon gives researchers a way to develop the experiment before they bring in participants. The agent decides what to vary and what to hold fixed, generates the clips, and compares the predicted brain responses. It can then run a follow-up to see whether a pattern persists when another detail changes.
+
+The predictions come from Meta's TRIBE v2, which trained on fMRI recordings of people watching films, television, and short videos of everyday events. In separate evaluations, it recovered known patterns of brain activity for seeing faces versus places and hearing descriptions of emotional versus physical pain.
+
+## The loop
+
+```mermaid
+flowchart LR
+  H["Upload and ask<br/><sub>Nemotron Super 120B plans the test</sub>"] -->|plan what to vary| S["Scenes<br/><sub>Isaac Sim renders, Cosmos 3 Nano restyles</sub>"]
+  S -->|TRIBE v2 predicts| B["Brain response<br/><sub>predicted fMRI, second by second</sub>"]
+  B -->|compare conditions| N["Next test<br/><sub>Nemotron picks a follow-up</sub>"]
+  N -->|follow up| H
+```
+
+Isaac Sim renders a reference video of each trial, and Cosmos 3 Nano restyles it into realistic footage:
+
+<p align="center"><img src="docs/readme/isaac-cosmos.gif" width="720" alt="An Isaac Sim render of a vase beside its Cosmos 3 Nano restyle"></p>
+
+## Five steps in the app
+
+**1. Ask the agent to design an experiment around your hypothesis.**
+
+<img src="docs/demo/assets/grabs/new-project.png" width="860" alt="New project: chat with the agent, open a classic experiment, or start from a template">
+
+**2. Upload footage or describe the scenes you want to test.**
+
+<img src="docs/readme/upload.gif" width="860" alt="Uploading clips into a dataset">
+
+**3. Review the generated scenes and predicted responses alongside the agent's follow-up experiments.**
+
+<img src="docs/demo/assets/grabs/grab-results.gif" width="860" alt="The Results tab: the brain map, then every region with its interval">
+
+**4. Fit the model to measured fMRI.** If you have fMRI recordings you want to extrapolate from, one click fits an adapter that customizes the simulation results to those people.
+
+<img src="docs/demo/assets/grabs/grab-adapter.gif" width="860" alt="The Adapters tab: the benchmark and the cortex map of where the adapter improves">
+
+**5. Run robotics experiments** that use predicted human brain responses to test whether a robot can better anticipate what someone is about to do from the way they move.
+
+<img src="docs/readme/experimental.gif" width="860" alt="A robot grasp trial beside its predicted cortex">
+
+## Benchmark: the adapter on held-out actions
+
+In one click, the adapter raises TRIBE v2's correlation with measured fMRI by 58%, on action categories it never trained on.
+
+| | |
+|---|---|
+| **Data** | Human Action Dataset (OpenNeuro ds004488): fMRI of 30 people watching video clips of actions |
+| **Fit** | Ridge regression in each of 360 HCP-MMP1 brain areas, from TRIBE v2's prediction to the measured response; 10 folds over action categories |
+| **Scored on** | Held-out categories only, median r over 212 reliable areas |
+
+| Predictions from | Median r | Share of the noise ceiling (0.675) |
 |---|---|---|
-| `frontend/` | The app interface: React and Vite. Chats with the agent, projects, experiments, examples | Browser app |
-| `services/app-server/` | FastAPI and DuckDB: the lab's tools, runs, papers, datasets, the agent's chats | App server, Node B |
-| `services/render-score/` | Isaac Sim 6.2, Cosmos3 Nano and TRIBE v2 workers, to run as one container | render-score service, Node A |
-| `services/planner/` | Nemotron Super 120B (NVFP4), served by vLLM; configuration only, no code | Nemotron Super 120B, Node B |
-| `studies/observer/` | The first study: a humanoid's look and motion, read by TRIBE as the observer's cortex | Submitted by the app server as a workflow |
-| `fuzzball/` | The Fuzzfiles that start the services and run the studies | Fuzzball Orchestrate |
-| `data/` | The layout of the VAST volume mounted at `/data` | VAST volume, shared provisioner |
+| TRIBE v2 as released | 0.257 | 38% |
+| **TRIBE v2 with the adapter** | **0.407** (95% interval 0.364 to 0.461) | **60%** |
+| Same fit on shuffled labels | −0.011 | 0% |
+
+The adapter scores higher than TRIBE v2 as released in 179 of the 212 areas.
+
+## How it runs on CIQ
+
+The app and the video pipeline together need an estimated 150 GB of memory, so Fuzzball starts them on separate 128 GB workstations and gives both access to the same VAST storage. When you submit a hypothesis, Nemotron Super 120B plans the experiment on the first workstation. The app sends the scene specifications to the second, where Isaac Sim renders a reference video, NVIDIA Cosmos 3 Nano uses it to generate realistic footage, and TRIBE v2 predicts the fMRI response to each clip.
+
+The app sends the predictions back to Nemotron to compare conditions. If the agent chooses a follow-up, the app submits it to Fuzzball. Each round adds its clips, predictions, and log to the same VAST volume, so you can trace each result back to what the agent changed.
+
+```mermaid
+flowchart TB
+  subgraph F["Fuzzball on CIQ"]
+    subgraph A["App workstation, 128 GB"]
+      APP["App server<br/><sub>tools, store, page</sub>"]
+      PL["Planner<br/><sub>Nemotron Super 120B</sub>"]
+      APP <-->|"http://planner"| PL
+    end
+    subgraph V["Video workstation, 128 GB"]
+      IS["Isaac Sim<br/><sub>renders</sub>"] --> CO["Cosmos 3 Nano<br/><sub>restyles</sub>"] --> TR["TRIBE v2<br/><sub>predicts fMRI</sub>"]
+    end
+    APP -->|jobs| IS
+  end
+  APP --> D[("VAST, /data<br/><sub>projects, clips, predictions, step log</sub>")]
+  TR --> D
+  U["Browser"] <-->|"HTTPS"| APP
+```
+
+<details>
+<summary>The full architecture, with memory per service</summary>
+
+<img src="docs/image.png" width="760" alt="Fuzzball places render-score (Isaac Sim, Cosmos3 Nano, TRIBE v2) on Node A and Nemotron with the app server on Node B, sharing a VAST volume">
+
+</details>
+
+<p align="center"><img src="docs/demo/assets/grafana/memory-per-node.png" width="860" alt="Grafana: memory in use on each of the two GB10 nodes"></p>
 
 ## Third-party code and licences
 
@@ -29,3 +110,5 @@ Neural experiments in simulated worlds. A world is built and rendered in Isaac S
 | Cosmos framework (Cosmos3-Nano-Sim-Transfer) | `github.com/NVIDIA/cosmos-framework` | `c3a2e37` | NVIDIA's terms |
 | Isaac Sim 6.2 | NVIDIA | 6.2 | NVIDIA's licence |
 | EgoBody, SMPL-X | Their owners, after registration | | Each dataset's own terms; never committed |
+
+Working on the code: [docs/repository.md](docs/repository.md).
