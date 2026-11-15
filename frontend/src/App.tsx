@@ -296,9 +296,9 @@ export default function App() {
         </aside>}
       </div>
 
-      <footer className="prov" aria-label="Provenance">
+      {view !== 'agent' && <footer className="prov" aria-label="Provenance">
         {P.provenance?.length ? (P.plan === 'experiment' && (P as any).setup ? [...P.provenance.slice(0, -1), ((P as any).setup.regions as string[]).map(regionLabel).join(', ')] : P.provenance).map((s, i) => <span key={i} style={{ display: 'contents' }}>{i > 0 && <span className="arrow">→</span>}<span>{s}</span></span>) : <span>Nothing has run in this project yet</span>}
-      </footer>
+      </footer>}
 
       {sheetEl}
     </div>

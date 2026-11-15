@@ -413,3 +413,5 @@ aside.left .convo { padding-bottom: 28px; }
 .live .runnow .fbar { display: inline-block; flex: none; }
 .live .runnow .num { white-space: nowrap; }
 
+.live .runsnow { display: flex; flex-direction: column; gap: 6px; flex: 1; min-width: 0; }   /* one row per run, so every run keeps its title */
+.live .runsnow .runnow .title { flex: 1; }

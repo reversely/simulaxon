@@ -17,7 +17,9 @@ GUIDE = """Titles. Every project and experiment you create gets a title in the f
   after a colon: "Face and house rivalry: alternation rates of 1.5 to 12 s".
 - State the design, never the finding. No questions, no first person, no colloquial phrasing ("a face to one eye").
 - Sentence case, at most 90 characters. The project's question carries the plain-language question; the title is its
-  academic name."""
+  academic name.
+- Conditions and comparisons are named in plain words, as a figure legend would: "Bodies", "Objects", "Bodies against
+  objects". Never identifiers such as bodies_vs_objects."""
 
 ARG = ("the academic name, as the title guidelines in your instructions say: the paradigm, then the contrast and the "
        "measure, a replication's source in author-year form, at most 90 characters; never a question or a finding")

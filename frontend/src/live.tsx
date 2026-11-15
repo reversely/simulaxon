@@ -17,11 +17,11 @@ export function LiveWorkspace({ jobs, runs = [], onOpen }: { jobs: Job[]; runs?:
   const [open, setOpen] = useState(false)
   if (!jobs.length && !runs.length) return null
   if (!active.length && !open) return <section className="live compact" aria-label="Live workspace">
-    {runs.length ? runs.map(r => <button key={r.id} className="runnow" onClick={() => onOpen(r.id)}>
+    {runs.length ? <div className="runsnow">{runs.map(r => <button key={r.id} className="runnow" title={r.title} onClick={() => onOpen(r.id)}>
       <span className="pulse on" aria-hidden /><b>Running</b><span className="title">{r.title}</span>
       <span className="ink2 num">{r.stage === 'comparing' ? 'Comparing' : r.total ? `${r.done} of ${r.total} clips` : 'Starting'}</span>
       {r.total > 0 && <span className="fbar" style={{ width: 120 }}><span style={{ width: `${100 * r.done / r.total}%` }} /></span>}
-    </button>) : <><span className="pulse" aria-hidden /><b>Nothing generating</b><span className="ink2">{recent.length} generated recently</span></>}
+    </button>)}</div> : <><span className="pulse" aria-hidden /><b>Nothing generating</b><span className="ink2">{recent.length} generated recently</span></>}
     {recent.length > 0 && <button className="btn" style={{ marginLeft: 'auto' }} onClick={() => setOpen(true)}>Show recent</button>}
   </section>
   return <section className={`live ${active.length ? 'on' : ''}`} aria-label="Live workspace" aria-live="polite">
