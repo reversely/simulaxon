@@ -1,6 +1,6 @@
 :root {
   color-scheme: dark;   /* the app has one theme, dark: native scrollbars, selects, inputs and sliders match it whatever the computer's setting */
-  --ground: #121110;   /* warm charcoal, the owner's reference look (docs/image copy 2.png) */
+  --ground: #121110;   /* warm charcoal */
   --panel: #1b1917;
   --raise: #24211e;
   --rule: #2a2622;
@@ -8,16 +8,16 @@
   --ink: #f2efe8;
   --ink-2: #b9b2a7;
   --ink-3: #8a847b;
-  --sel: #d6a24a;      /* gold hairline: what is selected or running, never data */
+  --sel: #6cb4ee;      /* gold hairline: what is selected or running, never data */
   --paper: #f3f0ea;    /* ivory: the one focal card on a screen, dark text */
   --paper-ink: #171513;
   --paper-ink-2: #57524b;
   --paper-rule: #ddd6cb;
   --display: 'Inter Tight', Inter, ui-sans-serif, system-ui, sans-serif;
-  --a: #7fa01c;        /* series one, validated on the dark surface */
-  --b: #2e8cb0;        /* series two */
-  --accent: #b5de2b;   /* data accent: the one number or mark the story is about */
-  --flag: #e0a43a;     /* one flag that needs action */
+  --a: #5aa9e6;        /* series one, validated on the dark surface */
+  --b: #9a948a;        /* series two */
+  --accent: #6cb4ee;   /* data accent: the one number or mark the story is about */
+  --flag: #6cb4ee;     /* one flag that needs action */
   --radius: 10px;
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
   font-size: 15px;
@@ -216,15 +216,15 @@ table.data tr:hover td { background: #16181b; }
 .section-title { font-size: 18px; font-weight: 600; margin: 8px 0 0; }
 .world .stage .empty { aspect-ratio: 832 / 480; display: flex; align-items: center; justify-content: center; border: 0; }
 
-.live { border: 1px solid var(--rule); border-radius: var(--radius); padding: 10px 12px; background: linear-gradient(180deg, rgba(181,222,43,0.035), rgba(181,222,43,0)); }
-.live.on { border-color: rgba(181,222,43,0.45); box-shadow: 0 0 0 1px rgba(181,222,43,0.12) inset; }
+.live { border: 1px solid var(--rule); border-radius: var(--radius); padding: 10px 12px; background: linear-gradient(180deg, rgba(108, 180, 238,0.035), rgba(108, 180, 238,0)); }
+.live.on { border-color: rgba(108, 180, 238,0.45); box-shadow: 0 0 0 1px rgba(108, 180, 238,0.12) inset; }
 .livehead { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
 .pulse { width: 9px; height: 9px; border-radius: 50%; background: var(--ink-3); }
 .pulse.on { background: var(--accent); animation: pulse 1.6s ease-in-out infinite; }
-@keyframes pulse { 0%,100% { box-shadow: 0 0 0 0 rgba(181,222,43,0.5); } 50% { box-shadow: 0 0 0 6px rgba(181,222,43,0); } }
+@keyframes pulse { 0%,100% { box-shadow: 0 0 0 0 rgba(108, 180, 238,0.5); } 50% { box-shadow: 0 0 0 6px rgba(108, 180, 238,0); } }
 .livecards { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 2px; }
 .livecard { flex: 0 0 250px; display: grid; grid-template-columns: 84px 1fr; gap: 8px; align-items: center; text-align: left; background: var(--panel); border: 1px solid var(--rule); border-radius: 8px; padding: 6px; }
-.livecard.rendering, .livecard.reading { border-color: rgba(181,222,43,0.35); }
+.livecard.rendering, .livecard.reading { border-color: rgba(108, 180, 238,0.35); }
 .livecard img, .liveph { width: 84px; aspect-ratio: 832 / 480; object-fit: cover; border-radius: 5px; background: #0a0b0c; display: flex; align-items: center; justify-content: center; }
 .livetext { display: flex; flex-direction: column; gap: 2px; min-width: 0; font-size: 14px; }
 .livelabel { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 600; }
@@ -239,7 +239,7 @@ table.data tr:hover td { background: #16181b; }
 .stepper li.past { color: var(--ink); }
 .stepper li.now { color: var(--ink); border-color: var(--accent); }
 .stepper li.now .num { background: var(--accent); color: #111; }
-.msg.narr { border-color: rgba(181,222,43,0.3); }
+.msg.narr { border-color: rgba(108, 180, 238,0.3); }
 .msg.narr p { margin: 6px 0; }
 .reading { background: var(--ground); border-radius: 6px; padding: 6px 8px; }
 .ministeps { margin: 0; padding-left: 20px; color: var(--ink-2); }
@@ -274,7 +274,7 @@ table.data tr:hover td { background: #16181b; }
 
 /* the agent's long runs: a row in the dock per run, and the run in full in the centre */
 .sessions { border: 1px solid var(--rule); border-radius: var(--radius); padding: 8px 12px; display: grid; gap: 6px; }
-.sessions.on { border-color: rgba(181,222,43,0.45); }
+.sessions.on { border-color: rgba(108, 180, 238,0.45); }
 .sessionrow { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; min-width: 0; }
 .sgoal { font-weight: 600; min-width: 0; flex: 1 1 240px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .session { display: flex; flex-direction: column; gap: 14px; max-width: 1100px; }
@@ -470,7 +470,7 @@ aside.left .convo { padding-bottom: 28px; }
 .course .legend span { display: inline-flex; align-items: center; gap: 6px; }
 .course .legend i { display: inline-block; width: 16px; height: 3px; border-radius: 2px; flex: none; }
 
-/* icons: one line weight, beside the word on every button, tab and chip (owner: icon components to make interpretation easier) */
+/* icons: one line weight, beside the word on every button, tab and chip */
 .ico { flex: none; display: block; }
 .btn, .tab, .chips button, a.btn { display: inline-flex; align-items: center; gap: 7px; }
 .tab .ico { opacity: 0.8; } .tab.on .ico { opacity: 1; }
@@ -542,7 +542,7 @@ svg text.axis { fill: var(--ink-3); font-size: 12px; }
 .tablenote p { margin: 2px 0; }
 table.data td.num, table.data th.num { text-align: right; font-variant-numeric: tabular-nums; }
 .dash table.data td:not(.num), .dash table.data th:not(.num) { text-align: left; }
-table.data tr.on td { background: rgba(214, 162, 74, 0.08); }
+table.data tr.on td { background: rgba(108, 180, 238, 0.08); }
 .tablewrap.tall { max-height: 460px; overflow: auto; }
 img.thumbcell { width: 56px; height: 34px; object-fit: cover; border-radius: 4px; display: block; background: #08090a; }
 .chip.tiny { font-size: 12px; padding: 0 7px; margin-left: 8px; }
@@ -601,7 +601,7 @@ table.data.compact td, table.data.compact th { padding: 3px 8px; font-size: 14px
 .dssamplebody { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); gap: 16px; align-items: start; }
 .dsmedia img, .dsmedia video { width: 100%; border-radius: 8px; background: #08090a; display: block; }
 .dsdrop { border: 1px dashed var(--rule-strong); border-radius: var(--radius); padding: 28px 16px; display: flex; flex-direction: column; align-items: center; gap: 6px; cursor: pointer; text-align: center; margin-bottom: 10px; }
-.dsdrop.over, .dsdrop:hover { border-color: var(--sel); background: rgba(214, 162, 74, 0.05); }
+.dsdrop.over, .dsdrop:hover { border-color: var(--sel); background: rgba(108, 180, 238, 0.05); }
 .dsups { display: flex; flex-direction: column; gap: 4px; max-height: 260px; overflow: auto; margin: 10px 0; }
 .dsup { display: grid; grid-template-columns: minmax(0, 1fr) 120px 90px; gap: 10px; align-items: center; font-size: 14px; }
 .dsupname { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -669,7 +669,7 @@ table.data.compact td, table.data.compact th { padding: 3px 8px; font-size: 14px
 .gtile.on rect { fill: var(--ink); stroke: var(--ink); }
 .gtile.on .glabel { fill: #1b1917; }
 .gtile.on .gsub { fill: #4a453e; }
-.gtile.on .gicon { color: #4d6309; }
+.gtile.on .gicon { color: #1f6fb2; }
 .gdiagram .gsub { fill: var(--ink-3); font-size: 11px; }
 .garrow path { fill: none; stroke: var(--ink-3); stroke-width: 1.5; }
 .garrow.on path { stroke: var(--accent); }
@@ -690,3 +690,41 @@ table.data.compact td, table.data.compact th { padding: 3px 8px; font-size: 14px
 .expread p { margin: 0 0 8px; }
 .expstudy tr.base td { color: var(--ink-2); }
 .flagtext { color: var(--flag, #e8a33d); font-weight: 600; }
+
+/* The guide floats over the app as light glass, so it reads as separate from the interface it is pointing at: a
+   translucent ivory surface with the app blurred behind it, a bright top edge, dark ink. Its tokens are the app's
+   flipped for the light surface, so the diagrams, buttons and dots follow without rules of their own. */
+.guidefloat {
+  position: fixed; z-index: 40; top: 140px; right: 14px; bottom: 58px; width: min(442px, calc(100vw - 28px)); overflow: auto;
+  padding: 20px; border-radius: 22px; color: #171513;
+  --ink: #171513; --ink-2: #4a453e; --ink-3: #6f695f; --rule: rgba(23, 21, 19, 0.12); --rule-strong: rgba(23, 21, 19, 0.22); --raise: rgba(255, 255, 255, 0.55); --panel: transparent;
+  background: linear-gradient(160deg, rgba(255, 255, 255, 0.95), rgba(246, 244, 240, 0.92) 55%, rgba(240, 237, 231, 0.93));   /* light, and opaque enough that nothing behind it reads */
+  backdrop-filter: blur(40px) saturate(1.3); -webkit-backdrop-filter: blur(40px) saturate(1.3);
+  border: 1px solid rgba(255, 255, 255, 0.65);
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.55), 0 2px 8px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.95), inset 0 -1px 0 rgba(23, 21, 19, 0.06);
+  animation: guidein 260ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+@keyframes guidein { from { opacity: 0; transform: translateY(10px) scale(0.98); } }
+.guidefloat::before { content: ''; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
+  background: radial-gradient(120% 60% at 20% -10%, rgba(255, 255, 255, 0.55), transparent 55%); }   /* the sheen along the top edge */
+.guidefloat .guide { position: relative; }
+.guidefloat .gdiagram { background: rgba(255, 255, 255, 0.42); border-color: rgba(23, 21, 19, 0.1); }
+.guidefloat .gtile.on rect { fill: #2f7fc1; stroke: #2f7fc1; }
+.guidefloat .gtile.on .glabel { fill: #ffffff; } .guidefloat .gtile.on .gsub { fill: #dbeaf7; } .guidefloat .gtile.on .gicon { color: #ffffff; }
+.guidefloat .gtile rect { fill: rgba(255, 255, 255, 0.75); }
+.guidefloat .btn.primary { background: #2f7fc1; border-color: #2f7fc1; color: #ffffff; }
+.guidefloat .garrow.on path { stroke: #1f6fb2; }
+.guidefloat .btn.primary { color: #f3f0ea; }
+.guidefloat .gnav { background: rgba(241, 237, 230, 0.86); backdrop-filter: blur(18px) saturate(1.4); -webkit-backdrop-filter: blur(18px) saturate(1.4); border-top: 1px solid rgba(23, 21, 19, 0.08); }   /* frosted, so what scrolls under it never shows through half-faded */
+.guidefloat .gdots button.on::after { background: #2f7fc1; border-color: #2f7fc1; }
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) { .guidefloat { background: #f1ede6; } }
+@media (max-width: 760px) { .guidefloat { top: auto; left: 10px; right: 10px; bottom: 10px; width: auto; max-height: 62vh; } }
+@media (prefers-reduced-motion: reduce) { .guidefloat { animation: none; } }
+.guidefloat { padding-bottom: 0; }
+.guidefloat .gnav { bottom: 0; margin: 0 -20px; padding: 10px 20px 14px; border-radius: 0 0 22px 22px; }   /* the bar is the panel's bottom edge: nothing scrolls below it */
+
+/* While the guide is open the grid keeps a right track for it, so the panel covers nothing */
+.body.guided { grid-template-columns: 330px minmax(0, 1fr) 470px; }
+.body.wideconvo.guided { grid-template-columns: 560px minmax(0, 1fr) 470px; }
+.guidegap { background: none; }
+@media (max-width: 760px) { .guidegap { display: none; } }

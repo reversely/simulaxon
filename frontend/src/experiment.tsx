@@ -13,9 +13,8 @@ export type Setup = {
 export type Reported = { contrast: string; region: string; direction?: string; where?: string; quote?: string; tribe_value?: number; tribe_interval_95?: [number, number]; area_rank_pct?: number; shuffled_labels_95?: [number, number]; result?: string }
 export type Paper = { title?: string; authors?: string; year?: string | number; venue?: string; doi?: string; source?: string; full_text?: boolean }
 
-// series colours for conditions, in this fixed order; validated on the dark panel (#1b1917): lightness, chroma,
-// colour-blind separation and contrast all pass (dataviz validate_palette.js, 2026-11-14)
-export const SERIES = ['#3987e5', '#d95926', '#199e70', '#c98500']
+// series colours for conditions, in this fixed order: one blue, then neutrals told apart by lightness, so the app keeps one hue
+export const SERIES = ['#5aa9e6', '#9a948a', '#a8d1f2', '#5f5a53']
 const LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
 
 /** Where a stimulus came from, on every tile and stage: fetched from a dataset, rendered in Isaac Sim, made here, or Cosmos. */
