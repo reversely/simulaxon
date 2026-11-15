@@ -553,6 +553,15 @@ def register(tools, broadcast=lambda m: None):
         """One adapter with its evaluation per area."""
         return s.get('adapter', adapter_id)
 
+    @tools.tool('experimental', 'list', writes_project=False)
+    def experimental_list(actor):
+        """The Experimental section (#25): studies of the robotic empathy programme, held apart from established experiments,
+        each with its design, its run's results read from the run's files, its gates and what it cannot say (lab/experimental.py).
+        Each lists example grasps that play as recordings at /api/experimental/grasp/<trial>/<candidate>/recording.json."""
+        from . import experimental
+        try: return [experimental.study()]
+        except FileNotFoundError as e: return [{'id': 'robot_observer_grasp', 'experimental': True, 'missing': f'the run is not on this machine: {e.filename}'}]
+
     @tools.tool('dataset', 'create', writes_project=False)
     def dataset_create(actor, title):
         """A new, empty dataset with this title, for files a person adds (upload to /datasets/upload?dataset_id=...).

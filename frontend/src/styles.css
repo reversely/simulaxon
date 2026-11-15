@@ -655,3 +655,10 @@ table.data.compact td, table.data.compact th { padding: 3px 8px; font-size: 14px
 .gdots button::after { content: ''; width: 10px; height: 10px; border-radius: 50%; border: 1px solid var(--ink-3); }
 .gdots button.on::after { background: var(--accent); border-color: var(--accent); }
 @media (max-width: 760px) { .right.guidecol { order: -1; border-top: 0; border-bottom: 1px solid var(--rule); } }
+/* The Experimental section (#25, experimental.tsx) */
+.exppage { display: flex; flex-direction: column; gap: 14px; }
+.expstudy { display: flex; flex-direction: column; gap: 14px; }
+.expex { display: flex; flex-direction: column; gap: 8px; }
+.expread p { margin: 0 0 8px; }
+.expstudy tr.base td { color: var(--ink-2); }
+.flagtext { color: var(--flag, #e8a33d); font-weight: 600; }

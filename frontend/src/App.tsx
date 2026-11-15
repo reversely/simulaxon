@@ -11,12 +11,13 @@ import { ResultsView, type LiveTrial } from './results'
 import { DatasetsPage } from './datasets'
 import { ClipBrain, samplePreds } from './brain3d'
 import { GuidePanel, GUIDE } from './guide'
+import { ExperimentalPage } from './experimental'
 import { SessionDock, Chat, type SessionInfo } from './agent'
 type Example = { id: string; title: string; what: string; source: string; doi: string | null; goal: string; media: string[]; project_id: string | null; here: string }
 import { ExperimentSetup, ExperimentRoom, ReportedCard, OriginChip, type Setup, type Reported } from './experiment'
 
-type View = 'room' | 'results' | 'datasets' | 'samples' | 'brain' | 'search' | 'data' | 'findings' | 'sources' | 'agent'
-const WIDE: View[] = ['results', 'datasets', 'search', 'data', 'findings', 'sources', 'agent']
+type View = 'room' | 'results' | 'datasets' | 'experimental' | 'samples' | 'brain' | 'search' | 'data' | 'findings' | 'sources' | 'agent'
+const WIDE: View[] = ['results', 'datasets', 'experimental', 'search', 'data', 'findings', 'sources', 'agent']
 type Unit = { key: string; label: string; variants: Row<Sample>[]; labels: string[] }
 const VIEW_ICON: Record<string, IconName> = { room: 'room', results: 'gauge', samples: 'samples', brain: 'brain', search: 'search', data: 'table', findings: 'findings', sources: 'book' }
 const VIEWS: [View, string][] = [['room', 'Room'], ['results', 'Results'], ['samples', 'Samples'], ['brain', 'Brain'], ['search', 'Search'], ['data', 'Data'], ['findings', 'Findings'], ['sources', 'Sources']]
@@ -262,6 +263,7 @@ export default function App() {
           </div>}
         </div>
         <button className={`btn ${view === 'datasets' ? 'on' : ''}`} onClick={() => setView('datasets')}><Icon name="table" size={16} />Datasets</button>
+        <button className={`btn ${view === 'experimental' ? 'on' : ''}`} onClick={() => setView('experimental')}><Icon name="flask" size={16} />Experimental</button>
         <button className="btn" aria-haspopup="dialog" aria-expanded={hist} onClick={() => setHist(h => !h)}><Icon name="clock" size={16} />History</button>
         <button className={`btn ${guide !== null ? 'on' : ''}`} aria-pressed={guide !== null} onClick={() => guide === null ? guideTo(0) : setGuide(null)}><Icon name="book" size={16} />Guide</button>
         {hist && <History pid={pid!} agent={machine?.agent ?? 'The agent'} tick={steps.length ? steps[steps.length - 1].step_id : ''} onClose={() => setHist(false)}
@@ -290,7 +292,7 @@ export default function App() {
             <DemoBar state={demo.status === 'done' && (demo as any).show?.project !== pid ? { ...demo, status: 'idle' } : demo} onControl={a => call<DemoState>('demo_update', { action: a }).then(setDemo)} />
             <LiveWorkspace jobs={jobs} runs={runsNow} onOpen={id => { setPid(id); setView('room') }} />
           </div>}
-          {view === 'datasets' ? <DatasetsPage projects={projects} onOpenProject={id => { setPid(id); setView('room') }} show={dsShow} /> : view === 'agent' ? <div className="chatwide"><h1 className="q">{sessions.find(x => x.id === openSession)?.goal ?? 'New chat with the agent'}</h1>
+          {view === 'datasets' ? <DatasetsPage projects={projects} onOpenProject={id => { setPid(id); setView('room') }} show={dsShow} /> : view === 'experimental' ? <ExperimentalPage /> : view === 'agent' ? <div className="chatwide"><h1 className="q">{sessions.find(x => x.id === openSession)?.goal ?? 'New chat with the agent'}</h1>
             <Chat sid={openSession} live={sessionTick} onStarted={id => { setOpenSession(id); loadSessions() }} onOpenProject={id => { setPid(id); setView('room') }} /></div> : <>
           <div>
             <h1 className="q">{P.template_id && !(P as any).question_written ? P.title : P.question}</h1>

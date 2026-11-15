@@ -232,6 +232,16 @@ def make(db: str, port: int = 8790):
         areas = [{**a, 'gain': a['adapter_r'] - a['tribe_v2_r']} for a in row.data['areas']]
         buf = io.BytesIO(); np.save(buf, adapter.area_map(areas, key)); return Response(buf.getvalue(), media_type='application/octet-stream', headers={'Cache-Control': 'max-age=86400'})
 
+    @app.get('/api/experimental/grasp/{trial}/{cand}/{name}')
+    def experimental_grasp(trial: str, cand: str, name: str):
+        """A file of one grasp of the Experimental section's study, as a recording (#25, #23): recording.json, the clip, TRIBE v2's prediction, joints.csv, phases.csv."""
+        from fastapi import HTTPException
+        from fastapi.responses import FileResponse, Response
+        from . import experimental
+        try: data, mt = experimental.file(trial, cand, name)
+        except ValueError as e: raise HTTPException(404, str(e))
+        return FileResponse(data, media_type=mt) if isinstance(data, Path) else Response(data, media_type=mt)
+
     @app.get('/api/recording/{sample_id}')
     def recording_download(sample_id: str):
         """A sample as a recording (#23, lab/recording.py): its clip, TRIBE v2 predictions, audio if any, and its regions' responses by second, zipped."""
