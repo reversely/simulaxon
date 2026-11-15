@@ -66,3 +66,42 @@ export async function upload(url: string, f: File): Promise<Response> {
   }
   return fetch(url, { method: 'POST', body: f })
 }
+
+/** Every tool a step or a chat can record, in plain words (#21). One table for the History menu and the chat's steps; a
+ * tool missing here fails services/app-server/tests/test_tool_names.py rather than showing its code name. */
+export const TOOL_NAMES: Record<string, string> = {
+  analysis_create: 'Added an analysis', analysis_list: 'Read the analyses', analysis_run: 'Ran an analysis', asset_create: 'Added an asset', asset_list: 'Listed the assets',
+  assumption_list: 'Read the assumptions', course_get: 'Read a time course', dataset_fetch: 'Fetched data', dataset_get: 'Looked at a dataset', dataset_list: 'Checked the data here',
+  demo_create: 'Wrote a demo', demo_get: 'Read a demo', demo_list: 'Listed the demos', demo_run: 'Played a demo', demo_update: 'Changed a demo', display_get: 'Read the display',
+  display_update: 'Changed the display', example_list: 'Listed the examples', experiment_create: 'Set up the experiment', experiment_get: 'Read the results', file_list: 'Listed files',
+  machine_get: 'Checked the machine', neural_map_create: 'Made a brain map', neural_map_get: 'Read a brain map', object_create: 'Added an object', object_delete: 'Removed an object',
+  object_get: 'Looked at an object', object_list: 'Listed the objects', object_update: 'Changed an object', paper_fetch: 'Fetched the paper', paper_read: 'Read the paper',
+  paper_search: 'Searched papers', parameter_create: 'Added a parameter', parameter_list: 'Read the parameters', parameter_update: 'Changed a parameter',
+  preview_create: 'Rendered a preview', preview_list: 'Listed the previews', preview_run: 'Rendered previews', preview_search: 'Searched the previews',
+  project_create: 'Created the project', project_delete: 'Deleted a project', project_get: 'Read the project', project_list: 'Listed the projects', project_run: 'Ran the project',
+  project_update: 'Changed the project', record_create: 'Recorded a finding', record_search: 'Searched the findings', region_search: 'Looked up regions', roi_list: 'Listed the regions',
+  run_get: "Read a run's record", run_list: 'Checked the runs', run_stop: 'Stopped a run', sample_create: 'Added a sample', sample_list: 'Read the samples', scene_create: 'Built a scene',
+  scene_get: 'Read the scene', source_list: 'Listed the sources', source_search: 'Searched the sources', source_update: 'Changed a source', step_list: 'Read the history',
+  step_undo: 'Undid a step', template_list: 'Listed the templates', ToolSearch: 'Loaded its tools',
+}
+export const toolName = (t: string) => TOOL_NAMES[t] ?? 'Used a tool'
+
+export type Step = { step_id: string; actor: string; tool: string; args: string; ts: string | number; undoes?: string | null; undone_by?: string | null }
+const stepArgs = (s: Step): Record<string, any> => { try { return JSON.parse(s.args || '{}') ?? {} } catch { return {} } }
+/** What a step did, in plain words: a project change says which part changed. */
+export function describeStep(s: Step, byId: Record<string, Step> = {}): string {
+  const a = stepArgs(s)
+  if (s.tool === 'step_undo') { const u = byId[a.step_id ?? s.undoes ?? '']; return `Undid: ${u ? describeStep(u, byId).replace(/^./, c => c.toLowerCase()) : 'a step'}` }
+  if (s.tool === 'project_update') {
+    if (a.bindings) return 'Changed the question'
+    if (a.title) return 'Renamed the project'
+    if (a.controls) return 'Saved the controls'
+    if (a.status === 'Running') return 'Started a run'
+    if (a.status === 'Done') return a.counts?.clips ? `Finished a run of ${a.counts.clips} trials` : 'Finished a run'
+    if (a.status === 'Draft') return 'Returned the project to draft'
+    if (a.pairs || a.labels) return 'Changed the pairs'
+  }
+  return toolName(s.tool)
+}
+/** Who took a step, as the header names them: never the stored value "person" or "agent". */
+export const whoName = (actor: string, agent: string) => actor === 'person' ? 'You' : actor === 'agent' ? agent : 'The app'

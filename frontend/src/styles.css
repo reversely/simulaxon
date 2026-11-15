@@ -523,3 +523,18 @@ img.thumbcell { width: 56px; height: 34px; object-fit: cover; border-radius: 4px
 .chip.tiny { font-size: 12px; padding: 0 7px; margin-left: 8px; }
 .readouts { display: flex; flex-direction: column; gap: 4px; margin-top: 8px; }
 table.data.compact td, table.data.compact th { padding: 3px 8px; font-size: 14px; }
+
+/* History (#21): a popover over the left column, closed until asked for */
+.top { position: relative; }
+.histpop { position: absolute; left: 0; top: 100%; z-index: 45; width: 330px; max-height: min(70vh, 560px); overflow: auto; background: var(--raise); border: 1px solid var(--rule-strong); border-radius: 0 0 var(--radius) var(--radius); box-shadow: 0 14px 34px rgba(0, 0, 0, 0.5); padding: 10px 12px; }
+.histhead { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+.histlist { list-style: none; margin: 0; padding: 0; }
+.histlist li { border-top: 1px solid var(--rule); padding: 7px 0; }
+.histlist li.undone .what { color: var(--ink-3); }
+.histrow { display: grid; grid-template-columns: 1fr auto; gap: 2px 8px; align-items: center; }
+.histrow .what { font-size: 14px; }
+.iconbtn { background: none; border: 1px solid transparent; border-radius: 6px; color: var(--ink-2); padding: 2px 6px; line-height: 1; }
+.iconbtn:hover { border-color: var(--rule-strong); color: var(--ink); }
+.rowmenu { display: flex; flex-direction: column; background: var(--panel); border: 1px solid var(--rule-strong); border-radius: 8px; padding: 4px; margin-top: 6px; }
+.rowmenu button { display: flex; align-items: center; gap: 8px; background: none; border: 0; padding: 6px 8px; border-radius: 6px; text-align: left; color: var(--ink); }
+.rowmenu button:hover { background: var(--raise); }

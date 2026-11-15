@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { call, fmt, regionLabel, PLAN_NAMES, PLAN_INFO, PLAN_ICON, ROLE_NAMES, type AnalysisItem, type MapRow, type Project, type Region, type Row, type Sample, type Template } from './api'
+import { call, fmt, regionLabel, describeStep, whoName, type Step, PLAN_NAMES, PLAN_INFO, PLAN_ICON, ROLE_NAMES, type AnalysisItem, type MapRow, type Project, type Region, type Row, type Sample, type Template } from './api'
 import { Icon, type IconName } from './icons'
 import { DotStrip, MiniInterval, SignedBars, TimeCourse } from './charts'
 import { FindingsView, SearchView, SourcesView } from './views'
@@ -42,6 +42,7 @@ export default function App() {
   const [analyses, setAnalyses] = useState<AnalysisItem[]>([])
   const [steps, setSteps] = useState<any[]>([])
   const [view, setView] = useState<View>(() => (new URLSearchParams(location.search).get('view') as View) || 'room')
+  const [hist, setHist] = useState(false)   // the project's History menu (#21), closed until asked for
   const [picked, setPicked] = useState(false)   // a person or a demo chose the region shown; else only the project's own region counts as chosen (#19)
   const [region, setRegion] = useState('')   // set from the first project's own results; a person's or a demo's choice carries over
   const [unitIdx, setUnitIdx] = useState(0)
@@ -87,7 +88,7 @@ export default function App() {
 
   const loadProject = useCallback(async (id: string, quiet = false) => {
     if (!quiet) setLoading(true)
-    const [s, a, st, pr, pv, as] = await Promise.all([call<Row<Sample>[]>('sample_list', { project_id: id }), call<AnalysisItem[]>('analysis_list', { project_id: id }), call<any[]>('step_list', { limit: 60 }),
+    const [s, a, st, pr, pv, as] = await Promise.all([call<Row<Sample>[]>('sample_list', { project_id: id }), call<AnalysisItem[]>('analysis_list', { project_id: id }), call<any[]>('step_list', { project_id: id, limit: 60 }),
       call<Row<Param>[]>('parameter_list', { project_id: id }), call<Row<Preview>[]>('preview_list', { project_id: id }), call<Record<string, any>>('asset_list', { project_id: id }).catch(() => ({}))])
     setSamples(s); setAnalyses(a); setSteps(st); setParams(pr); setPreviews(pv); setAssets(as); setLoading(false)
     const P = projRef.current.find(x => x.id === id)?.data; const shown = demoRegion.current?.pid === id ? demoRegion.current.region : null
@@ -141,7 +142,7 @@ export default function App() {
         return
       }
       if (msg.tool === 'parameter_update' || msg.tool === 'preview_create') {   // a control moved: its row and the step that moved it
-        if (pid) Promise.all([call<Row<Param>[]>('parameter_list', { project_id: pid }), call<any[]>('step_list', { limit: 60 })]).then(([pr, st]) => { setParams(pr); setSteps(st) })
+        if (pid) Promise.all([call<Row<Param>[]>('parameter_list', { project_id: pid }), call<any[]>('step_list', { project_id: pid, limit: 60 })]).then(([pr, st]) => { setParams(pr); setSteps(st) })
         return
       }
       refreshProjects(); if (pid) loadProject(pid, true)
@@ -240,6 +241,9 @@ export default function App() {
             </button>)}
           </div>}
         </div>
+        <button className="btn" aria-haspopup="dialog" aria-expanded={hist} onClick={() => setHist(h => !h)}><Icon name="clock" size={16} />History</button>
+        {hist && <History pid={pid!} agent={machine?.agent ?? 'The agent'} tick={steps.length ? steps[steps.length - 1].step_id : ''} onClose={() => setHist(false)}
+          onUndo={async id => { await call('step_undo', { step_id: id }); refreshProjects(); loadProject(pid!) }} />}
         <button className="btn" onClick={() => setSheet('templates')}><Icon name="plus" size={16} />New project</button>
         {machine?.dashboard && <a className="btn" href="/dashboard" target="_blank" rel="noreferrer"><Icon name="gauge" size={16} />Dashboard</a>}
         {machine && <div className="status" aria-label="Machine status">
@@ -318,12 +322,10 @@ export default function App() {
   )
 }
 
-function Conversation({ P, pid, template, flowNow, steps, narr, onUndo, widen, onWiden, chips, sid, live, onStarted, onOpenProject }: {
-  P: Project; pid: string; template?: Template; flowNow: string; steps: any[]; narr: Narration[]; onUndo: (id: string) => void; widen: boolean; onWiden: () => void
+function Conversation({ P, pid, template, flowNow, narr, widen, onWiden, chips, sid, live, onStarted, onOpenProject }: {
+  P: Project; pid: string; template?: Template; flowNow: string; steps?: any[]; narr: Narration[]; onUndo?: (id: string) => void; widen: boolean; onWiden: () => void
   chips: { label: string; run: () => void; icon?: IconName }[]; sid: string | null; live: number; onStarted: (id: string) => void; onOpenProject: (pid: string) => void
 }) {
-  const [code, setCode] = useState<string | null>(null)
-  const mine = steps.slice(-6)
   const header = <>
     <div className="msg me"><div className="who">Question</div>{P.question}</div>
     {template && <div className="msg">
@@ -334,18 +336,7 @@ function Conversation({ P, pid, template, flowNow, steps, narr, onUndo, widen, o
     {P.note && <div className="msg"><div className="who">Agent</div>{P.note}</div>}
     {narr.map(n => <NarrationMsg key={n.step} n={n} />)}
   </>
-  const footer = mine.length > 0 && <div className="msg">
-    <div className="who">Steps</div>
-    <div className="steps">
-      {mine.map(s => <div key={s.step_id}>
-        <div className="step"><span><code>{s.tool}</code> by {s.actor}</span><span className="bar" style={{ gap: 6 }}>
-          <button className="btn" onClick={() => setCode(code === s.step_id ? null : s.step_id)} aria-expanded={code === s.step_id}><Icon name="code" size={15} />Code</button>
-          {s.tool !== 'step_undo' && !s.undoes && <button className="btn" onClick={() => onUndo(s.step_id)}><Icon name="undo" size={15} />Undo</button>}</span></div>
-        {code === s.step_id && <pre className="codebox">{`${s.tool}(${JSON.stringify(JSON.parse(s.args || '{}'), null, 1)})`}</pre>}
-      </div>)}
-    </div>
-  </div>
-  return <Chat sid={sid} projectId={pid} live={live} compact={!widen} header={header} footer={footer} onStarted={onStarted} onOpenProject={onOpenProject}
+  return <Chat sid={sid} projectId={pid} live={live} compact={!widen} header={header} onStarted={onStarted} onOpenProject={onOpenProject}
     chips={[...chips.slice(0, 3), { label: widen ? 'Narrow' : 'Widen', run: onWiden, icon: widen ? 'shrink' : 'expand' }]} />
 }
 
@@ -647,5 +638,45 @@ function SceneCard({ scene, selected, onPick }: { scene: { room: string; objects
       <div className="ink2" style={{ margin: '8px 0 2px' }}>{g} <span className="num">{os.length}</span></div>
       <ul className="list">{os.map(o => <li key={o.path}>{o.tested ? <button className={`tab ${o.path === selected ? 'on' : ''}`} style={{ padding: '2px 6px', textAlign: 'left' }} onClick={() => onPick(o.path)}>{o.label}</button> : <span>{o.label}</span>}
         <span className="ink2">{o.tested ? 'Tested' : `On ${o.placed_on || 'floor'}`}</span></li>)}</ul></div>)}</div>
+  </div>
+}
+
+/** The project's history (#21): its own steps, newest first, in plain words, who took each and when; repeated identical
+ * steps collapse into one row. Undo and the tool call sit behind each row's menu. Closed until asked for. */
+function History({ pid, agent, tick, onUndo, onClose }: { pid: string; agent: string; tick: string; onUndo: (id: string) => Promise<void>; onClose: () => void }) {
+  const [steps, setSteps] = useState<Step[] | null>(null); const [menu, setMenu] = useState<string | null>(null); const [shown, setShown] = useState<string | null>(null)
+  const ref = useRef<HTMLDivElement>(null)
+  const load = () => call<Step[]>('step_list', { project_id: pid }).then(setSteps).catch(() => setSteps([]))
+  useEffect(() => { load() }, [pid, tick])
+  useEffect(() => {
+    const off = (e: MouseEvent) => { if (!ref.current?.contains(e.target as Node) && !(e.target as HTMLElement).closest('[aria-haspopup="dialog"]')) onClose() }
+    const esc = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
+    document.addEventListener('mousedown', off); document.addEventListener('keydown', esc)
+    return () => { document.removeEventListener('mousedown', off); document.removeEventListener('keydown', esc) }
+  }, [onClose])
+  const byId = Object.fromEntries((steps ?? []).map(s => [s.step_id, s]))
+  const rows: { text: string; who: string; steps: Step[] }[] = []
+  for (const s of [...(steps ?? [])].reverse()) {
+    const text = describeStep(s, byId); const who = whoName(s.actor, agent); const last = rows[rows.length - 1]
+    if (last && last.text === text && last.who === who && !s.undone_by && !last.steps[0].undone_by) last.steps.push(s); else rows.push({ text, who, steps: [s] })
+  }
+  const ago = (ts: string | number) => { const m = Math.round((Date.now() / 1000 - Number(ts)) / 60); return m < 1 ? 'just now' : m < 60 ? `${m} min ago` : m < 1440 ? `${Math.round(m / 60)} h ago` : `${Math.round(m / 1440)} d ago` }
+  const call_ = (s: Step) => { try { return JSON.stringify(JSON.parse(s.args || '{}'), null, 1) } catch { return s.args } }
+  return <div className="histpop" role="dialog" aria-label="Project history" ref={ref}>
+    <div className="histhead"><b>History</b><button className="iconbtn" aria-label="Close" onClick={onClose}><Icon name="close" size={16} /></button></div>
+    {steps === null ? <div className="ink2"><span className="spin" /> Reading the history</div> : !rows.length ? <p className="ink2">No changes to this project yet.</p> :
+      <ul className="histlist">{rows.map(r => { const s = r.steps[0]; const canUndo = !s.undone_by && s.tool !== 'step_undo' && !s.undoes
+        return <li key={s.step_id} className={s.undone_by ? 'undone' : ''}>
+          <div className="histrow">
+            <span className="what">{r.text}{r.steps.length > 1 ? ` ${r.steps.length} times` : ''}{s.undone_by && <span className="chip tiny">Undone</span>}</span>
+            <button className="iconbtn" aria-label={`More actions: ${r.text}`} aria-haspopup="menu" aria-expanded={menu === s.step_id} onClick={() => setMenu(m => m === s.step_id ? null : s.step_id)}>⋯</button>
+            <span className="ink2 small">{r.who} · <span title={new Date(Number(s.ts) * 1000).toLocaleString()}>{ago(s.ts)}</span></span>
+          </div>
+          {menu === s.step_id && <div className="rowmenu" role="menu">
+            {canUndo && <button role="menuitem" onClick={async () => { setMenu(null); await onUndo(s.step_id); load() }}><Icon name="undo" size={15} />Undo</button>}
+            <button role="menuitem" onClick={() => { setShown(o => o === s.step_id ? null : s.step_id); setMenu(null) }}><Icon name="code" size={15} />{shown === s.step_id ? 'Hide call' : 'Show call'}</button>
+          </div>}
+          {shown === s.step_id && <pre className="codebox">{`${s.tool}(${call_(s)})`}</pre>}
+        </li> })}</ul>}
   </div>
 }

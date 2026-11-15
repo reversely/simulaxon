@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
-import { upload as sendFile } from './api'
+import { upload as sendFile, toolName } from './api'
 import { Icon, type IconName } from './icons'
 
 export type ToolCall = { tool: string; arguments: Record<string, unknown>; at: number; result?: string; error?: boolean; internal?: boolean; project_id?: string }
@@ -8,13 +8,7 @@ export type SessionInfo = { id: string; goal: string; project_id: string | null;
 export type Session = SessionInfo & { turns: Turn[] }
 
 const STATUS: Record<string, string> = { working: 'Working', waiting: 'Waiting for a run', idle: 'Waiting for you', done: 'Finished', stopped: 'Stopped', failed: 'Failed' }
-const TOOL_NAMES: Record<string, string> = {
-  paper_search: 'Searched papers', paper_fetch: 'Fetched the paper', paper_read: 'Read the paper', dataset_get: 'Looked at a dataset', dataset_fetch: 'Fetched data',
-  dataset_list: 'Checked the data here', file_list: 'Listed files', region_search: 'Looked up regions', experiment_create: 'Set up the experiment', project_run: 'Started the run',
-  experiment_get: 'Read the results', project_get: 'Read the project', analysis_list: 'Read the analyses', sample_list: 'Read the samples', run_list: 'Checked the runs',
-  ToolSearch: 'Loaded its tools',
-}
-export const toolName = (t: string) => TOOL_NAMES[t] ?? t.replace(/_/g, ' ')
+export { toolName } from './api'   // one name table for the chat's steps and the History menu (#21)
 const args = (c: ToolCall) => ((c.arguments as any)?.arguments ?? c.arguments ?? {}) as Record<string, any>   // older chats kept the proxy's wrapper
 
 /** One line saying what a call was about: the paper, the dataset, the words searched, the experiment's title. */

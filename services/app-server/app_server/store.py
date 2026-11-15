@@ -161,6 +161,15 @@ class Store:
         self.db.execute('delete from steps where step_id=?', [step_id])
 
     @_locked
+    def steps_for(self, project_id: str) -> list[dict]:
+        """The steps that wrote this project's rows: the project itself, or any row whose project_id is this project (#21)."""
+        cols = ['step_id', 'actor', 'tool', 'args', 'code', 'ts', 'undoes']
+        q = '''select distinct s.step_id, s.actor, s.tool, s.args, s.code, s.ts, s.undoes from steps s join touched t on t.step_id = s.step_id
+               join rows r on r.kind = t.kind and r.id = t.id and r.version = t.after_version
+               where (t.kind = 'project' and t.id = ?) or json_extract_string(r.data, '$.project_id') = ? order by s.ts'''
+        return [dict(zip(cols, r)) for r in self.db.execute(q, [project_id, project_id]).fetchall()]
+
+    @_locked
     def steps(self) -> list[dict]:
         cols = ['step_id', 'actor', 'tool', 'args', 'code', 'ts', 'undoes']
         return [dict(zip(cols, r)) for r in self.db.execute('select * from steps order by ts').fetchall()]

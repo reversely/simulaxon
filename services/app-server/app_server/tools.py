@@ -202,9 +202,12 @@ class Tools:
             return s.create(step, 'result', {'analysis_id': analysis_id, **res}, depends_on=[('analysis', analysis_id)])
 
         @self.tool('step', 'list', writes_project=False)
-        def step_list(actor, limit: int | None = None):
-            """Every step, oldest first; with limit, only the latest ones."""
-            st = s.steps()
+        def step_list(actor, limit: int | None = None, project_id: str | None = None):
+            """Every step, oldest first; with limit, only the latest ones. With project_id, only the steps that wrote that
+            project's rows (#21). Each step says which later step undid it, if one did (undone_by)."""
+            all_steps = s.steps(); undone = {x['undoes']: x['step_id'] for x in all_steps if x.get('undoes')}
+            st = s.steps_for(project_id) if project_id else all_steps
+            st = [{**x, 'undone_by': undone.get(x['step_id'])} for x in st]
             return st[-limit:] if limit else st
 
         @self.tool('step', 'undo', writes_project=False)
