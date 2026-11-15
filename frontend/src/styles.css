@@ -700,6 +700,11 @@ table.data.compact td, table.data.compact th { padding: 3px 8px; font-size: 14px
 .benchbar.ceiling .fill { background: none; border: 1px dashed var(--ink-2); }
 .benchbar .ci { top: 6px; height: 2px; background: var(--ink); }
 .benchbar .zero { top: -2px; bottom: -2px; width: 1px; background: var(--ink-3); }
+.benchgroup { margin: 6px 0 0; font-size: 13px; font-weight: 600; color: var(--ink-2); }
+.benchbar.labbase .fill { background: var(--ink-3); opacity: 0.6; }
+.adapterlive { margin-top: 14px; border-top: 1px solid var(--rule); padding-top: 10px; }
+.adapterlive .benchlabel h4 { margin: 0; font-size: 15px; }
+.adapterlive p { margin: 0 0 8px; }
 .adapterareas { margin-top: 14px; border-top: 1px solid var(--rule); padding-top: 10px; }
 .adapterareas summary { cursor: pointer; font-weight: 600; padding: 4px 0; }
 .adapterareas[open] summary { margin-bottom: 8px; }

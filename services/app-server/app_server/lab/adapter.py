@@ -16,7 +16,7 @@ The weights of the fit on every training category are kept, so the adapter can b
 Datasets with measured responses are in SOURCES; the first is the Human Action Dataset (openneuro ds004488, CC0).
 """
 from __future__ import annotations
-import time
+import json, time
 from pathlib import Path
 import numpy as np
 
@@ -125,6 +125,62 @@ def benchmark(row: dict) -> str:
     people and kind of stimulus. They say nothing about new stimuli in an experiment, where no measured fMRI exists."""
     where = 'held-out categories' if (row.get('split') or {}).get('kind') != 'held-out view' else 'the held-out categories of a saved view'
     return f"Benchmark: {where} of the {str(row.get('source', 'dataset')).split(',')[0]}"
+
+
+LAB_BASELINES = [   # column in the lab's baseline_per_parcel.csv, label on the card: readouts fitted on other features (#37)
+    ('low-level + SigLIP + TRIBE', 'Low-level, SigLIP and TRIBE v2 features, fitted'),
+    ('low-level + SigLIP', 'Low-level and SigLIP features, fitted'),
+    ('SigLIP', 'SigLIP image features, fitted'),
+    ('TRIBE, fitted readout', "TRIBE v2, the lab's own fitted readout"),
+    ('TRIBE, zero-shot', "TRIBE v2 as released, the lab's scoring"),
+    ('low-level', 'Low-level features, fitted'),
+    ('random, same size as SigLIP', "Random features of SigLIP's size, fitted"),
+]
+
+
+def lab_baselines(row: dict) -> dict | None:
+    """The lab's readouts fitted on other features of the Human Action Dataset (visual-cortex-lab feasibility, the
+    "as predicted" scores in baseline_per_parcel.csv), summarised as the adapter's own scores are: the median over the
+    adapter's reliable areas, with a 95% interval from resampling them. None unless the lab scored every one of those
+    areas on the same categories, so a row is only shown where its scoring matches the adapter's."""
+    import csv
+    f = HOME / 'feasibility' / 'data' / 'had' / 'baseline_per_parcel.csv'
+    if row.get('dataset_id') != 'openneuro_ds004488' or not f.exists(): return None
+    try:
+        scores = json.loads((f.parent / 'baseline_scores.json').read_text())
+        lab = {r['parcel']: r for r in csv.DictReader(f.open())}
+    except (OSError, ValueError): return None
+    good = [a['area'] for a in row.get('areas') or [] if a.get('reliable')]
+    if not good or any(a not in lab for a in good) or scores.get('n_categories') != row.get('categories'): return None
+    rng = np.random.default_rng(0); out = []
+    for col, label in LAB_BASELINES:
+        key = f'{col} | as predicted'
+        if key not in lab[good[0]]: continue
+        g = np.array([float(lab[a][key]) for a in good]); b = np.median(g[rng.integers(0, len(g), (4000, len(g)))], 1)
+        out.append({'name': label, 'features': col, 'median': round(float(np.median(g)), 6), 'interval_95': [round(float(x), 6) for x in np.percentile(b, [2.5, 97.5])]})
+    return {'rows': out, 'areas': len(good), 'categories': scores.get('n_categories'),
+            'note': "Readouts the lab fitted on other features of the same clips, scored on held-out categories in the same areas; folds are the lab's own. No V-JEPA 2 readout has been scored this way."}
+
+
+def live_results(tools_get, rows: list, adapter_id: str) -> list[dict]:
+    """Experiments run through this adapter that state a paper's result, each beside the same experiment run with TRIBE v2
+    as released (#37 item 3): match or no match both ways, and each region's rank among the 360 areas. No r: there is
+    no measured fMRI for these stimuli. tools_get(project_id) is experiment_get."""
+    def same(e): return {k: e.get(k) for k in ('regions', 'trial')} | {'files': [sorted(c.get('files') or []) for c in e.get('conditions') or []]}
+    done = [p for p in rows if p.data.get('plan') == 'experiment' and p.data.get('status') == 'Done']
+    out = []
+    for p in done:
+        e = p.data.get('experiment') or {}
+        if e.get('brain_model') != adapter_id: continue
+        twin = next((q for q in done if not (q.data.get('experiment') or {}).get('brain_model') and same(q.data['experiment']) == same(e)), None)
+        mine = [r for res in tools_get(p.id)['results'] for r in res.get('reported') or []]
+        theirs = [r for res in tools_get(twin.id)['results'] for r in res.get('reported') or []] if twin else []
+        for i, r in enumerate(mine):
+            t = next((x for x in theirs if x['region'] == r['region']), theirs[i] if i < len(theirs) else None)
+            out.append({'title': p.data.get('title'), 'contrast': r['contrast'], 'region': r['region'], 'direction': r.get('direction', 'higher'), 'where': r.get('where'),
+                        'adapter': {'project_id': p.id, 'result': r['result'], 'area_rank_pct': r.get('area_rank_pct')},
+                        'released': {'project_id': twin.id, 'result': t['result'], 'area_rank_pct': t.get('area_rank_pct')} if twin and t else None})
+    return out
 
 
 class Applied:

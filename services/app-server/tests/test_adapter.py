@@ -52,3 +52,43 @@ class Adapter(unittest.TestCase):
             np.testing.assert_allclose(out[::2], want, rtol=1e-5); np.testing.assert_allclose(out[1::2], want, rtol=1e-5)
             A(far); m = A.model()
         self.assertEqual(m['name'], 'TRIBE v2 with adapter 1'); self.assertEqual(m['outside_fit'], 1); self.assertIn('1 of 2 stimuli lie outside', m['note'])
+
+
+class LabBaselines(unittest.TestCase):
+    """The lab's readouts on other features join the benchmark only where they were scored on the same areas (#37)."""
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory(); d = Path(self.tmp.name) / 'feasibility' / 'data' / 'had'; d.mkdir(parents=True)
+        rows = ['parcel,ceiling,somatomotor,SigLIP | as predicted,SigLIP | both controls'] + [f'A{i},0.7,False,{i / 10},0' for i in range(5)]
+        (d / 'baseline_per_parcel.csv').write_text('\n'.join(rows)); (d / 'baseline_scores.json').write_text('{"n_categories": 180, "of": 3}')
+        from unittest import mock
+        self.p = mock.patch.object(adapter, 'HOME', Path(self.tmp.name)); self.p.start()
+
+    def tearDown(self):
+        self.p.stop(); self.tmp.cleanup()
+
+    def row(self, areas):
+        return {'dataset_id': 'openneuro_ds004488', 'categories': 180, 'areas': [{'area': a, 'reliable': r} for a, r in areas]}
+
+    def test_median_over_the_adapters_own_reliable_areas(self):
+        b = adapter.lab_baselines(self.row([('A1', True), ('A2', True), ('A3', True), ('A4', False)]))
+        self.assertEqual(b['areas'], 3); self.assertEqual(b['rows'][0]['name'], 'SigLIP image features, fitted')
+        self.assertAlmostEqual(b['rows'][0]['median'], 0.2); self.assertIn('No V-JEPA 2', b['note'])
+
+    def test_no_rows_when_the_scoring_differs(self):
+        self.assertIsNone(adapter.lab_baselines(self.row([('A1', True), ('B9', True)])))   # an area the lab never scored
+        self.assertIsNone(adapter.lab_baselines({**self.row([('A1', True)]), 'categories': 120}))
+        self.assertIsNone(adapter.lab_baselines({**self.row([('A1', True)]), 'dataset_id': 'toy'}))
+
+
+class LiveResults(unittest.TestCase):
+    def test_pairs_each_adapter_run_with_the_same_experiment_as_released(self):
+        from types import SimpleNamespace as N
+        e = {'regions': ['FFC'], 'trial': {'seed': 1}, 'conditions': [{'name': 'Faces', 'files': ['f/*.jpg']}, {'name': 'Objects', 'files': ['o/*.jpg']}]}
+        rel = N(id='p1', data={'plan': 'experiment', 'status': 'Done', 'title': 'As released', 'experiment': {**e, 'conditions': [{**c, 'name': c['name'].lower()} for c in e['conditions']]}})
+        ada = N(id='p2', data={'plan': 'experiment', 'status': 'Done', 'title': 'Through it', 'experiment': {**e, 'brain_model': 'ad1'}})
+        other = N(id='p3', data={'plan': 'experiment', 'status': 'Done', 'experiment': {**e, 'regions': ['PPA']}})
+        res = {'p1': 'match', 'p2': 'no match: interval includes zero'}
+        get = lambda pid: {'results': [{'reported': [{'contrast': 'c', 'region': 'FFC', 'result': res[pid], 'area_rank_pct': 90.0}]}]}
+        out = adapter.live_results(get, [rel, ada, other], 'ad1')
+        self.assertEqual(len(out), 1); self.assertEqual(out[0]['released']['project_id'], 'p1')
+        self.assertEqual((out[0]['released']['result'], out[0]['adapter']['result']), ('match', 'no match: interval includes zero'))

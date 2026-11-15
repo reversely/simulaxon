@@ -7,7 +7,11 @@ import { MapBrain } from './brain3d'
 type Summary = { median: number; interval_95: [number, number] }
 type Area = { area: string; adapter_r: number; tribe_v2_r: number; shuffled_r: number; ceiling: number; reliable: boolean }
 type Adapter = { id: string; name: string; dataset_id: string; source: string; people: number; categories: number; clips: number; reliable_areas: number
-  split: { kind: string; held_out: number; training: number }; input: string; target: string; summary: Record<'adapter' | 'tribe_v2' | 'shuffled' | 'ceiling', Summary>; areas?: Area[]; benchmark?: string }
+  split: { kind: string; held_out: number; training: number }; input: string; target: string; summary: Record<'adapter' | 'tribe_v2' | 'shuffled' | 'ceiling', Summary>; areas?: Area[]; benchmark?: string
+  lab_baselines?: { rows: LabRow[]; areas: number; categories: number; note: string } | null; live?: Live[] }
+type LabRow = { name: string; features: string; median: number; interval_95?: [number, number] | null }
+type Verdict = { project_id: string; result: string; area_rank_pct: number | null }
+type Live = { title: string; contrast: string; region: string; direction: string; where: string | null; adapter: Verdict; released: Verdict | null }
 
 const ROWS: [keyof Adapter['summary'], string][] = [['adapter', 'Adapter'], ['tribe_v2', 'TRIBE v2 as released'], ['shuffled', 'Adapter, labels shuffled'], ['ceiling', 'Noise ceiling']]
 const MAPS: [string, string, string][] = [   // key, button, legend
@@ -17,16 +21,36 @@ const MAPS: [string, string, string][] = [   // key, button, legend
 const BAR_LO = -0.1, BAR_HI = 0.8   // the bars' r axis: shuffled labels sit near 0, the ceiling under 0.8
 const barX = (r: number) => `${100 * (Math.min(BAR_HI, Math.max(BAR_LO, r)) - BAR_LO) / (BAR_HI - BAR_LO)}%`
 
-/** The benchmark's four medians as bars from zero, each with its 95% interval. */
+/** One median as a bar from zero, with its 95% interval when there is one. */
+function Bar({ k, label, m, ci }: { k: string; label: string; m: number; ci?: [number, number] | null }) {
+  return <div className={`benchbar ${k}`}>
+    <span className="lbl">{label}</span>
+    <span className="track"><i className="zero" style={{ left: barX(0) }} /><i className="fill" style={{ left: barX(Math.min(0, m)), right: `calc(100% - ${barX(Math.max(0, m))})` }} />
+      {ci && <i className="ci" style={{ left: barX(ci[0]), right: `calc(100% - ${barX(ci[1])})` }} />}</span>
+    <span className="num val">{fmt(m)}{ci && <span className="ink2 small"> {fmt(ci[0])} to {fmt(ci[1])}</span>}</span>
+  </div>
+}
+
+/** The benchmark's four medians, then the lab's readouts on other features scored the same way (#37). */
 function BenchBars({ a }: { a: Adapter }) {
-  return <div className="benchbars" role="img" aria-label={`Median r: ${ROWS.map(([k, l]) => `${l} ${fmt(a.summary[k].median)}`).join(', ')}`}>
-    {ROWS.map(([k, label]) => { const s = a.summary[k], m = s.median, [lo, hi] = s.interval_95
-      return <div key={k} className={`benchbar ${k}`}>
-        <span className="lbl">{label}</span>
-        <span className="track"><i className="zero" style={{ left: barX(0) }} /><i className="fill" style={{ left: barX(Math.min(0, m)), right: `calc(100% - ${barX(Math.max(0, m))})` }} />
-          <i className="ci" style={{ left: barX(lo), right: `calc(100% - ${barX(hi)})` }} /></span>
-        <span className="num val">{fmt(m)}<span className="ink2 small"> {fmt(lo)} to {fmt(hi)}</span></span>
-      </div> })}
+  const lab = a.lab_baselines?.rows ?? []
+  return <div className="benchbars" role="img" aria-label={`Median r: ${[...ROWS.map(([k, l]) => `${l} ${fmt(a.summary[k].median)}`), ...lab.map(b => `${b.name} ${fmt(b.median)}`)].join(', ')}`}>
+    {ROWS.map(([k, label]) => <Bar key={k} k={k} label={label} m={a.summary[k].median} ci={a.summary[k].interval_95} />)}
+    {lab.length > 0 && <h5 className="benchgroup">Baselines: readouts fitted on other features</h5>}
+    {lab.map(b => <Bar key={b.features} k="labbase" label={b.name} m={b.median} ci={b.interval_95} />)}
+  </div>
+}
+
+const verdict = (v: Verdict | null) => !v ? <span className="ink2">Not run</span>
+  : <>{v.result.startsWith('match') ? 'Match' : v.result.replace(/^no match/, 'No match')}{v.area_rank_pct != null && <span className="ink2 small"> · top {fmt(100 - v.area_rank_pct)}% of areas</span>}</>
+
+/** Experiments run through the adapter that state a paper's result, beside TRIBE v2 as released: match or no match, no r (#37). */
+function LiveTable({ live }: { live: Live[] }) {
+  return <div className="adapterlive">
+    <div className="benchlabel"><h4>Known results on new stimuli</h4><span className="chip">Live</span></div>
+    <p className="ink2 small">Experiments on stimuli with no measured fMRI, so no r: whether each paper's reported direction holds in the predicted response.</p>
+    <div className="tablewrap"><table className="data compact"><thead><tr><th>Result</th><th>Region</th><th>TRIBE v2 as released</th><th>Through this adapter</th></tr></thead>
+      <tbody>{live.map((x, i) => <tr key={i}><td>{x.title}{x.where && <span className="ink2 small"> · {x.where}</span>}</td><td>{x.region}, {x.direction}</td><td>{verdict(x.released)}</td><td>{verdict(x.adapter)}</td></tr>)}</tbody></table></div>
   </div>
 }
 
@@ -52,8 +76,10 @@ function AdapterCard({ a }: { a: Adapter }) {
         <BenchBars a={a} />
         <p className="ink2 small">{a.source}: {a.clips.toLocaleString()} clips in {a.categories} categories. {a.split.kind === '10-fold over categories' ? 'Scored 10-fold over categories' : `${a.split.held_out} categories held out, ${a.split.training} trained on`}; every score is on categories the fit never saw.</p>
         <p className="ink2 small">r between predicted and measured responses ({a.target}) across held-out categories, per area; reliable: noise ceiling above 0.5, somatomotor areas left out. Line: 95% interval, resampling areas. Input: {a.input}.</p>
+        {a.lab_baselines && <p className="ink2 small">{a.lab_baselines.note}</p>}
       </div>
     </div>
+    {!!a.live?.length && <LiveTable live={a.live} />}
     <details className="adapterareas">
       <summary>Areas: {all ? 'all 360' : `${a.reliable_areas} reliable`}, r per area</summary>
       <div className="bar"><div className="seg" role="group" aria-label="Areas"><button className={!all ? 'on' : ''} onClick={() => setAll(false)}>Reliable areas</button><button className={all ? 'on' : ''} onClick={() => setAll(true)}>All 360</button></div>

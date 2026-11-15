@@ -596,10 +596,14 @@ def register(tools, broadcast=lambda m: None):
 
     @tools.tool('adapter', 'list', writes_project=False)
     def adapter_list(actor, dataset_id: str | None = None):
-        """Adapters, newest first, with their dataset, split and summary (no per-area rows; adapter_get has them)."""
+        """Adapters, newest first, with their dataset, split and summary (no per-area rows; adapter_get has them).
+        lab_baselines: the lab's readouts on other features, scored on the same categories and areas (#37).
+        live: experiments run through the adapter that state a paper's result, match or no match beside TRIBE v2 as released."""
         rows = [a for a in s.list('adapter') if dataset_id is None or a.data.get('dataset_id') == dataset_id]
         from . import adapter
-        return [{'id': a.id, **{k: v for k, v in a.data.items() if k != 'areas'}, 'benchmark': adapter.benchmark(a.data)} for a in sorted(rows, key=lambda a: a.id, reverse=True)]
+        projects = s.list('project')
+        return [{'id': a.id, **{k: v for k, v in a.data.items() if k != 'areas'}, 'benchmark': adapter.benchmark(a.data), 'lab_baselines': adapter.lab_baselines(a.data),
+                 'live': adapter.live_results(lambda pid: experiment_get(actor, pid), projects, a.id)} for a in sorted(rows, key=lambda a: a.id, reverse=True)]
 
     @tools.tool('adapter', 'get', writes_project=False)
     def adapter_get(actor, adapter_id):
