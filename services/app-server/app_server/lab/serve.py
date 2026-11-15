@@ -113,9 +113,15 @@ def make(db: str, port: int = 8790):
         """A file a person adds in a chat, saved into a dataset of uploads (a new one unless dataset_id is given). Body is
         the raw file, or the file gzipped with Content-Encoding: gzip; it streams to disk."""
         import asyncio, uuid
+        from fastapi import HTTPException
+        from . import datasets
+        if dataset_id is not None:
+            try: datasets.dataset_dir(dataset_id)   # checked before the body is read
+            except ValueError as e: raise HTTPException(422, str(e))
         tmp = DATA / 'uploads' / 'incoming' / f'{uuid.uuid4().hex[:8]}_{Path(name).name}'
         await receive(request, tmp)
-        return await asyncio.to_thread(sessions.upload_file, name, tmp, dataset_id)
+        try: return await asyncio.to_thread(sessions.upload_file, name, tmp, dataset_id)
+        except ValueError as e: raise HTTPException(422, str(e))   # such as an archive too large to unpack
 
     @app.on_event('startup')
     def _resume_sessions():

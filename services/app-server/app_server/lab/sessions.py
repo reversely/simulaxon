@@ -255,9 +255,11 @@ def upload_file(name: str, src: Path, dataset_id: str | None = None) -> dict:
     the received file, moved into the dataset, so a large upload is never held in memory."""
     import shutil
     did = dataset_id or 'upload_' + uuid.uuid4().hex[:8]
-    root = datasets.HERE / did; root.mkdir(parents=True, exist_ok=True)
+    root = datasets.dataset_dir(did); root.mkdir(parents=True, exist_ok=True)   # refuses an ID such as ../ that leaves the datasets
     safe = Path(name).name; shutil.move(str(src), root / safe); size = (root / safe).stat().st_size
-    if datasets.kind_of(safe) == 'archive': datasets._unpack(root / safe)
+    if datasets.kind_of(safe) == 'archive':
+        try: datasets._unpack(root / safe)
+        except ValueError: (root / safe).unlink(); raise   # refused as too large to unpack: nothing of it stays
     meta_f = root / '_dataset.json'
     meta = json.loads(meta_f.read_text()) if meta_f.exists() else {'id': did, 'ref': 'upload', 'repository': 'upload', 'key': did, 'title': 'Uploaded in a chat', 'licence': None,
                                                                    'fetched_at': time.strftime('%Y-%m-%d %H:%M'), 'files': []}

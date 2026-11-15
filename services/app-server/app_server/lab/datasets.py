@@ -156,12 +156,26 @@ def _pub(st: dict) -> dict:
     return {k: v for k, v in st.items() if k != 'started'} | {'seconds': round(time.time() - st['started'])}
 
 
+def dataset_dir(did: str) -> Path:
+    """A dataset's folder. An ID is one name of letters, digits, _ and -; anything else, such as ../, is refused, so a
+    request can never name a folder outside the datasets."""
+    if not re.fullmatch(r'[A-Za-z0-9_-]{1,120}', did or ''): raise ValueError(f'not a dataset ID: {did!r}')
+    return HERE / did
+
+
+def _room(unpacked: int, p: Path):
+    """Refuse an archive whose files would leave less than FLOOR_GB free, as a fetch does: one small archive can
+    unpack to terabytes."""
+    free = shutil.disk_usage(p.parent).free
+    if free - unpacked < FLOOR_GB * 1e9: raise ValueError(f'{p.name} unpacks to {unpacked / 1e9:.1f} GB, which would leave less than {FLOOR_GB} GB free')
+
+
 def _unpack(p: Path):
     out = p.with_name(p.name.split('.')[0])
-    if zipfile.is_zipfile(p):
-        with zipfile.ZipFile(p) as z: z.extractall(out)
+    if zipfile.is_zipfile(p):   # extraction stops at each entry's declared size, so the declared total bounds it
+        with zipfile.ZipFile(p) as z: _room(sum(i.file_size for i in z.infolist()), p); z.extractall(out)
     elif tarfile.is_tarfile(p):
-        with tarfile.open(p) as t: t.extractall(out, filter='data')
+        with tarfile.open(p) as t: _room(sum(m.size for m in t.getmembers()), p); t.extractall(out, filter='data')
 
 
 def status(did: str) -> dict | None:
