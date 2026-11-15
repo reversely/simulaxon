@@ -53,32 +53,7 @@
     return tl;
   }
 
-  // Two workstations: each message travels its route, and the round's files land on VAST.
-  function workstations(root) {
-    const tl = gsap.timeline({ paused: true }), dot = root.querySelector('.fc-dot');
-    const pt = (sel, fx = 0.5, fy = 0.5) => { const p = local(root, root.querySelector(sel), fx, fy); return { x: p.x - 7, y: p.y - 7 }; };
-    tl.fromTo(root.querySelectorAll('.fc-ws, .fc-vast'), { y: 50, opacity: 0 }, { y: 0, opacity: 1, duration: 0.6, ease: 'power3.out', stagger: 0.08 }, 0);
-    tl.set(root.querySelectorAll('.fc-svc, .fc-vast'), { borderColor: '#3a352f' }, 0);
-    const hop = (from, to, t, tag, dur = 0.7) => {
-      tl.fromTo(dot, { x: () => from().x, y: () => from().y, opacity: 1 }, { x: () => to().x, y: () => to().y, opacity: 1, duration: dur, ease: 'power2.inOut', immediateRender: false }, t);
-      const tg = root.querySelector(tag);
-      tl.fromTo(tg, { x: () => (from().x + to().x) / 2 - 70, y: () => Math.min(from().y, to().y) - 30, opacity: 0 }, { opacity: 1, duration: 0.2, immediateRender: false }, t);
-      tl.to(tg, { opacity: 0, duration: 0.2 }, t + dur + 0.25);
-    };
-    hop(() => ({ x: -60, y: pt('[data-svc=nem]').y }), () => pt('[data-svc=nem]', 0.04), 0.9, '[data-tag="1"]');
-    tl.to('[data-svc=nem]', { borderColor: '#b5de2b', duration: 0.2 }, 1.5);
-    hop(() => pt('[data-svc=app]', 0.96), () => pt('[data-svc=isaac]', 0.04), 1.9, '[data-tag="2"]');
-    tl.to(root.querySelector('[data-svc=isaac]'), { borderColor: '#b5de2b', duration: 0.2 }, 2.65);
-    tl.to(root.querySelector('[data-svc=cosmos]'), { borderColor: '#b5de2b', duration: 0.2 }, 3.05);
-    tl.to(root.querySelector('[data-svc=tribe]'), { borderColor: '#b5de2b', duration: 0.2 }, 3.45);
-    hop(() => pt('[data-svc=tribe]', 0.04), () => pt('[data-svc=nem]', 0.96), 4.1, '[data-tag="3"]', 0.8);
-    hop(() => pt('[data-svc=tribe]', 0.5, 1), () => pt('.fc-vast', 0.7, 0.2), 5.1, '[data-tag="4"]', 0.6);
-    tl.to(root.querySelector('.fc-vast'), { borderColor: '#b5de2b', duration: 0.2 }, 5.7);
-    tl.to(dot, { opacity: 0, duration: 0.2 }, 5.8);
-    return tl;
-  }
-
-  const builders = { cost, adapter, workstations };
+  const builders = { cost, adapter };
   document.querySelectorAll('[data-card]').forEach(root => {
     const tl = builders[root.dataset.card](root);
     if (reduced) { tl.progress(1); return; }

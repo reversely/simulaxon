@@ -55,12 +55,13 @@
   } else document.querySelectorAll('[data-w]').forEach(b => { b.style.width = b.dataset.w; });
 
   // Sticky columns: the frame follows the station whose top has passed 55% of the window; frames change with the film's ease.
-  const groups = Array.from(document.querySelectorAll('.stations')).map(g => ({ stations: [...g.querySelectorAll('.station')], frames: [...g.querySelectorAll('.frames > *')], ticks: g.querySelector('.ticks'), on: -1 }));
-  for (const g of groups) if (g.ticks) g.frames.forEach(() => g.ticks.appendChild(document.createElement('i')));
+  const groups = Array.from(document.querySelectorAll('.stations')).map(g => ({ el: g, stations: [...g.querySelectorAll('.station')], frames: [...g.querySelectorAll('.frames > *')], ticks: g.querySelector('.ticks'), on: -1 }));
+  for (const g of groups) if (g.ticks) (g.frames.length ? g.frames : g.stations).forEach(() => g.ticks.appendChild(document.createElement('i')));
   const show = (g, on) => {
     if (g.on === on) return; const was = g.on; g.on = on;
     g.stations.forEach((s, i) => s.classList.toggle('on', i === on));
     if (g.ticks) [...g.ticks.children].forEach((t, i) => t.classList.toggle('on', i === on));
+    g.onStep?.(on);
     g.frames.forEach((f, i) => {
       if (!hasGsap || reduced) { f.style.opacity = i === on ? 1 : 0; return; }
       if (i === on) gsap.fromTo(f, { opacity: 0, y: 24, scale: 0.98 }, { opacity: 1, y: 0, scale: 1, duration: 0.6, ease: 'power3.out' });
@@ -69,19 +70,76 @@
     });
   };
 
-  // The traverse: vertical scroll through the tall track moves the pipeline sideways.
-  const track = document.querySelector('.traverse'), strip = track?.querySelector('.strip'), dots = track?.querySelector('.dots');
-  if (dots && strip) [...strip.children].forEach(() => dots.appendChild(document.createElement('i')));
+  // Runs on CIQ: the pinned deployment lights each step's services, and the dot travels the round's route between them.
+  // Points are in the diagram's own layout (offsets), so they hold when the diagram is scaled to fit the window.
+  const arch = document.querySelector('[data-route]');
+  if (arch) {
+    const pin = arch.parentElement, dot = arch.querySelector('.ar-dot'), all = arch.querySelector('.ar-all'), done = arch.querySelector('.ar-done');
+    const q = k => arch.querySelector(`[data-at="${k}"]`);
+    const box = el => { let x = 0, y = 0; for (let e = el; e && e !== arch; e = e.offsetParent) { x += e.offsetLeft; y += e.offsetTop; } return { x, y, w: el.offsetWidth, h: el.offsetHeight }; };
+    // x from one element (or the gap between the workstations), y from another.
+    const pt = (xk, fx, yk = xk, fy = 0.5) => () => {
+      const by = box(q(yk)), y = by.y + by.h * fy;
+      if (xk === 'gap') { const a = box(q('ws1')), b = box(q('ws2')); return [(a.x + a.w + b.x) / 2, y]; }
+      const bx = box(q(xk)); return [bx.x + bx.w * fx, y];
+    };
+    const STEPS = [
+      { lit: ['app', 'nem'], via: [pt('app', 1, 'app', 0.3), pt('nem', 1, 'nem', 0.2)] },
+      { lit: ['app', 'rs', 'ws2'], via: [pt('app', 1, 'app', 0.3), pt('gap', 0, 'app', 0.3), pt('gap', 0, 'isaac'), pt('rs', 0, 'isaac')] },
+      { lit: ['isaac'], via: [pt('isaac', 0)] },
+      { lit: ['cosmos'], via: [pt('cosmos', 0)] },
+      { lit: ['tribe', 'vjepa'], via: [pt('tribe', 0)] },
+      { lit: ['nem'], via: [pt('gap', 0, 'tribe'), pt('gap', 0, 'nem', 0.2), pt('nem', 1, 'nem', 0.2)] },
+      { lit: ['app', 'fuzz'], via: [pt('app', 1, 'app', 0.3), pt('gap', 0, 'app', 0.3), pt('gap', 0, 'fuzz', 1)] },
+      { lit: ['vast'], via: [pt('gap', 0, 'vast', 0)] },
+    ];
+    const via = STEPS.flatMap(s => s.via), ends = []; STEPS.reduce((n, s) => (ends.push(n + s.via.length - 1), n + s.via.length), 0);
+    let pts = [], cum = [], cur = 0;
+    const EASE = 'cubic-bezier(0.645, 0.045, 0.355, 1)';
+    const place = p => { dot.style.transform = `translate(${p[0].toFixed(1)}px, ${p[1].toFixed(1)}px)`; };
+    const light = k => {
+      const lit = new Set(STEPS[k].lit); arch.classList.add('routed');
+      arch.querySelectorAll('[data-at]').forEach(el => { el.classList.toggle('on', lit.has(el.dataset.at)); el.classList.remove('held'); });
+      arch.querySelectorAll('[data-at].on').forEach(el => { for (let p = el.parentElement.closest('[data-at]'); p; p = p.parentElement.closest('[data-at]')) p.classList.add('held'); });
+    };
+    function layout() {
+      arch.style.transform = ''; arch.style.marginBottom = '';
+      if (innerWidth > 820) {   // fit the whole diagram in the pinned column
+        const room = pin.clientHeight - (pin.querySelector('.ticks')?.offsetHeight || 0) - 28, h = arch.offsetHeight, s = Math.min(1, room / h);
+        if (s < 1) { arch.style.transform = `scale(${s.toFixed(3)})`; arch.style.marginBottom = `${(-(1 - s) * h).toFixed(1)}px`; }
+      }
+      pts = via.map(f => f()); cum = [0];
+      for (let i = 1; i < pts.length; i++) cum.push(cum[i - 1] + Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]));
+      const line = pts.map(p => p.map(v => v.toFixed(1)).join(',')).join(' ');
+      all.setAttribute('points', line); done.setAttribute('points', line);
+      const L = cum[cum.length - 1]; done.style.transition = 'none'; done.style.strokeDasharray = `${L} ${L}`; done.style.strokeDashoffset = L - cum[ends[cur]];
+      dot.getAnimations().forEach(a => a.cancel()); place(pts[ends[cur]]);
+    }
+    function go(k) {
+      const from = ends[cur], to = ends[k]; cur = k; light(k);
+      const L = cum[cum.length - 1], dist = Math.abs(cum[to] - cum[from]);
+      if (reduced || !dist) { done.style.transition = 'none'; done.style.strokeDashoffset = L - cum[to]; place(pts[to]); return; }
+      const dur = Math.min(900, Math.max(320, dist * 2.2)), step = to > from ? 1 : -1, frames = [];
+      for (let i = from; ; i += step) { const p = pts[i]; frames.push({ transform: `translate(${p[0]}px, ${p[1]}px)`, offset: Math.abs(cum[i] - cum[from]) / dist }); if (i === to) break; }
+      dot.getAnimations().forEach(a => a.cancel()); place(pts[to]);
+      dot.animate(frames, { duration: dur, easing: EASE });
+      done.style.transition = `stroke-dashoffset ${dur}ms ${EASE}`; done.style.strokeDashoffset = L - cum[to];
+    }
+    const g = groups.find(x => x.el === arch.closest('.stations'));
+    if (g) g.onStep = k => go(Math.min(k, STEPS.length - 1));
+    layout(); light(0);
+    addEventListener('resize', layout);
+    if ('fonts' in document) document.fonts.ready.then(layout);
+    addEventListener('load', layout);
+    // The chapter's clips play only while on screen, and not at all under reduced motion.
+    const vids = [...document.querySelectorAll('.ciq video')];
+    if (reduced) vids.forEach(v => { v.removeAttribute('autoplay'); v.pause(); v.controls = !v.closest('.crop'); });
+    else { const vo = new IntersectionObserver(es => es.forEach(e => e.isIntersecting ? e.target.play().catch(() => {}) : e.target.pause())); vids.forEach(v => vo.observe(v)); }
+  }
 
   function frame() {
     const cut = innerHeight * 0.55;
     for (const g of groups) { let on = 0; g.stations.forEach((s, i) => { if (s.getBoundingClientRect().top <= cut) on = i; }); show(g, on); }
-    if (track && strip && innerWidth > 820) {
-      const r = track.getBoundingClientRect(), travel = track.offsetHeight - innerHeight;
-      const p = Math.min(1, Math.max(0, -r.top / travel)), shift = Math.max(0, strip.scrollWidth - innerWidth);
-      strip.style.transform = `translateX(${(-p * shift).toFixed(1)}px)`;
-      const n = strip.children.length; [...dots.children].forEach((d, i) => d.classList.toggle('on', i === Math.min(n - 1, Math.floor(p * n))));
-    }
   }
   let queued = false;
   addEventListener('scroll', () => { if (queued) return; queued = true; requestAnimationFrame(() => { queued = false; frame(); }); }, { passive: true });

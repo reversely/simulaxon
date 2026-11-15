@@ -1,6 +1,6 @@
 /* Simulaxon demo page. Colours and type are the HyperFrames cards' (the app's own): warm charcoal ground,
    ivory cards, one green accent for the number a section is about. The scroll mechanics come from the
-   Provinans case study: a typed lede, reveals, a sticky column that changes with the text, a sideways traverse. */
+   Provinans case study: a typed lede, reveals, a sticky column that changes with the text. */
 @font-face { font-family: "Inter"; src: url("./fonts/inter-v20-latin.woff2") format("woff2"); font-weight: 100 900; font-display: swap; }
 @font-face { font-family: "Inter Tight"; src: url("./fonts/InterTight-VF.ttf") format("truetype"); font-weight: 100 900; font-display: swap; }
 
@@ -108,19 +108,6 @@ p { margin: 0; }
 .live { border: 1.5px dashed #c9c1b3; border-radius: 14px; padding: 22px 24px; display: grid; gap: 8px; }
 .live b { font-weight: 600; }
 
-/* The sideways traverse: the pipeline, one stage per panel */
-.traverse { height: 420vh; position: relative; }
-.traverse .sticky { position: sticky; top: 0; height: 100vh; overflow: hidden; display: grid; align-content: center; gap: 28px; }
-.traverse h2 { padding: 0 var(--gutter); max-width: 1240px; margin: 0 auto; width: 100%; }
-.strip { display: flex; gap: 28px; padding: 0 var(--gutter); will-change: transform; }
-.stage { flex: 0 0 min(560px, 82vw); background: var(--panel); border: 1px solid var(--rule); border-radius: 14px; padding: 26px; display: grid; gap: 16px; align-content: start; }
-.stage .where { font-size: 15px; color: var(--ink-3); }
-.stage p { font-family: var(--display); font-weight: 300; font-size: 21px; line-height: 1.42; }
-.stage .slot { aspect-ratio: 16 / 9; }
-.dots { display: flex; gap: 8px; padding: 0 var(--gutter); max-width: 1240px; margin: 0 auto; width: 100%; }
-.dots i { width: 22px; height: 2px; background: var(--rule-strong); }
-.dots i.on { background: var(--ink); }
-
 /* Machines */
 .machines { width: 100%; border-collapse: collapse; font-size: 17px; }
 .machines th, .machines td { text-align: left; vertical-align: top; padding: 14px 16px 14px 0; border-bottom: 1px solid var(--rule); }
@@ -145,8 +132,6 @@ p { margin: 0; }
   .stations .station { min-height: 0; padding: 6vh 0; opacity: 1; }
   .examples, .figures { grid-template-columns: minmax(0, 1fr); }
   .bar { grid-template-columns: minmax(0, 1fr) 64px; } .bar .lane { grid-column: 1 / -1; grid-row: 2; }
-  .traverse { height: auto; } .traverse .sticky { position: relative; height: auto; overflow: visible; padding: 12vh 0; }
-  .strip { flex-direction: column; transform: none !important; } .stage { flex-basis: auto; }
 }
 @media (prefers-reduced-motion: reduce) {
   .stations .station, body, .backdrop { transition: none; }
@@ -205,17 +190,7 @@ body.light .live { border-color: #cfc7ba; }
 .fc-ceil { position: absolute; top: -6px; bottom: -6px; left: 67.5%; width: 2px; background: var(--paper-ink); }
 .fc-chip { display: inline-block; font-size: 14px; padding: 3px 10px; border-radius: 999px; background: #1f1d1a; color: var(--accent); }
 .fc-cursor { position: absolute; left: 0; top: 0; width: 24px; height: 24px; opacity: 0; z-index: 3; pointer-events: none; }
-.fc-arch { position: relative; width: 100%; max-width: 760px; margin: 0 auto; display: grid; grid-template-columns: 1fr 1fr; gap: 20px; padding-bottom: 92px; }
-.fc-ws { background: var(--panel); border: 1px solid var(--rule-strong); border-radius: 10px; padding: 18px 18px 16px; }
-.fc-ws h3 { font-size: 20px; }
-.fc-ws .mem { font-size: 14px; color: var(--ink-3); margin-top: 2px; }
-.fc-svc { margin-top: 10px; border: 1px solid var(--rule-strong); border-radius: 8px; padding: 9px 11px; display: flex; justify-content: space-between; gap: 8px; font-size: 15px; background: var(--raise); }
-.fc-svc em { font-style: normal; color: var(--ink-2); font-size: 13px; }
-.fc-vast { position: absolute; left: 0; right: 0; bottom: 0; height: 56px; border-radius: 10px; border: 1px solid var(--rule-strong); background: var(--panel); display: flex; align-items: center; gap: 14px; padding: 0 18px; font-size: 15px; color: var(--ink-2); }
-.fc-vast b { color: var(--ink); font-weight: 500; }
-.fc-dot { position: absolute; left: 0; top: 0; width: 14px; height: 14px; border-radius: 50%; background: var(--accent); opacity: 0; z-index: 2; }
-.fc-tag { position: absolute; left: 0; top: 0; font-size: 13px; color: var(--ink-2); white-space: nowrap; opacity: 0; z-index: 2; }
-@media (max-width: 820px) { .fc-arch { grid-template-columns: 1fr; padding-bottom: 76px; } .fc-bar { grid-template-columns: 1fr 56px; } .fc-bar .fc-lane { grid-column: 1 / -1; grid-row: 2; } }
+@media (max-width: 820px) { .fc-bar { grid-template-columns: 1fr 56px; } .fc-bar .fc-lane { grid-column: 1 / -1; grid-row: 2; } }
 
 /* Grabs from the real interface */
 .grab { margin: 0; display: grid; gap: 10px; min-width: 0; }
@@ -249,3 +224,95 @@ body.light .choose button { color: var(--ink-2); } body.light .choose button.on 
 .block .fc-muted { color: var(--paper-ink-2); }
 .block .fc-btn { background: var(--paper-ink); color: var(--paper); }
 .block .fc-lane { background: #e4ddd1; } .block .fc-ceil { background: var(--paper-ink); }
+
+/* Runs on CIQ: numbered steps on the left; the deployment pinned on the right, lit hop by hop */
+.sprite { position: absolute; width: 0; height: 0; overflow: hidden; }
+.ciq svg { fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+.ciq-head { display: grid; gap: 22px; }
+.ciq .lede { max-width: 46ch; color: var(--ink-2); }
+.route { grid-template-columns: minmax(0, 4fr) minmax(0, 7fr); margin-top: 8vh; }
+.route .station { min-height: 88vh; gap: 18px; }
+.route .station:first-child { min-height: 70vh; }
+.rs-head { display: flex; align-items: center; gap: 12px; }
+.rs-ico { display: grid; place-items: center; width: 40px; height: 40px; flex: none; border: 1px solid var(--rule-strong); border-radius: 10px; background: var(--panel); color: var(--ink-2); transition: color 300ms, border-color 300ms; }
+.rs-ico svg { width: 22px; height: 22px; }
+.station.on .rs-ico { color: var(--accent); border-color: color-mix(in oklch, var(--accent) 45%, var(--rule-strong)); }
+.rs-n { font-size: 15px; color: var(--ink-3); }
+.rs h3 { font-size: 24px; }
+.route .station p { font-family: var(--display); font-weight: 300; font-size: clamp(20px, 1.9vw, 24px); line-height: 1.5; max-width: 34ch; }
+.route .station .slot { aspect-ratio: 16 / 9; }
+
+/* Tokens: one chip style for model names, configurations and measurements */
+.tok { display: inline-flex; align-items: center; gap: 0.35em; font: 500 0.74em/1.25 var(--body); letter-spacing: 0; padding: 0.3em 0.65em 0.3em 0.5em; border: 1px solid var(--rule-strong); border-radius: 999px; background: var(--raise); color: var(--ink); white-space: nowrap; vertical-align: 0.1em; }
+.tok svg { width: 1.15em; height: 1.15em; flex: none; color: var(--ink-2); }
+.route .station p.toks { display: flex; flex-wrap: wrap; gap: 8px; font-family: var(--body); font-size: 18px; line-height: 1; max-width: none; }
+.route .station p.toks .tok { vertical-align: 0; }
+.route .station p.cfg-m { display: none; }
+
+/* Evidence under its step */
+.grab .crop { overflow: hidden; aspect-ratio: 640 / 370; border-radius: 12px; border: 1px solid var(--rule); }
+.grab a.full { display: block; border-radius: 12px; }
+.grab a.full:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.grab .crop.rows { aspect-ratio: 1800 / 580; }
+.grab .crop.rows img { border: 0; border-radius: 0; box-shadow: none; }
+.grab .crop video { width: 200%; max-width: none; border: 0; border-radius: 0; display: block; }
+.timing { margin: 0; display: grid; gap: 12px; }
+.tm { display: grid; grid-template-columns: 120px minmax(0, 1fr) 52px; gap: 12px; align-items: center; font-size: 15px; color: var(--ink-2); }
+.tm .num { text-align: right; }
+.tm-lane { position: relative; height: 10px; background: var(--rule); border-radius: 3px; }
+.tm-lane i { position: absolute; left: 0; top: 0; bottom: 0; width: var(--w); background: var(--grey); border-radius: 3px; }
+.tm.on .tm-lane i { background: var(--accent); }
+.timing figcaption { font-size: 15px; color: var(--ink-3); }
+
+/* The deployment diagram, from the Fuzzfiles */
+.route .pin { top: 5vh; height: 90vh; align-content: center; }
+.deploy { position: relative; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px 14px; align-items: start; font-size: 13px; transform-origin: top center; }
+.deploy b { font-weight: 500; }
+.deploy code { font: inherit; color: var(--ink); }
+.deploy .ic { width: 16px; height: 16px; flex: none; color: var(--ink-3); transition: color 300ms; }
+.deploy [data-at] { transition: opacity 300ms, border-color 300ms; }
+.ar-band { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; padding: 10px 14px; border: 1px solid var(--rule-strong); border-radius: 10px; background: var(--panel); color: var(--ink-2); }
+.ar-band b { color: var(--ink); font-size: 14px; }
+.ar-node { display: grid; gap: 8px; padding: 12px; border: 1px solid var(--rule-strong); border-radius: 12px; background: var(--panel); min-width: 0; }
+.ar-nh { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; }
+.ar-nh b { font-size: 15px; }
+.ar-nh span { font-size: 12px; color: var(--ink-3); }
+.ar-svc { display: grid; gap: 6px; padding: 8px 10px; border: 1px solid var(--rule-strong); border-radius: 9px; background: var(--raise); min-width: 0; }
+.ar-sh { display: flex; align-items: center; gap: 7px; min-width: 0; }
+.ar-sh b { font-size: 13.5px; }
+.deploy em { font-style: normal; font-size: 11.5px; color: var(--ink-3); margin-left: auto; text-align: right; }
+.deploy p.cfg { display: flex; flex-wrap: wrap; gap: 4px; }
+.deploy .c { display: inline-flex; align-items: center; gap: 4px; font-size: 11.5px; line-height: 1.2; padding: 2px 7px 2px 5px; border: 1px solid var(--rule-strong); border-radius: 999px; color: var(--ink-2); white-space: nowrap; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
+.deploy .c svg { width: 11px; height: 11px; flex: none; }
+.ar-mini { list-style: none; margin: 0; padding: 0; display: grid; gap: 3px; font-size: 11.5px; line-height: 1.35; color: var(--ink-3); }
+.ar-mini b { color: var(--ink-2); }
+.ar-wk { display: flex; align-items: center; gap: 7px; padding: 6px 8px; border: 1px solid var(--rule); border-radius: 7px; background: var(--panel); }
+.ar-wk b { font-size: 13px; white-space: nowrap; }
+.ar-lines { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; z-index: 2; }
+.ar-lines polyline { fill: none; stroke-linejoin: round; stroke-linecap: round; }
+.ar-all { stroke: var(--ink-3); stroke-width: 1.2; stroke-dasharray: 3 5; opacity: 0.55; }
+.ar-done { stroke: var(--accent); stroke-width: 2; }
+.ar-dot { position: absolute; left: -6px; top: -6px; width: 12px; height: 12px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 4px color-mix(in oklch, var(--accent) 22%, transparent); z-index: 3; }
+.deploy.routed [data-at]:not(.on):not(.held):not(.ar-node) { opacity: 0.5; }
+.deploy [data-at].on { border-color: var(--accent); opacity: 1; }
+.deploy [data-at].on > .ic, .deploy [data-at].on > .ar-sh .ic, .deploy [data-at].on > .ar-nh .ic { color: var(--accent); }
+.ciq-desk { margin-top: 16vh; }
+.ciq-desk h3 { font-size: clamp(24px, 2.6vw, 32px); }
+
+@media (max-width: 820px) {
+  .route { grid-template-columns: minmax(0, 1fr); gap: 0; }
+  .route .pin { position: sticky; top: 0; z-index: 4; height: auto; order: -1; margin: 0 calc(-1 * var(--gutter)); padding: 10px var(--gutter) 12px; background: var(--ground); border-bottom: 1px solid var(--rule); }
+  .route .ticks { display: none; }
+  .route .station, .route .station:first-child { min-height: 0; padding: 7vh 0; }
+  .route .station p.cfg-m { display: flex; }
+  .route .station p.toks { font-size: 16px; }
+  .deploy { gap: 6px 8px; font-size: 12px; }
+  .deploy .cfg, .deploy .ar-hw, .deploy em, .deploy .ar-nh span { display: none; }
+  .deploy p.cfg, .deploy ul.cfg { display: none; }
+  .ar-band { padding: 6px 10px; } .ar-node { padding: 7px; gap: 5px; } .ar-svc { padding: 5px 7px; gap: 4px; } .ar-wk { padding: 4px 6px; }
+  .ar-nh b, .ar-band b { font-size: 13px; } .ar-sh b, .ar-wk b { font-size: 12px; white-space: normal; }
+  .tm { grid-template-columns: 96px minmax(0, 1fr) 46px; font-size: 14px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .rs-ico, .deploy [data-at], .deploy .ic { transition: none; }
+}

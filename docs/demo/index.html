@@ -155,36 +155,146 @@
   </div>
 </section>
 
-<!-- Runs on CIQ: the pipeline, moving sideways -->
-<section class="traverse" data-biome="ciq">
-  <div class="sticky">
-    <h2>Runs on CIQ</h2>
-    <div class="strip">
-      <article class="stage"><span class="where">Fuzzball, two 128 GB workstations, one VAST volume</span><p>The app and the video pipeline together need an estimated 150 GB of memory, so Fuzzball starts them on separate 128 GB workstations and gives both access to the same VAST storage.</p></article>
-      <article class="stage"><span class="where">Workstation 1</span><p>When you submit a hypothesis, Nemotron Super 120B plans the experiment on the first workstation.</p><div class="slot"><b>Nemotron planning</b><span>Recording to come: the plan streaming into the chat</span></div></article>
-      <article class="stage"><span class="where">Workstation 2</span><p>The app sends the scene specifications to the second, where Isaac Sim renders a reference video, NVIDIA Cosmos 3 Nano uses it to generate realistic footage, and TRIBE v2 predicts the fMRI response to each clip.</p><figure class="grab"><video src="assets/cluster/isaac-cosmos-vase.mp4" muted loop playsinline autoplay aria-label="An Isaac Sim render of a vase on a counter beside its Cosmos restyle"></video><figcaption>Isaac Sim's render on the left, and Cosmos 3 Nano's restyle on the right, made in 181 s. TRIBE v2 predicted the response to the restyle in 11 s.</figcaption></figure></article>
-      <article class="stage"><span class="where">Back to Workstation 1, then Fuzzball</span><p>The app sends the predictions back to Nemotron to compare conditions. If the agent chooses a follow-up, the app submits it to Fuzzball.</p></article>
-      <article class="stage"><span class="where">VAST</span><p>Each round adds its clips, predictions, and log to the same VAST volume, so you can trace each result back to what the agent changed.</p></article>
-    </div>
-    <div class="dots" aria-hidden="true"></div>
-  </div>
-</section>
+<!-- Runs on CIQ: one round's route through the cluster. The steps scroll on the left; the deployment, read from
+     fuzzball/simulaxon.fz, render-score.fz and observability.fz, stays pinned on the right and lights each step's hop. -->
+<section class="section ciq" data-biome="ciq">
+  <svg class="sprite" aria-hidden="true" focusable="false">
+    <symbol id="i-node" viewBox="0 0 24 24"><rect x="3.5" y="4" width="17" height="7" rx="1.5"/><rect x="3.5" y="13" width="17" height="7" rx="1.5"/><path d="M7 7.5h.01M7 16.5h.01M11 7.5h6M11 16.5h6"/></symbol>
+    <symbol id="i-gpu" viewBox="0 0 24 24"><rect x="2.5" y="6.5" width="19" height="11" rx="1.5"/><circle cx="8.5" cy="12" r="3"/><path d="M14.5 10h4M14.5 14h4M5 17.5v2M19 17.5v2"/></symbol>
+    <symbol id="i-cpu" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="1.5"/><rect x="9.5" y="9.5" width="5" height="5"/><path d="M9 2.5v3.5M15 2.5v3.5M9 18v3.5M15 18v3.5M2.5 9H6M2.5 15H6M18 9h3.5M18 15h3.5"/></symbol>
+    <symbol id="i-mem" viewBox="0 0 24 24"><rect x="2.5" y="7" width="19" height="9" rx="1"/><path d="M6 16v3M10 16v3M14 16v3M18 16v3M6.5 10.5h3v2h-3zM14.5 10.5h3v2h-3z"/></symbol>
+    <symbol id="i-port" viewBox="0 0 24 24"><path d="M9 3v5M15 3v5M6.5 8h11v4a5.5 5.5 0 0 1-11 0zM12 17.5V21"/></symbol>
+    <symbol id="i-box" viewBox="0 0 24 24"><path d="M12 3l8 4v10l-8 4-8-4V7zM4 7l8 4 8-4M12 11v10"/></symbol>
+    <symbol id="i-llm" viewBox="0 0 24 24"><path d="M4 5h16v11H10l-5 4v-4H4z"/><path d="M8 9h8M8 12.5h5"/></symbol>
+    <symbol id="i-app" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M6.5 6.5h.01M9 6.5h.01"/></symbol>
+    <symbol id="i-render" viewBox="0 0 24 24"><path d="M12 3l8 4.5v9L12 21l-8-4.5v-9zM12 12l8-4.5M12 12v9M12 12L4 7.5"/></symbol>
+    <symbol id="i-restyle" viewBox="0 0 24 24"><path d="M11 3.5l1.8 5.2 5.2 1.8-5.2 1.8L11 17.5l-1.8-5.2L4 10.5l5.2-1.8z"/><path d="M18.5 15v5M16 17.5h5"/></symbol>
+    <symbol id="i-brain" viewBox="0 0 24 24"><path d="M12 5.5a3 3 0 0 0-5.6-1.2A3 3 0 0 0 4 8.5a3.2 3.2 0 0 0 0 6 3 3 0 0 0 2.6 4.4A3 3 0 0 0 12 19.5zM12 5.5a3 3 0 0 1 5.6-1.2A3 3 0 0 1 20 8.5a3.2 3.2 0 0 1 0 6 3 3 0 0 1-2.6 4.4A3 3 0 0 1 12 19.5zM12 5.5v14"/></symbol>
+    <symbol id="i-flow" viewBox="0 0 24 24"><rect x="3" y="3.5" width="6" height="6" rx="1"/><rect x="15" y="3.5" width="6" height="6" rx="1"/><rect x="15" y="14.5" width="6" height="6" rx="1"/><path d="M9 6.5h6M18 9.5v5"/></symbol>
+    <symbol id="i-volume" viewBox="0 0 24 24"><ellipse cx="12" cy="6" rx="7" ry="2.5"/><path d="M5 6v12c0 1.4 3.1 2.5 7 2.5s7-1.1 7-2.5V6M5 12c0 1.4 3.1 2.5 7 2.5s7-1.1 7-2.5"/></symbol>
+    <symbol id="i-gauge" viewBox="0 0 24 24"><path d="M4 17a8 8 0 1 1 16 0M12 17l4-5"/><circle cx="12" cy="17" r="1"/></symbol>
+    <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></symbol>
+    <symbol id="i-bolt" viewBox="0 0 24 24"><path d="M13 3L5 14h6l-1 7 8-11h-6z"/></symbol>
+    <symbol id="i-layers" viewBox="0 0 24 24"><path d="M12 4l8 4-8 4-8-4zM4 12l8 4 8-4M4 16l8 4 8-4"/></symbol>
+    <symbol id="i-mesh" viewBox="0 0 24 24"><path d="M3.5 19L12 4l8.5 15zM7.8 11.5h8.4M12 19l-4.2-7.5M12 19l4.2-7.5"/></symbol>
+    <symbol id="i-edge" viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="17" height="17" rx="1.5"/><path d="M7 17l4-6 3 3 3-5"/></symbol>
+    <symbol id="i-link" viewBox="0 0 24 24"><path d="M10 14a4 4 0 0 0 5.7 0l3-3A4 4 0 0 0 13 5.3l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></symbol>
+    <symbol id="i-folder" viewBox="0 0 24 24"><path d="M3.5 6.5a1.5 1.5 0 0 1 1.5-1.5h4l2 2.5h8a1.5 1.5 0 0 1 1.5 1.5v8.5a1.5 1.5 0 0 1-1.5 1.5H5a1.5 1.5 0 0 1-1.5-1.5z"/></symbol>
+    <symbol id="i-chart" viewBox="0 0 24 24"><path d="M4 4v16h16M8 15l3.5-4.5 3 3L19 7"/></symbol>
+    <symbol id="i-compare" viewBox="0 0 24 24"><path d="M6 20V10M12 20V4M18 20v-7M3.5 20h17"/></symbol>
+    <symbol id="i-send" viewBox="0 0 24 24"><path d="M4 12h14M13 6l6 6-6 6"/></symbol>
+  </svg>
 
-<!-- The route of one round, live -->
-<section class="section" data-biome="ciq">
-  <div class="fc-arch" data-card="workstations">
-    <div class="fc-ws"><h3>Workstation 1</h3><p class="mem">78 of 128 GB</p><div class="fc-svc" data-svc="app">App server <em>FastAPI, DuckDB</em></div><div class="fc-svc" data-svc="nem">Nemotron Super 120B <em>NVFP4, vLLM</em></div></div>
-    <div class="fc-ws"><h3>Workstation 2</h3><p class="mem">72 of 128 GB</p><div class="fc-svc" data-svc="isaac">Isaac Sim 6.2 <em>reference video</em></div><div class="fc-svc" data-svc="cosmos">Cosmos 3 Nano <em>realistic footage</em></div><div class="fc-svc" data-svc="tribe">TRIBE v2 <em>predicted fMRI</em></div></div>
-    <div class="fc-vast"><b>VAST volume</b><span>clips · predictions · log</span></div>
-    <div class="fc-dot"></div>
-    <span class="fc-tag" data-tag="1">Hypothesis</span><span class="fc-tag" data-tag="2">Scene specifications</span><span class="fc-tag" data-tag="3">Predictions</span><span class="fc-tag" data-tag="4">Clips, predictions, log</span>
+  <div class="ciq-head">
+    <h2>Runs on CIQ</h2>
+    <p class="lede">The app and the video pipeline together need an estimated 150 GB of memory, so Fuzzball starts them on separate 128 GB workstations and gives both access to the same VAST storage.</p>
   </div>
-  <div class="two top" style="margin-top:14vh">
-    <div class="lines reveal">
-      <h2>The desk and production</h2>
+
+  <div class="stations route">
+    <div class="text">
+      <article class="station rs">
+        <div class="rs-head"><span class="rs-ico"><svg><use href="#i-llm"/></svg></span><span class="rs-n num">1</span><h3>Planner on workstation 1</h3></div>
+        <p>When you submit a hypothesis, <span class="tok"><svg><use href="#i-llm"/></svg>Nemotron Super 120B</span> plans the experiment on the first workstation.</p>
+        <p class="toks"><span class="tok"><svg><use href="#i-gauge"/></svg>21.5 tokens/s, measured</span></p>
+        <p class="toks cfg-m"><span class="tok"><svg><use href="#i-layers"/></svg>NVFP4</span><span class="tok"><svg><use href="#i-box"/></svg>vllm/vllm-openai:v0.27.1</span><span class="tok"><svg><use href="#i-bolt"/></svg>MTP speculative decoding, 3 tokens</span><span class="tok"><svg><use href="#i-gpu"/></svg>0.75 GPU memory</span><span class="tok"><svg><use href="#i-cpu"/></svg>8 cores</span><span class="tok"><svg><use href="#i-mem"/></svg>100 GiB</span><span class="tok"><svg><use href="#i-port"/></svg>planner:8000</span></p>
+        <div class="slot"><b>Nemotron planning</b><span>Recording to come: the plan streaming into the chat</span></div>
+      </article>
+      <article class="station rs">
+        <div class="rs-head"><span class="rs-ico"><svg><use href="#i-send"/></svg></span><span class="rs-n num">2</span><h3>Hand-off to workstation 2</h3></div>
+        <p>The app sends the scene specifications to the second workstation.</p>
+        <p class="toks cfg-m"><span class="tok"><svg><use href="#i-node"/></svg>CIQ-CHI-SPARK25</span><span class="tok"><svg><use href="#i-box"/></svg>nvcr.io/nvidia/isaac-sim:6.2.0</span><span class="tok"><svg><use href="#i-cpu"/></svg>16 cores</span><span class="tok"><svg><use href="#i-mem"/></svg>96 GiB</span><span class="tok"><svg><use href="#i-link"/></svg>render-score.&lt;workflow-id&gt;:8100</span></p>
+      </article>
+      <article class="station rs">
+        <div class="rs-head"><span class="rs-ico"><svg><use href="#i-render"/></svg></span><span class="rs-n num">3</span><h3>Isaac Sim render</h3></div>
+        <p><span class="tok"><svg><use href="#i-render"/></svg>Isaac Sim 6.2</span> renders a reference video.</p>
+        <figure class="grab half"><div class="crop"><video src="assets/cluster/isaac-cosmos-vase.mp4" muted loop playsinline autoplay aria-label="An Isaac Sim render of a vase on a counter"></video></div><figcaption>Isaac Sim's render of a vase on a counter, made on the cluster on 15 November.</figcaption></figure>
+      </article>
+      <article class="station rs">
+        <div class="rs-head"><span class="rs-ico"><svg><use href="#i-restyle"/></svg></span><span class="rs-n num">4</span><h3>Cosmos restyle</h3></div>
+        <p><span class="tok"><svg><use href="#i-restyle"/></svg>NVIDIA Cosmos 3 Nano</span> uses it to generate realistic footage.</p>
+        <p class="toks"><span class="tok"><svg><use href="#i-clock"/></svg>181 s, measured</span></p>
+        <p class="toks cfg-m"><span class="tok"><svg><use href="#i-box"/></svg>Sim-Transfer</span><span class="tok"><svg><use href="#i-edge"/></svg>edge control</span></p>
+        <figure class="grab"><video src="assets/cluster/isaac-cosmos-vase.mp4" muted loop playsinline autoplay aria-label="An Isaac Sim render of a vase on a counter beside its Cosmos restyle"></video><figcaption>Isaac Sim's render on the left, and Cosmos 3 Nano's restyle on the right, made in 181 s.</figcaption></figure>
+      </article>
+      <article class="station rs">
+        <div class="rs-head"><span class="rs-ico"><svg><use href="#i-brain"/></svg></span><span class="rs-n num">5</span><h3>TRIBE v2 prediction</h3></div>
+        <p><span class="tok"><svg><use href="#i-brain"/></svg>TRIBE v2</span> predicts the fMRI response to each clip.</p>
+        <p class="toks cfg-m"><span class="tok"><svg><use href="#i-mesh"/></svg>fsaverage5, 20,484 vertices</span><span class="tok"><svg><use href="#i-layers"/></svg>V-JEPA 2 features</span></p>
+        <figure class="timing" aria-label="Seconds per clip: Cosmos 3 Nano 181, TRIBE v2 11">
+          <div class="tm"><span>Cosmos 3 Nano</span><span class="tm-lane"><i style="--w:100%"></i></span><span class="num">181 s</span></div>
+          <div class="tm on"><span>TRIBE v2</span><span class="tm-lane"><i style="--w:6.1%"></i></span><span class="num">11 s</span></div>
+          <figcaption>Seconds for the vase clip on the cluster: TRIBE v2 predicted the response to the restyle in 11 s.</figcaption>
+        </figure>
+      </article>
+      <article class="station rs">
+        <div class="rs-head"><span class="rs-ico"><svg><use href="#i-compare"/></svg></span><span class="rs-n num">6</span><h3>Back to the planner</h3></div>
+        <p>The app sends the predictions back to Nemotron to compare conditions.</p>
+        <p class="toks"><span class="tok"><svg><use href="#i-mem"/></svg>112 of 119 GiB in use on CIQ-CHI-SPARK26, measured</span></p>
+        <figure class="grab"><a class="full" href="assets/grafana/memory-per-node.png"><img src="assets/grafana/memory-per-node.png" alt="Grafana: memory in use on each of the two GB10 nodes" loading="lazy"></a><figcaption>Memory in use per node. CIQ-CHI-SPARK26, in yellow, holds the planner and the app server.</figcaption></figure>
+      </article>
+      <article class="station rs">
+        <div class="rs-head"><span class="rs-ico"><svg><use href="#i-flow"/></svg></span><span class="rs-n num">7</span><h3>Follow-up on Fuzzball</h3></div>
+        <p>If the agent chooses a follow-up, the app submits it to Fuzzball.</p>
+        <p class="toks cfg-m"><span class="tok"><svg><use href="#i-flow"/></svg>Fuzzball 4.3</span><span class="tok"><svg><use href="#i-flow"/></svg>workflows simulaxon, render-score, observability</span></p>
+        <figure class="grab"><a class="full crop rows" href="assets/grafana/fuzzball-jobs.png"><img src="assets/grafana/fuzzball-jobs.png" alt="Grafana: every job in the running Fuzzball workflows, with its node" loading="lazy"></a><figcaption>Fuzzball workflows: the planner and app server on one node, rendering and prediction on the other, with Prometheus and Grafana.</figcaption></figure>
+      </article>
+      <article class="station rs">
+        <div class="rs-head"><span class="rs-ico"><svg><use href="#i-volume"/></svg></span><span class="rs-n num">8</span><h3>Every round on VAST</h3></div>
+        <p>Each round adds its clips, predictions, and log to the same VAST volume, so you can trace each result back to what the agent changed.</p>
+        <p class="toks cfg-m"><span class="tok"><svg><use href="#i-volume"/></svg>simulaxon-data</span><span class="tok"><svg><use href="#i-link"/></svg>team13, NFS</span><span class="tok"><svg><use href="#i-folder"/></svg>/data in every container</span><span class="tok"><svg><use href="#i-folder"/></svg>weights, 136 GB</span></p>
+      </article>
+    </div>
+
+    <div class="pin">
+      <div class="deploy" data-route role="img" aria-label="Deployment: workstation 1, CIQ-CHI-SPARK26, runs the planner, the app server and observability; workstation 2, CIQ-CHI-SPARK25, runs render-score with Isaac Sim, Cosmos 3 Nano, TRIBE v2 and V-JEPA 2; both mount the VAST volume simulaxon-data at /data.">
+        <svg class="ar-lines" aria-hidden="true"><polyline class="ar-all"/><polyline class="ar-done"/></svg>
+        <div class="ar-band" data-at="fuzz"><svg class="ic"><use href="#i-flow"/></svg><b>Fuzzball 4.3</b><span class="cfg">workflows <code>simulaxon</code>, <code>render-score</code>, <code>observability</code></span></div>
+        <div class="ar-node" data-at="ws1">
+          <div class="ar-nh"><svg class="ic"><use href="#i-node"/></svg><b>Workstation 1</b><span>CIQ-CHI-SPARK26</span></div>
+          <p class="ar-hw cfg"><span class="c"><svg><use href="#i-gpu"/></svg>GB10, 1 GPU</span><span class="c"><svg><use href="#i-mem"/></svg>128 GB unified</span></p>
+          <div class="ar-svc" data-at="app">
+            <div class="ar-sh"><svg class="ic"><use href="#i-app"/></svg><b>App server</b><em>FastAPI, DuckDB</em></div>
+            <p class="cfg"><span class="c"><svg><use href="#i-box"/></svg>python:3.12-slim</span><span class="c"><svg><use href="#i-cpu"/></svg>4 cores</span><span class="c"><svg><use href="#i-mem"/></svg>8 GiB</span><span class="c"><svg><use href="#i-port"/></svg>8791</span><span class="c"><svg><use href="#i-link"/></svg>endpoint simulaxon</span></p>
+          </div>
+          <div class="ar-svc" data-at="nem">
+            <div class="ar-sh"><svg class="ic"><use href="#i-llm"/></svg><b>Nemotron 3 Super 120B</b><em>planner</em></div>
+            <p class="cfg"><span class="c"><svg><use href="#i-box"/></svg>vllm/vllm-openai:v0.27.1</span><span class="c"><svg><use href="#i-cpu"/></svg>8 cores</span><span class="c"><svg><use href="#i-mem"/></svg>100 GiB</span><span class="c"><svg><use href="#i-gpu"/></svg>1 GPU, 0.75 memory</span><span class="c"><svg><use href="#i-port"/></svg>planner:8000</span><span class="c"><svg><use href="#i-layers"/></svg>NVFP4, fp8 KV cache</span><span class="c"><svg><use href="#i-bolt"/></svg>MTP, 3 tokens</span><span class="c"><svg><use href="#i-llm"/></svg>65,536 context, 4 sequences</span></p>
+          </div>
+          <div class="ar-svc dim" data-at="ui">
+            <div class="ar-sh"><svg class="ic"><use href="#i-box"/></svg><b>build-ui</b><em>job, before the services</em></div>
+            <p class="cfg"><span class="c"><svg><use href="#i-box"/></svg>node:24-bookworm-slim</span><span class="c"><svg><use href="#i-cpu"/></svg>4 cores</span><span class="c"><svg><use href="#i-mem"/></svg>8 GiB</span></p>
+          </div>
+          <div class="ar-svc dim" data-at="obs">
+            <div class="ar-sh"><svg class="ic"><use href="#i-chart"/></svg><b>observability</b><em>workflow</em></div>
+            <ul class="ar-mini cfg"><li><b>prometheus</b> prom/prometheus:v3.15.1, 2 cores, 4 GiB, port 19090</li><li><b>grafana</b> grafana/grafana:13.0.12, 1 core, 2 GiB, port 13000</li><li><b>exporter</b> python:3.12-slim, 1 core, 1 GiB, port 19100</li></ul>
+          </div>
+        </div>
+        <div class="ar-node" data-at="ws2">
+          <div class="ar-nh"><svg class="ic"><use href="#i-node"/></svg><b>Workstation 2</b><span>CIQ-CHI-SPARK25</span></div>
+          <p class="ar-hw cfg"><span class="c"><svg><use href="#i-gpu"/></svg>GB10, 1 GPU</span><span class="c"><svg><use href="#i-mem"/></svg>128 GB unified</span></p>
+          <div class="ar-svc ar-rs" data-at="rs">
+            <div class="ar-sh"><svg class="ic"><use href="#i-flow"/></svg><b>render-score</b><em>service</em></div>
+            <p class="cfg"><span class="c"><svg><use href="#i-box"/></svg>nvcr.io/nvidia/isaac-sim:6.2.0</span><span class="c"><svg><use href="#i-cpu"/></svg>16 cores</span><span class="c"><svg><use href="#i-mem"/></svg>96 GiB</span><span class="c"><svg><use href="#i-gpu"/></svg>1 GPU</span><span class="c"><svg><use href="#i-link"/></svg>render-score.&lt;workflow-id&gt;:8100</span></p>
+            <div class="ar-wk" data-at="isaac"><svg class="ic"><use href="#i-render"/></svg><b>Isaac Sim 6.2</b><em>reference video</em></div>
+            <div class="ar-wk" data-at="cosmos"><svg class="ic"><use href="#i-restyle"/></svg><b>Cosmos 3 Nano</b><em class="cfg">Sim-Transfer, edge control</em></div>
+            <div class="ar-wk" data-at="tribe"><svg class="ic"><use href="#i-brain"/></svg><b>TRIBE v2</b><em class="cfg">fsaverage5, 20,484 vertices</em></div>
+            <div class="ar-wk" data-at="vjepa"><svg class="ic"><use href="#i-layers"/></svg><b>V-JEPA 2</b><em class="cfg">video features for TRIBE v2</em></div>
+            <p class="cfg ar-env"><span class="c"><svg><use href="#i-folder"/></svg>Python environments on /data/envs</span></p>
+          </div>
+        </div>
+        <div class="ar-band ar-vast" data-at="vast"><svg class="ic"><use href="#i-volume"/></svg><b>VAST volume</b><span><code>simulaxon-data</code></span><span class="cfg">team13, NFS, at <code>/data</code>: weights (136 GB), envs, src, log, chunks, predictions</span></div>
+        <i class="ar-dot" aria-hidden="true"></i>
+      </div>
+      <div class="ticks" aria-hidden="true"></div>
+    </div>
+  </div>
+
+  <div class="two top ciq-desk">
+    <div class="lines">
+      <h3>Desk and production</h3>
       <p class="note">The same study code runs on both.</p>
     </div>
-    <div class="tablescroll reveal">
+    <div class="tablescroll">
       <table class="machines">
         <thead><tr><th>Machine</th><th>Role</th><th>Runs on</th></tr></thead>
         <tbody>
