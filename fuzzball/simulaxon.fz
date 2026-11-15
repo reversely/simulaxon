@@ -123,7 +123,9 @@ services:
       cd /data/src/simulaxon/services/app-server
       # The lab server (app_server/lab/serve.py): the tools, the event stream, the UI, and the cluster dashboard at /dashboard.
       # Its agent runs on the planner (lab/planner_agent.py), since the cluster has no Claude Code.
-      exec python -m app_server.lab.serve --host 0.0.0.0 --port 8791 --db /data/log/lab.duckdb
+      # Restarted in place after a code update, so the planner keeps running:
+      #   fuzzball workflow exec <id> app-server -- python3 -c "import os; [os.kill(int(p), 15) for p in os.listdir('/proc') if p.isdigit() and b'app_server.lab.serve' in open(f'/proc/{p}/cmdline', 'rb').read()]"
+      while true; do python -m app_server.lab.serve --host 0.0.0.0 --port 8791 --db /data/log/lab.duckdb; echo "app server exited ($?); restarting"; sleep 2; done
     network:
       ports:
         - name: web
