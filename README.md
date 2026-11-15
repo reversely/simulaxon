@@ -2,8 +2,8 @@
 
 <h1 align="center">Simulaxon</h1>
 
-<p align="center"><b>Prototype neuroscience experiments in hours.</b><br>
-Simulaxon's AI agents turn a hypothesis into scenes they can generate, predict how the brain would respond, and use those predictions to decide what to test next.</p>
+<p align="center"><b>Neural experiments in hours.</b><br>
+AI agents test cognitive hypotheses by predicting fMRI responses to scenes they render in virtual worlds.</p>
 
 <p align="center"><img src="docs/demo/assets/grabs/grab-trial.gif" width="860" alt="A rendered trial and its predicted cortex playing on one clock"></p>
 
