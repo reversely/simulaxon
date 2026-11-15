@@ -184,13 +184,7 @@
     <div class="two top">
       <div class="lines reveal">
         <div class="hd"><span class="h-ico" aria-hidden="true"><svg><use href="#i-chart"/></svg></span><h3>Benchmark</h3></div>
-        <p class="note">Median r over <span class="tok"><svg><use href="#i-mesh"/></svg>212 reliable brain areas</span> of the <span class="tok"><svg><use href="#i-folder"/></svg>Human Action Dataset</span>, on action categories the fit never saw. The line on each bar is the noise ceiling, 0.675. The adapter reaches 60% of the ceiling, up from 38%, and scores higher in <span class="tok"><svg><use href="#i-compare"/></svg>179 of the 212 areas</span>. The bracket on each bar is its 95% interval.</p>
-      </div>
-      <div class="bars" role="img" aria-label="Median r: TRIBE v2 as released 0.257 (95% interval 0.171 to 0.325), adapter 0.407 (0.364 to 0.461), labels shuffled −0.011, noise ceiling 0.675 (0.629 to 0.725)">
-        <div class="bar"><span>TRIBE v2 as released</span><span class="lane"><i data-w="36.7%" style="background:var(--grey)"></i><span class="ci" style="left:24.4%;width:22%"></span><span class="ceil"></span></span><span class="big num">0.257</span></div>
-        <div class="bar"><span><b>Adapter</b></span><span class="lane"><i data-w="58.1%" style="background:var(--a)"></i><span class="ci" style="left:52%;width:13.9%"></span><span class="ceil"></span></span><span class="big num"><b>0.407</b></span></div>
-        <div class="bar"><span>Labels shuffled</span><span class="lane"><i data-w="0%"></i><span class="ceil"></span></span><span class="big num">−0.011</span></div>
-        <div class="bar"><span>Noise ceiling</span><span class="lane"><i data-w="96.4%" style="background:var(--rule-strong)"></i><span class="ci" style="left:89.9%;width:13.7%"></span></span><span class="big num">0.675</span></div>
+        <p class="note">Median r over <span class="tok"><svg><use href="#i-mesh"/></svg>212 reliable brain areas</span> of the <span class="tok"><svg><use href="#i-folder"/></svg>Human Action Dataset</span>, on action categories the fit never saw. The line on each bar is the noise ceiling, 0.675. The adapter reaches 60% of the ceiling, up from 38%, and scores higher in <span class="tok"><svg><use href="#i-compare"/></svg>179 of the 212 areas</span>. With the labels shuffled, the fit scores −0.011.</p>
       </div>
     </div>
   </div>
@@ -263,7 +257,7 @@
     <div class="pin">
       <div class="deploy" data-route role="img" aria-label="Deployment: workstation 1, CIQ-CHI-SPARK26, runs the planner, the app server and observability; workstation 2, CIQ-CHI-SPARK25, runs render-score with Isaac Sim, Cosmos 3 Nano, TRIBE v2 and V-JEPA 2; both mount the VAST volume simulaxon-data at /data.">
         <svg class="ar-lines" aria-hidden="true"><polyline class="ar-all"/><polyline class="ar-done"/></svg>
-        <div class="ar-band" data-at="fuzz"><svg class="ic"><use href="#i-flow"/></svg><b>Fuzzball 4.3</b><span class="cfg">workflows <code>simulaxon</code>, <code>render-score</code>, <code>observability</code></span></div>
+        <div class="ar-band" data-at="fuzz"><svg class="ic"><use href="#i-flow"/></svg><b>Fuzzball 4.3</b><em>CIQ, starts every service</em></div>
         <div class="ar-node" data-at="ws1">
           <div class="ar-nh"><svg class="ic"><use href="#i-node"/></svg><b>Workstation 1</b><span>CIQ-CHI-SPARK26</span></div>
           <p class="ar-hw cfg"><span class="c"><svg><use href="#i-gpu"/></svg>GB10, 1 GPU</span><span class="c"><svg><use href="#i-mem"/></svg>128 GB unified</span></p>
@@ -272,7 +266,7 @@
             <p class="cfg"><span class="c"><svg><use href="#i-box"/></svg>python:3.12-slim</span><span class="c"><svg><use href="#i-cpu"/></svg>4 cores</span><span class="c"><svg><use href="#i-mem"/></svg>8 GiB</span><span class="c"><svg><use href="#i-port"/></svg>8791</span><span class="c"><svg><use href="#i-link"/></svg>endpoint simulaxon</span></p>
           </div>
           <div class="ar-svc" data-at="nem">
-            <div class="ar-sh"><svg class="ic"><use href="#i-llm"/></svg><b>Nemotron 3 Super 120B</b><em>planner</em></div>
+            <div class="ar-sh"><svg class="ic"><use href="#i-llm"/></svg><b>Nemotron 3 Super 120B</b><em>NVIDIA, planner</em></div>
             <p class="cfg"><span class="c"><svg><use href="#i-box"/></svg>vllm/vllm-openai:v0.27.1</span><span class="c"><svg><use href="#i-cpu"/></svg>8 cores</span><span class="c"><svg><use href="#i-mem"/></svg>100 GiB</span><span class="c"><svg><use href="#i-gpu"/></svg>1 GPU, 0.75 memory</span><span class="c"><svg><use href="#i-port"/></svg>planner:8000</span><span class="c"><svg><use href="#i-layers"/></svg>NVFP4, fp8 KV cache</span><span class="c"><svg><use href="#i-bolt"/></svg>MTP, 3 tokens</span><span class="c"><svg><use href="#i-llm"/></svg>65,536 context, 4 sequences</span></p>
           </div>
           <div class="ar-svc dim" data-at="ui">
@@ -290,14 +284,14 @@
           <div class="ar-svc ar-rs" data-at="rs">
             <div class="ar-sh"><svg class="ic"><use href="#i-flow"/></svg><b>render-score</b><em>service</em></div>
             <p class="cfg"><span class="c"><svg><use href="#i-box"/></svg>nvcr.io/nvidia/isaac-sim:6.2.0</span><span class="c"><svg><use href="#i-cpu"/></svg>16 cores</span><span class="c"><svg><use href="#i-mem"/></svg>96 GiB</span><span class="c"><svg><use href="#i-gpu"/></svg>1 GPU</span><span class="c"><svg><use href="#i-link"/></svg>render-score.&lt;workflow-id&gt;:8100</span></p>
-            <div class="ar-wk" data-at="isaac"><svg class="ic"><use href="#i-render"/></svg><b>Isaac Sim 6.2</b><em>reference video</em></div>
-            <div class="ar-wk" data-at="cosmos"><svg class="ic"><use href="#i-restyle"/></svg><b>Cosmos 3 Nano</b><em class="cfg">Sim-Transfer, edge control</em></div>
-            <div class="ar-wk" data-at="tribe"><svg class="ic"><use href="#i-brain"/></svg><b>TRIBE v2</b><em class="cfg">fsaverage5, 20,484 vertices</em></div>
-            <div class="ar-wk" data-at="vjepa"><svg class="ic"><use href="#i-layers"/></svg><b>V-JEPA 2</b><em class="cfg">video features for TRIBE v2</em></div>
+            <div class="ar-wk" data-at="isaac"><svg class="ic"><use href="#i-render"/></svg><b>Isaac Sim 6.2</b><em>NVIDIA, reference video</em></div>
+            <div class="ar-wk" data-at="cosmos"><svg class="ic"><use href="#i-restyle"/></svg><b>Cosmos 3 Nano</b><em>NVIDIA, realistic footage</em></div>
+            <div class="ar-wk" data-at="tribe"><svg class="ic"><use href="#i-brain"/></svg><b>TRIBE v2</b><em>Meta, predicted fMRI</em></div>
+            <div class="ar-wk" data-at="vjepa"><svg class="ic"><use href="#i-layers"/></svg><b>V-JEPA 2</b><em>Meta, video features</em></div>
             <p class="cfg ar-env"><span class="c"><svg><use href="#i-folder"/></svg>Python environments on /data/envs</span></p>
           </div>
         </div>
-        <div class="ar-band ar-vast" data-at="vast"><svg class="ic"><use href="#i-volume"/></svg><b>VAST volume</b><span><code>simulaxon-data</code></span><span class="cfg">team13, NFS, at <code>/data</code>: weights (136 GB), envs, src, log, chunks, predictions</span></div>
+        <div class="ar-band ar-vast" data-at="vast"><svg class="ic"><use href="#i-volume"/></svg><b>VAST volume</b><em>VAST Data, shared by both</em><span class="cfg">team13, NFS, at <code>/data</code>: weights (136 GB), envs, src, log, chunks, predictions</span></div>
         <i class="ar-dot" aria-hidden="true"></i>
       </div>
       <div class="ticks" aria-hidden="true"></div>
