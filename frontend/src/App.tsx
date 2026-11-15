@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { call, fmt, regionLabel, describeStep, whoName, type Step, PLAN_NAMES, PLAN_INFO, PLAN_ICON, ROLE_NAMES, type AnalysisItem, type MapRow, type Project, type Region, type Row, type Sample, type Template } from './api'
+import { call, count, fmt, regionLabel, describeStep, whoName, type Step, PLAN_NAMES, PLAN_INFO, PLAN_ICON, ROLE_NAMES, type AnalysisItem, type MapRow, type Project, type Region, type Row, type Sample, type Template } from './api'
 import { Icon, type IconName } from './icons'
 import { DotStrip, MiniInterval, SignedBars, TimeCourse } from './charts'
 import { FindingsView, SearchView, SourcesView } from './views'
@@ -56,6 +56,7 @@ export default function App() {
   const [sheet, setSheet] = useState<null | 'templates'>(null)
   const [switcher, setSwitcher] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [loadedFor, setLoadedFor] = useState<string | null>(null)   // the project the rows below belong to
   const [params, setParams] = useState<Row<Param>[]>([])
   const [previews, setPreviews] = useState<Row<Preview>[]>([])
   const [assets, setAssets] = useState<Record<string, any>>({})
@@ -106,7 +107,8 @@ export default function App() {
     if (!quiet) setLoading(true)
     const [s, a, st, pr, pv, as] = await Promise.all([call<Row<Sample>[]>('sample_list', { project_id: id }), call<AnalysisItem[]>('analysis_list', { project_id: id }), call<any[]>('step_list', { project_id: id, limit: 60 }),
       call<Row<Param>[]>('parameter_list', { project_id: id }), call<Row<Preview>[]>('preview_list', { project_id: id }), call<Record<string, any>>('asset_list', { project_id: id }).catch(() => ({}))])
-    setSamples(s); setAnalyses(a); setSteps(st); setParams(pr); setPreviews(pv); setAssets(as); setLoading(false)
+    if (live.current.pid !== id) return   // the person has moved to another project since: these rows are not its
+    setSamples(s); setAnalyses(a); setSteps(st); setParams(pr); setPreviews(pv); setAssets(as); setLoadedFor(id); setLoading(false)
     const P = projRef.current.find(x => x.id === id)?.data; const shown = demoRegion.current?.pid === id ? demoRegion.current.region : null
     if (!quiet) { demoRegion.current = null; setPicked(!!shown) }
     const names = [...((a.find(x => x.analysis.data.kind === 'paired')?.result?.data.regions ?? []) as Region[]).map(r => r.region), ...Object.keys(s[0]?.data.readout ?? {})]
@@ -116,7 +118,7 @@ export default function App() {
   }, [])
   useEffect(() => {
     if (!pid) return
-    setUnitIdx(0); setVariant(0); setSamples([]); setAnalyses([]); setParams([]); setPreviews([]); loadProject(pid)   // never pair a project with another's rows
+    setUnitIdx(0); setVariant(0); setLoadedFor(null); setSamples([]); setAnalyses([]); setParams([]); setPreviews([]); loadProject(pid)   // never pair a project with another's rows
     call('preview_search', { project_id: pid }).catch(() => {})   // choice options render in the background, so picking one answers from cache
     const u = new URL(location.href); u.searchParams.set('project', pid); history.replaceState(null, '', u)
   }, [pid, loadProject])
@@ -303,7 +305,7 @@ export default function App() {
               {P.counts && P.status === 'Done' && <span className="ink2 num">{P.counts.clips} clips</span>}
             </div>
           </div>
-          {loading ? <span className="spin" /> : P.status !== 'Done' && view !== 'room' ? (['samples', 'brain', 'data'].includes(view) && <Pending view={view} P={P} onSetup={() => setView('room')} />)
+          {loading || loadedFor !== pid ? <span className="spin" /> : P.status !== 'Done' && view !== 'room' ? (['samples', 'brain', 'data'].includes(view) && <Pending view={view} P={P} onSetup={() => setView('room')} />)
             : P.status !== 'Done' && P.plan === 'experiment' && (P as any).setup ? <ExperimentSetup setup={(P as any).setup as Setup} paper={(P as any).paper}
               running={P.status === 'Running'} progress={runProg[pid!]} onRun={() => call('project_run', { project_id: pid }).then(() => refreshProjects())} onAsk={text => send(text)} />
             : P.status !== 'Done' ? <>{(P as any).world && <WorldPanel pid={pid!} world={(P as any).world} script={(P as any).script} params={params} previews={previews} assets={assets}
@@ -413,9 +415,9 @@ function RoomView({ P, template, unit, units, unitIdx, setUnitIdx, variant, setV
       {unit.variants.some(v => v.data.clip) && <div className="seg" role="group" aria-label="Frame or clip"><button className={mode === 'frame' ? 'on' : ''} onClick={() => setMode('frame')}>Frame</button><button className={mode === 'clip' ? 'on' : ''} onClick={() => setMode('clip')}>Clip</button></div>}
       {isLoo && <div className="seg" role="group" aria-label="Object outlines"><button className={boxes ? 'on' : ''} onClick={() => setBoxes(true)}>Outlines</button><button className={!boxes ? 'on' : ''} onClick={() => setBoxes(false)}>No outlines</button></div>}
       <span style={{ marginLeft: 'auto' }} className="bar">
-        <button className="btn" aria-label="Previous" disabled={unitIdx <= 0} onClick={() => setUnitIdx(unitIdx - 1)}>‹</button>
+        <button className="btn" aria-label={`Previous ${unitWord.toLowerCase()}`} disabled={unitIdx <= 0} onClick={() => setUnitIdx(unitIdx - 1)}>‹</button>
         <span className="num ink2">{unitWord} {unitIdx + 1} of {units.length}</span>
-        <button className="btn" aria-label="Next" disabled={unitIdx >= units.length - 1} onClick={() => setUnitIdx(unitIdx + 1)}>›</button>
+        <button className="btn" aria-label={`Next ${unitWord.toLowerCase()}`} disabled={unitIdx >= units.length - 1} onClick={() => setUnitIdx(unitIdx + 1)}>›</button>
       </span>
     </div>
     <div className="headline">
@@ -442,7 +444,7 @@ function SamplesView({ samples, region, units, isaac, onOpen }: { samples: Row<S
     <div className="bar">
       <div className="seg" role="group" aria-label="Condition">{conds.map(c => <button key={c} className={group === c ? 'on' : ''} onClick={() => setGroup(c)}>{c}</button>)}</div>
       <div className="seg" role="group" aria-label="Sort"><button className={sort === 'order' ? 'on' : ''} onClick={() => setSort('order')}>In order</button><button className={sort === 'high' ? 'on' : ''} onClick={() => setSort('high')}>Highest first</button><button className={sort === 'low' ? 'on' : ''} onClick={() => setSort('low')}>Lowest first</button></div>
-      <span className="ink2 num">{list.length} samples{region ? `, ${regionLabel(region)}` : ''}</span>
+      <span className="ink2 num">{count(list.length, 'sample')}{region ? `, ${regionLabel(region)}` : ''}</span>
     </div>
     <div className="grid">
       {list.map(s => <button key={s.id} className="tile" onClick={() => { const [u, v] = locate(s); onOpen(u, v) }}>
@@ -654,7 +656,7 @@ function TemplateSheet({ examples, onOpenProject, onGoal, onChat, templates, dem
         <div className="field"><span>Datasets</span>
           <div className="dspick">{dsets === null ? <span className="ink2">Reading the datasets</span> : dsets.length === 0 ? <span className="ink2">No datasets yet; import one under Datasets.</span>
             : dsets.map(d => <label key={d.id} className="dsval"><input type="checkbox" checked={chosen.includes(d.id)} onChange={e => setChosen(c => e.target.checked ? [...c, d.id] : c.filter(x => x !== d.id))} />
-              <span>{d.title || d.id}</span><span className="ink2 num">{d.samples ? `${d.samples.toLocaleString()} samples` : `${(d.files_here ?? 0).toLocaleString()} files`}</span></label>)}</div>
+              <span>{d.title || d.id}</span><span className="ink2 num">{d.samples ? count(d.samples, 'sample') : count(d.files_here ?? 0, 'file')}</span></label>)}</div>
         </div>
         <div className="bar"><button className="btn" onClick={() => setPick(null)}><Icon name="back" size={16} />Back</button><button className="btn primary" disabled={!title.trim() || blanks.some(b => !vals[b]?.trim())} onClick={() => onCreate(pick, title.trim(), vals, undefined, chosen)}>Create project</button></div>
       </div>}

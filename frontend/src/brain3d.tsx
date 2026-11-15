@@ -196,7 +196,7 @@ class BrainGL {
     gl.useProgram(this.hprog); gl.bindVertexArray(this.hvao)
     gl.uniformMatrix4fv(gl.getUniformLocation(this.hprog, 'uProj'), false, proj); gl.uniformMatrix4fv(gl.getUniformLocation(this.hprog, 'uView'), false, view)
     gl.enable(gl.BLEND); gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA); gl.depthMask(false); gl.drawElements(gl.TRIANGLES, this.hcount, gl.UNSIGNED_SHORT, 0); gl.depthMask(true)
-    gl.bindVertexArray(null); this.lastDrawMs = performance.now() - t0; c.dataset.drawMs = this.lastDrawMs.toFixed(2)
+    gl.bindVertexArray(null); this.lastDrawMs = performance.now() - t0; c.dataset.drawMs = this.lastDrawMs.toFixed(2); c.dataset.draws = String(Number(c.dataset.draws ?? 0) + 1)   // for page checks: each redraw is visible
   }
   dispose() { this.gl.getExtension('WEBGL_lose_context')?.loseContext() }
 }

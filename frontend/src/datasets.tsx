@@ -2,7 +2,7 @@
 // that use it. Every sample is an item in the lab's store (item_create), its fields read off the file, its folder and
 // any table beside it; filters are view stages the agent reads the same way (item_query).
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { call, uploadWithProgress, type Project, type Row } from './api'
+import { count, call, uploadWithProgress, type Project, type Row } from './api'
 import { Icon } from './icons'
 import { RecordingView } from './recording'
 import { AdaptersView } from './adapters'
@@ -40,7 +40,7 @@ export function DatasetsPage({ projects, onOpenProject, show }: { projects: Row<
         <thead><tr><th>Dataset</th><th>Samples</th><th>Media</th><th>Source</th><th>Added</th><th className="num">Projects</th></tr></thead>
         <tbody>{shown.map(d => <tr key={d.id} onClick={() => setOpen(d.id)} style={{ cursor: 'pointer' }}>
           <td><b>{d.title || d.id}</b><div className="ink2 small">{d.id}</div></td>
-          <td>{d.status && d.status !== 'done' ? `Fetching, ${d.status}` : d.indexed ? `${n(d.samples)} samples, ${n(d.fields)} fields` : `${n(d.files_here ?? 0)} files, not indexed yet`}</td>
+          <td>{d.status && d.status !== 'done' ? `Fetching, ${d.status}` : d.indexed ? `${count(d.samples, 'sample')}, ${count(d.fields, 'field')}` : `${count(d.files_here ?? 0, 'file')}, not indexed yet`}</td>
           <td className="ink2">{Object.entries(d.media ?? {}).map(([k, v]) => `${n(v)} ${MEDIA_NAMES[k] ?? k}`).join(', ') || '–'}</td>
           <td className="ink2">{d.ref === 'upload' ? 'Imported here' : d.ref}{d.licence ? `, ${d.licence}` : ''}</td>
           <td className="ink2">{d.fetched_at ?? '–'}</td>
@@ -103,7 +103,7 @@ function DatasetView({ id, ds, projects, onBack, onOpenProject, onChanged, initi
       <button className="btn primary" style={res?.indexed && !ds?.embedded && !embedding ? undefined : { marginLeft: 'auto' }} onClick={() => setImporting(true)}><Icon name="upload" size={16} />Import</button>
     </div>
     {err && <div className="dsnote">{err}</div>}
-    {embedding && <div className="dsnote" role="status"><span className="spin" /> Computing V-JEPA 2 vectors for similarity: {n(embedding.done)} of {n(embedding.total)} samples.</div>}
+    {embedding && <div className="dsnote" role="status"><span className="spin" /> Computing V-JEPA 2 vectors for similarity: {n(embedding.done)} of {count(embedding.total, 'sample')}.</div>}
     {indexing && <div className="dsnote" role="status"><span className="spin" /> Indexing {indexing.total ? `${n(indexing.indexed)} of ${n(indexing.total)} files` : 'the files'}: fields and filters fill in when it finishes.</div>}
     {tab === 'adapters' ? <AdaptersView datasetId={id} views={views} onChanged={onChanged} />
     : tab === 'projects' ? <div className="tablewrap"><table className="data dstable"><thead><tr><th>Project</th><th>Status</th></tr></thead>
@@ -111,7 +111,7 @@ function DatasetView({ id, ds, projects, onBack, onOpenProject, onChanged, initi
         : <tr><td colSpan={2} className="ink2">No project uses this dataset yet. A new project picks its datasets when it is created.</td></tr>}</tbody></table></div>
     : !res ? <div className="empty" role="status"><span className="spin" /> Reading the samples</div>
     : !res.indexed ? <div className="empty">
-        <p>{ds?.files_here ? `${n(ds.files_here)} files here, not indexed yet. Indexing makes each image, video and audio file a sample with its fields.` : 'No files yet. Import images, videos or a folder.'}</p>
+        <p>{ds?.files_here ? `${count(ds.files_here, 'file')} here, not indexed yet. Indexing makes each image, video and audio file a sample with its fields.` : 'No files yet. Import images, videos or a folder.'}</p>
         {!!ds?.files_here && !indexing && <button className="btn primary" onClick={index}>Index the files</button>}
       </div>
     : <div className="dsbody">
@@ -134,7 +134,7 @@ function DatasetView({ id, ds, projects, onBack, onOpenProject, onChanged, initi
         </aside>
         <section className="dsgrid-wrap">
           <div className="bar dsviewbar">
-            <span className="num">{n(res.total)} of {n(res.trail[0]?.count ?? res.total)} samples</span>
+            <span className="num">{n(res.total)} of {count(res.trail[0]?.count ?? res.total, 'sample')}</span>
             {stages.map((s, i) => <span key={i} className="chip">{res.trail[i + 1]?.text ?? s.stage}<button className="iconbtn" aria-label={`Remove ${res.trail[i + 1]?.text ?? s.stage}`} onClick={() => setStages(st => st.filter((_, j) => j !== i))}><Icon name="close" size={13} /></button></span>)}
             {saving ? <span className="bar"><input aria-label="View title" placeholder="Houses" value={viewTitle} onChange={e => setViewTitle(e.target.value)} />
                 <button className="btn" disabled={!viewTitle.trim()} onClick={saveView}>Save</button><button className="btn" onClick={() => setSaving(false)}>Cancel</button></span>
@@ -210,13 +210,13 @@ function ImportPanel({ id, title, onClose, onDone }: { id: string; title: string
     <input ref={pick} type="file" multiple hidden onChange={e => { add(e.target.files); e.target.value = '' }} />
     <input ref={folder} type="file" multiple hidden {...({ webkitdirectory: '', directory: '' } as any)} onChange={e => { add(e.target.files); e.target.value = '' }} />
     <button className="btn" onClick={() => folder.current?.click()} disabled={busy}><Icon name="samples" size={16} />Choose a folder instead</button>
-    {ups.length > 0 && <div className="dsups"><div className="ink2 small">{ups.length} files, {(total / 1e6).toFixed(1)} MB</div>
+    {ups.length > 0 && <div className="dsups"><div className="ink2 small">{count(ups.length, 'file')}, {(total / 1e6).toFixed(1)} MB</div>
       {ups.slice(0, 200).map((u, i) => <div key={i} className="dsup"><span className="dsupname" title={u.name}>{u.name}</span>
         <span className="dsbar"><i style={{ width: `${u.size ? 100 * u.sent / u.size : 0}%` }} className={u.state} /></span>
         <span className="ink2 small">{u.state === 'failed' ? `Failed: ${u.error}` : u.state === 'done' ? 'Done' : u.state === 'sending' ? `${Math.round(100 * u.sent / (u.size || 1))}%` : 'Waiting'}</span></div>)}
       {ups.length > 200 && <div className="ink2 small">and {ups.length - 200} more</div>}</div>}
     <div className="bar"><button className="btn" onClick={onClose} disabled={busy}>Cancel</button>
-      {finished ? <button className="btn primary" style={{ marginLeft: 'auto' }} onClick={onDone}>Index {ups.filter(u => u.state === 'done').length} files</button>
-        : <button className="btn primary" style={{ marginLeft: 'auto' }} disabled={!files.length || busy} onClick={send}>{busy ? 'Copying' : `Import ${files.length || ''} files`.replace('  ', ' ')}</button>}</div>
+      {finished ? <button className="btn primary" style={{ marginLeft: 'auto' }} onClick={onDone}>Index {count(ups.filter(u => u.state === 'done').length, 'file')}</button>
+        : <button className="btn primary" style={{ marginLeft: 'auto' }} disabled={!files.length || busy} onClick={send}>{busy ? 'Copying' : files.length ? `Import ${count(files.length, 'file')}` : 'Import files'}</button>}</div>
   </div></div>
 }

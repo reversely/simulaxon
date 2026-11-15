@@ -1,7 +1,7 @@
 /** Demo mode (#26): a guided walk through the lab that plays the real app at each step, with the architecture beside it
  * in two shared diagrams: the loop the step belongs to, and what runs where under Fuzzball on CIQ (docs/pitch.md, "How
  * it runs on CIQ"; docs/spark-layout.md for the Spark). Tiles carry one line icon; arrows carry short monospace labels. */
-import type { ReactNode } from 'react'
+import { useEffect, useRef, type ReactNode } from 'react'
 import { Icon, type IconName } from './icons'
 
 export type Piece = 'app' | 'planner' | 'isaac' | 'cosmos' | 'tribe' | 'vast'
@@ -84,8 +84,9 @@ export function PlacementDiagram({ pieces, data }: { pieces: Piece[]; data: stri
 
 /** The guide's panel: the step, its two diagrams, and Back and Next. */
 export function GuidePanel({ step, onStep, onClose, children }: { step: number; onStep: (i: number) => void; onClose: () => void; children?: ReactNode }) {
-  const s = GUIDE[step]
-  return <section className="guide" aria-label="Guide">
+  const s = GUIDE[step]; const top = useRef<HTMLElement>(null)
+  useEffect(() => { top.current?.scrollIntoView({ block: 'start' }) }, [step])   // each step opens at its title, never mid-diagram where Next was
+  return <section className="guide" aria-label="Guide" ref={top}>
     <div className="bar">
       <span className="gmono ink2">Guide, step {step + 1} of {GUIDE.length}</span>
       <button className="iconbtn" style={{ marginLeft: 'auto' }} aria-label="Close the guide" onClick={onClose}><Icon name="close" size={18} /></button>
@@ -96,7 +97,7 @@ export function GuidePanel({ step, onStep, onClose, children }: { step: number; 
     <LoopDiagram tile={s.tile} arrow={s.arrow} />
     <PlacementDiagram pieces={s.pieces} data={s.data} />
     <p className="ink2 small" style={{ margin: 0 }}>Fuzzball runs these services on CIQ's cluster. On the Spark, the same code runs from spark/start.sh.</p>
-    <div className="bar">
+    <div className="bar gnav">
       <button className="btn" disabled={step === 0} onClick={() => onStep(step - 1)}>Back</button>
       <ol className="gdots" aria-label="Steps">{GUIDE.map((g, i) => <li key={g.id}><button className={i === step ? 'on' : ''} aria-label={`Step ${i + 1}: ${g.title}`} aria-current={i === step ? 'step' : undefined} onClick={() => onStep(i)} /></li>)}</ol>
       {step < GUIDE.length - 1 ? <button className="btn primary" style={{ marginLeft: 'auto' }} onClick={() => onStep(step + 1)}>Next</button>

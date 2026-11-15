@@ -160,9 +160,9 @@ export function ExperimentRoom({ pid, samples, idx, setIdx, region, onS, named =
     <div className="bar">
       <span className="mid">{s.label}</span>
       <span style={{ marginLeft: 'auto' }} className="bar">
-        <button className="btn" aria-label="Previous" disabled={idx <= 0} onClick={() => setIdx(idx - 1)}>‹</button>
+        <button className="btn" aria-label="Previous trial" disabled={idx <= 0} onClick={() => setIdx(idx - 1)}>‹</button>
         <span className="num ink2">Trial {idx + 1} of {samples.length}</span>
-        <button className="btn" aria-label="Next" disabled={idx >= samples.length - 1} onClick={() => setIdx(idx + 1)}>›</button>
+        <button className="btn" aria-label="Next trial" disabled={idx >= samples.length - 1} onClick={() => setIdx(idx + 1)}>›</button>
       </span>
     </div>
     <ReadoutTable title="This trial, TRIBE value by region" readout={s.readout} named={named} focus={region} />

@@ -329,6 +329,10 @@ ol.calls li.refused .callrow > span:first-child { color: var(--flag); }
 .chatwide .composer { border: 1px solid var(--rule); border-radius: var(--radius); }
 .convo.chat .exchange { display: grid; gap: 8px; }
 .convo.chat .msg .text { white-space: pre-wrap; }
+.msg .text.rich { white-space: normal; }   /* the agent's Markdown, rendered (agent.tsx Rich) */
+.msg .rich p { margin: 0 0 8px; } .msg .rich p:last-child { margin-bottom: 0; }
+.msg .rich ul, .msg .rich ol { margin: 0 0 8px; padding-left: 20px; } .msg .rich li { margin: 2px 0; }
+.msg .rich code { font-family: var(--mono, ui-monospace, monospace); font-size: 0.92em; background: #0f0e0d; border-radius: 4px; padding: 1px 4px; }
 .msg.agent { display: grid; gap: 8px; }
 .stepsbtn { justify-self: start; background: none; border: 1px solid var(--rule-strong); border-radius: 999px; padding: 2px 10px; font-size: 14px; color: var(--ink-2); }
 .stepsbtn:hover { color: var(--ink); }
@@ -481,7 +485,7 @@ aside.left .convo { padding-bottom: 28px; }
 /* tabs with icons still fit beside the project switcher at 1394 px */
 .tabs { gap: 2px; }
 .tab { padding: 6px 9px; gap: 6px; }
-.switch > button { max-width: 360px; }
+@media (min-width: 761px) { .switch > button { max-width: 360px; } }   /* on a phone, the rule above keeps it within the screen */
 
 /* results dashboard (#20): run header with one Download menu, numbered figures and tables */
 .dash { display: flex; flex-direction: column; gap: 16px; }
@@ -650,6 +654,8 @@ table.data.compact td, table.data.compact th { padding: 3px 8px; font-size: 14px
 .garrow.on .gmono { fill: var(--ink); }
 .gframe { fill: none; stroke: var(--rule-strong); stroke-dasharray: 4 4; }
 .gbox { fill: none; stroke: var(--rule-strong); }
+/* Back and Next stay in reach while the diagrams scroll under them */
+.gnav { position: sticky; bottom: 0; z-index: 1; background: var(--panel); padding: 10px 0; border-top: 1px solid var(--rule); }
 .gdots { display: flex; flex-wrap: wrap; gap: 4px; list-style: none; margin: 0; padding: 0; }
 .gdots button { width: 22px; height: 22px; border: 0; background: none; padding: 0; display: grid; place-items: center; cursor: pointer; }
 .gdots button::after { content: ''; width: 10px; height: 10px; border-radius: 50%; border: 1px solid var(--ink-3); }

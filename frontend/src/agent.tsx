@@ -18,6 +18,25 @@ function about(c: ToolCall): string {
 }
 const strip = (s: string) => s.replace(/\s*\b(WAITING|DONE)\s*$/, '').trim()
 
+/** The agent writes Markdown; show it as text with its emphasis, code, lists and paragraphs, never the raw marks. */
+function inline(s: string): ReactNode[] {
+  return s.split(/(`[^`]+`|\*\*[^*]+\*\*|\*[^*\s][^*]*\*)/g).map((x, i) => x.startsWith('`') && x.endsWith('`') && x.length > 2 ? <code key={i}>{x.slice(1, -1)}</code>
+    : x.startsWith('**') && x.endsWith('**') && x.length > 4 ? <b key={i}>{x.slice(2, -2)}</b> : x.startsWith('*') && x.endsWith('*') && x.length > 2 ? <em key={i}>{x.slice(1, -1)}</em> : x)
+}
+export function Rich({ text }: { text: string }) {
+  const out: ReactNode[] = []; let list: { ordered: boolean; items: string[] } | null = null; let para: string[] = []
+  const flush = () => { if (para.length) out.push(<p key={out.length}>{inline(para.join(' '))}</p>); para = []
+    if (list) { const L = list.ordered ? 'ol' : 'ul'; out.push(<L key={out.length}>{list.items.map((x, i) => <li key={i}>{inline(x)}</li>)}</L>); list = null } }
+  for (const raw of text.split('\n')) {
+    const l = raw.trim(); const item = l.match(/^([-*•]|\d+[.)])\s+(.*)$/); const head = l.match(/^#{1,6}\s+(.*)$/)
+    if (!l) flush()
+    else if (item) { const ordered = /\d/.test(item[1]); if (para.length || (list && list.ordered !== ordered)) flush(); (list ??= { ordered, items: [] }).items.push(item[2]) }
+    else if (head) { flush(); out.push(<p key={out.length}><b>{inline(head[1])}</b></p>) }
+    else { if (list) flush(); para.push(l) }
+  }
+  flush(); return <>{out}</>
+}
+
 async function post(url: string, body: unknown) {
   const r = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
   if (!r.ok) throw new Error((await r.json().catch(() => ({}))).detail ?? r.statusText)
@@ -108,7 +127,7 @@ export function Chat({ sid, projectId, live, compact, header, footer, chips, onS
                 <pre className="codebox">{`${c.tool}(${JSON.stringify(args(c), null, 1)})\n\n${c.result ?? 'No result yet'}`}</pre></details></li>)}</ol>}
             {made && <button className="madecard" onClick={() => onOpenProject(made.project_id!)}><span className="ink2">Set up</span><span>{String(args(made).title ?? 'Experiment')}</span><span className="ink2">Open</span></button>}
             {t.reply === null ? <div className="ink2"><span className="spin" /> {steps.length ? toolName(steps[steps.length - 1].tool) : 'Thinking'}</div>
-              : <div className="text">{strip(t.reply) || (t.reply.trim() === 'WAITING' ? 'Started. I will report when it finishes.' : '')}</div>}
+              : <div className="text rich">{strip(t.reply) ? <Rich text={strip(t.reply)} /> : t.reply.trim() === 'WAITING' ? 'Started. I will report when it finishes.' : ''}</div>}
           </div>
         </div>
       })}

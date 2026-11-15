@@ -39,6 +39,8 @@ export const regionLabel = (r: string): string => {
   return r
 }
 /** A region's plain name inside a sentence: the full name in lower case, or the word itself. */
+/** A count with its noun: 1 file, 2 files. */
+export const count = (x: number, word: string) => `${x.toLocaleString()} ${word}${x === 1 ? '' : 's'}`
 export const fmt = (v: number | null | undefined, d = 3) => v == null || Number.isNaN(v) ? 'None' : (v > 0 ? '+' : v < 0 ? '−' : '') + Math.abs(v).toFixed(d)
 /** How each plan works, in one plain sentence, shown wherever the plan is first met (a template card), and on hover elsewhere. */
 export const PLAN_INFO: Record<string, string> = {
