@@ -563,7 +563,7 @@ function TemplateSheet({ examples, onOpenProject, onGoal, onChat, templates, dem
           <button className="btn primary" onClick={onChat}>New chat</button>
         </div>
         <div className="excards">{examples.map(e => <article key={e.id} className="excard">
-          <div className="pics">{e.media.map(src => src.endsWith('.mp4') ? <video key={src} src={src} autoPlay muted loop playsInline preload="metadata" aria-label={`${e.title}, the stimulus`} /> : <img key={src} src={src} alt="" />)}</div>
+          {e.media.length > 0 && <div className="pics">{e.media.map(src => src.endsWith('.mp4') ? <video key={src} src={src} autoPlay muted loop playsInline preload="metadata" aria-label={`${e.title}, the stimulus`} /> : <img key={src} src={src} alt="" />)}</div>}
           <div className="exbody">
             <h3>{e.title}</h3>
             <div>{e.what}</div>

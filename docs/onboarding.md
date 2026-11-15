@@ -109,7 +109,14 @@ Code: [../services/render-score/](../services/render-score/).
 
 The `build-ui` job in `simulaxon.fz` builds it into `/data/app/dist`, outside the source tree, so refreshing the code on the volume leaves the running app's UI in place.
 
-**Check:** the interface opens on the agent's chat; New project shows the examples; a message to the agent is answered through the planner; Dashboard in the header opens Grafana.
+The example cards in New project each loop a clip of their stimulus. Make the stimuli and the clips once, from the repo on the volume, with the app server's Python ([../studies/examples/](../studies/examples/)):
+```bash
+PYTHONPATH=services/app-server SIMULAXON_HOME=/data python studies/examples/stimuli.py   # fetches fLoc, about 70 MB, the first time
+PYTHONPATH=services/app-server SIMULAXON_HOME=/data python studies/examples/media.py 8791
+```
+`media.py` cuts each clip from its example's run when the store has one, and from the stimuli otherwise; it names any example it skips and why.
+
+**Check:** the interface opens on the agent's chat; New project shows the examples, each with a clip or, when it has none yet, with its text only; a message to the agent is answered through the planner; Dashboard in the header opens Grafana.
 
 ## 7. One study, end to end
 
