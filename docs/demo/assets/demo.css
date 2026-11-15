@@ -292,7 +292,10 @@ body.light .choose button { color: var(--ink-2); } body.light .choose button.on 
 .ar-sh { display: flex; align-items: center; gap: 7px; min-width: 0; }
 .ar-sh b { font-size: 13.5px; }
 .deploy em { font-style: normal; font-size: 11.5px; color: var(--ink-3); margin-left: auto; text-align: right; }
-.deploy .cfg, .deploy .ar-hw, .deploy .ar-nh span, .deploy .ar-env { display: none; }
+.deploy .cfg, .deploy .ar-nh span, .deploy .ar-env { display: none; }
+.deploy p.ar-hw { display: flex; flex-wrap: wrap; gap: 6px; margin: 2px 0 10px; font-size: 13px; color: var(--ink-2); }   /* each node's memory, as Grafana's Nodes now reads it */
+.deploy p.ar-hw .c { display: inline-flex; align-items: center; gap: 5px; padding: 2px 8px; border: 1px solid var(--rule-strong); border-radius: 999px; }
+.deploy p.ar-hw svg { width: 13px; height: 13px; fill: none; stroke: currentColor; stroke-width: 1.6; }
 .deploy .c { display: inline-flex; align-items: center; gap: 4px; font-size: 11.5px; line-height: 1.2; padding: 2px 7px 2px 5px; border: 1px solid var(--rule-strong); border-radius: 999px; color: var(--ink-2); white-space: nowrap; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
 .deploy .c svg { width: 11px; height: 11px; flex: none; }
 .ar-mini { list-style: none; margin: 0; padding: 0; display: grid; gap: 3px; font-size: 11.5px; line-height: 1.35; color: var(--ink-3); }

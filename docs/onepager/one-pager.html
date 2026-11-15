@@ -23,7 +23,7 @@ p { margin: 0 0 3pt; }
 .meta { font-size: 6.8pt; color: var(--ink-3); text-align: right; line-height: 1.5; text-transform: uppercase; letter-spacing: 0.06em; }
 .tok { font-weight: 600; white-space: nowrap; }   /* model and configuration names, set bold as a journal sets them */
 figure { margin: 0; }
-figcaption { font-size: 6.6pt; line-height: 1.36; color: var(--ink); margin-top: 3pt; text-align: justify; }
+figcaption { font-size: 6.4pt; line-height: 1.32; color: var(--ink); margin-top: 3pt; text-align: justify; }
 figcaption b:first-child { font-weight: 700; }
 .pl { font: 700 8pt Inter, sans-serif; color: var(--ink); margin-right: 3pt; }
 .topbar { display: flex; justify-content: space-between; align-items: baseline; border-bottom: 0.6pt solid var(--ink); padding-bottom: 3pt; margin-bottom: -3pt; }
@@ -32,7 +32,7 @@ figcaption b:first-child { font-weight: 700; }
 p { text-align: justify; }
 figcaption b { color: var(--ink); font-weight: 600; }
 .fig1 { display: grid; grid-template-columns: 1fr 1fr 1.15fr; gap: 4pt; }
-.fig1 img { width: 100%; height: 0.94in; object-fit: cover; border-radius: 3pt; display: block; background: var(--ground); }
+.fig1 img { width: 100%; height: 0.86in; object-fit: cover; border-radius: 3pt; display: block; background: var(--ground); }
 .fig1 .brain { object-fit: contain; background: var(--ground); }
 .cols { display: grid; grid-template-columns: 1fr 1.06fr; gap: 15pt; flex: 1; min-height: 0; }
 .col { display: flex; flex-direction: column; gap: 6pt; min-width: 0; }
@@ -51,8 +51,8 @@ ol.steps { margin: 2pt 0 0; padding-left: 11pt; } ol.steps li { margin: 0 0 1.5p
 .lane i { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 2pt; }
 .lane .ceil { position: absolute; top: -2pt; bottom: -2pt; width: 0.8pt; background: var(--ink); left: 85%; }
 .bar .v { text-align: right; font-weight: 500; }
-.fig4 img { width: 100%; display: block; border-radius: 4pt; }
-.route { columns: 2; column-gap: 10pt; margin: 3pt 0 0; padding-left: 10pt; font-size: 6.6pt; line-height: 1.32; }
+.fig4 img { width: 72%; margin: 0 auto; display: block; border-radius: 4pt; }
+.route { columns: 2; column-gap: 10pt; margin: 3pt 0 0; padding-left: 10pt; font-size: 6.3pt; line-height: 1.28; }
 .route li { break-inside: avoid; margin-bottom: 1pt; } .route li::marker { color: var(--sel); font-weight: 600; font-size: 6.6pt; }
 .route b { font-weight: 600; }
 table { width: 100%; border-collapse: collapse; font-size: 6.6pt; line-height: 1.3; margin-top: 1pt; }
@@ -138,7 +138,7 @@ sup { font-size: 0.7em; color: var(--ink-3); }
       <p>The app and the video pipeline together need an estimated 150 GB of memory, so Fuzzball starts them on separate 128 GB workstations and gives both access to the same VAST storage.</p>
       <figure class="fig4">
         <img src="architecture.png" alt="Fuzzball 4.3 starts workstation 1 (app server, Nemotron 3 Super 120B, build-ui, observability) and workstation 2 (render-score: Isaac Sim 6.2, Cosmos 3 Nano, TRIBE v2, V-JEPA 2) over one VAST volume">
-        <figcaption><b>Fig. 4 | One round on two CIQ workstations.</b> As the Fuzzfiles define it. Workstation 1: the planner (<span class="tok">vLLM 0.27.1</span>, 8 cores, 100 GiB, 1 GPU, NVFP4, MTP decoding) and the app server (4 cores, 8 GiB). Workstation 2: render-score (<span class="tok">Isaac Sim 6.2</span> image, 16 cores, 96 GiB, 1 GPU). Every container mounts the VAST volume at /data.</figcaption>
+        <figcaption><b>Fig. 4 | One round on two CIQ workstations.</b> As the Fuzzfiles define it. Workstation 1: the planner (<span class="tok">vLLM 0.27.1</span>, 8 cores, 100 GiB, 1 GPU, NVFP4, MTP decoding) and the app server (4 cores, 8 GiB). Workstation 2: render-score (<span class="tok">Isaac Sim 6.2</span> image, 16 cores, 96 GiB, 1 GPU). Every container mounts the VAST volume at /data. <b>CIQ Fuzzball 4.3.1</b> starts each service from its Fuzzfile, holds the planner until vLLM's health check passes, gives the app <i>render-score.&lt;workflow-id&gt;:8100</i> through service discovery inside the team's group, and pulled the 136 GB of weights from Hugging Face into the persistent volume. Study steps run in <b>Rocky Linux</b> containers.</figcaption>
       </figure>
       <ol class="route">
         <li><b>Planner on workstation 1.</b> When you submit a hypothesis, Nemotron Super 120B plans the experiment on the first workstation.</li>
@@ -157,7 +157,7 @@ sup { font-size: 0.7em; color: var(--ink-3); }
       <table>
         <tr><td class="num">0.9991</td><td class="k">Cluster against desk</td><td>Median per-clip correlation between the cluster's and the DGX Spark's predictions for the same clips.</td></tr>
         <tr><td class="num">21.5 tok/s</td><td class="k">Planner reply speed</td><td>Nemotron Super 120B with speculative decoding, up from 11 to 16 tokens/s without it.</td></tr>
-        <tr><td class="num">112 / 119 GiB</td><td class="k">Peak memory</td><td>Highest use on either 128 GB workstation while the planner, Isaac Sim, Cosmos and TRIBE v2 ran.</td></tr>
+        <tr><td class="num">6% free</td><td class="k">Planner's node</td><td>Grafana, Nodes now: CIQ-CHI-SPARK26 has 6% of 122 GiB available (memory pressure) with the planner, app server and monitoring; CIQ-CHI-SPARK25 has 34% of 120 GiB available with render-score.</td></tr>
       </table>
     </section>
 
