@@ -111,7 +111,7 @@
     <div class="pin">
       <div>
         <div class="frames">
-          <div class="slot"><b>A hypothesis typed to the agent becomes a project</b><span>Recording to come: Nemotron plans what to vary and what to hold fixed</span></div>
+          <figure class="grab"><img src="assets/grabs/grab-chat.gif" alt="The agent's reply in the app's chat: the next control to run and what each outcome would mean"><figcaption>The agent's reply in the chat: the next control to run, and what each outcome would mean.</figcaption></figure>
           <figure class="grab"><img src="assets/grabs/grab-trial.gif" alt="An Isaac Sim render of a G1 humanoid playing in the app beside its predicted brain"><figcaption>An Isaac Sim render in the app, beside TRIBE v2's prediction on one clock.</figcaption></figure>
           <figure class="grab"><img src="assets/grabs/grab-chat.gif" alt="The agent's reply laying out which control to run next and what each outcome would mean"><figcaption>The agent proposing the next control, with what each outcome would mean.</figcaption></figure>
         </div>
@@ -207,7 +207,7 @@
         <p>When you submit a hypothesis, <span class="tok"><svg><use href="#i-llm"/></svg>Nemotron Super 120B</span> plans the experiment on the first workstation.</p>
         <p class="toks"><span class="tok"><svg><use href="#i-gauge"/></svg>21.5 tokens/s, measured</span></p>
         <p class="toks cfg-m"><span class="tok"><svg><use href="#i-layers"/></svg>NVFP4</span><span class="tok"><svg><use href="#i-box"/></svg>vllm/vllm-openai:v0.27.1</span><span class="tok"><svg><use href="#i-bolt"/></svg>MTP speculative decoding, 3 tokens</span><span class="tok"><svg><use href="#i-gpu"/></svg>0.75 GPU memory</span><span class="tok"><svg><use href="#i-cpu"/></svg>8 cores</span><span class="tok"><svg><use href="#i-mem"/></svg>100 GiB</span><span class="tok"><svg><use href="#i-port"/></svg>planner:8000</span></p>
-        <div class="slot"><b>Nemotron planning</b><span>Recording to come: the plan streaming into the chat</span></div>
+        
       </article>
       <article class="station rs">
         <div class="rs-head"><span class="rs-ico"><svg><use href="#i-send"/></svg></span><span class="rs-n num">2</span><h3>Hand-off to workstation 2</h3></div>
@@ -330,7 +330,7 @@
 <section class="section" data-biome="home">
   <div class="hd reveal"><span class="h-ico" aria-hidden="true"><svg><use href="#i-flow"/></svg></span><h2>Demo</h2></div>
   <div class="steps">
-    <div class="step reveal"><div><div class="hd"><span class="h-ico" aria-hidden="true"><svg><use href="#i-llm"/></svg></span><span class="n">1</span></div><p>Ask the agent to design an experiment around your hypothesis.</p></div><div class="slot"><b>The agent's chat</b><span>Recording to come: the hypothesis, its plan, the project it sets up</span></div></div>
+    <div class="step reveal"><div><div class="hd"><span class="h-ico" aria-hidden="true"><svg><use href="#i-llm"/></svg></span><span class="n">1</span></div><p>Ask the agent to design an experiment around your hypothesis.</p></div><figure class="grab"><img src="assets/grabs/new-project.png" alt="The app's New project panel: chat with the agent, open a classic experiment, or start from a template"><figcaption>New project: chat with the agent, open a classic experiment, or start from a template.</figcaption></figure></div>
     <div class="step reveal"><div><div class="hd"><span class="h-ico" aria-hidden="true"><svg><use href="#i-upload"/></svg></span><span class="n">2</span></div><p>Upload footage or describe the scenes you want to test.</p></div><figure class="grab"><video src="assets/grabs/grab-upload.mp4" muted loop playsinline autoplay aria-label="Uploading a clip from the chat into a new dataset"></video><figcaption>Upload from the chat: the file goes into a dataset you name, and the agent sees it with your next message.</figcaption></figure></div>
     <div class="step reveal"><div><div class="hd"><span class="h-ico" aria-hidden="true"><svg><use href="#i-chart"/></svg></span><span class="n">3</span></div><p>Review the generated scenes and predicted responses alongside the agent's follow-up experiments.</p></div><figure class="grab"><img src="assets/grabs/grab-results.gif" alt="The Results tab of the free-fall project: the brain map, then the regions table"><figcaption>Results for <span class="tok"><svg><use href="#i-render"/></svg>20 Isaac Sim busts</span> against <span class="tok"><svg><use href="#i-render"/></svg>20 height-matched vases</span>: every brain area ranked, then each region with its interval.</figcaption></figure></div>
     <div class="step reveal"><div><div class="hd"><span class="h-ico" aria-hidden="true"><svg><use href="#i-layers"/></svg></span><span class="n">4</span></div><p>If you have access to some fMRI recordings that you want to extrapolate on, these can be fine-tuned to customize simulation results.</p></div><figure class="grab"><img src="assets/grabs/grab-adapter.gif" alt="The adapter card in the app: scores against measured fMRI and the map of where it improves"><figcaption>The Adapters tab: the benchmark table, and the cortex map switching between adapter, <span class="tok"><svg><use href="#i-brain"/></svg>TRIBE v2</span> and their difference.</figcaption></figure></div>
