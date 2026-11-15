@@ -117,6 +117,8 @@ services:
       os.chmod('/data/bin/fuzzball.part', 0o755); os.replace('/data/bin/fuzzball.part', '/data/bin/fuzzball')
       PY
       pip install --no-cache-dir -q -r /data/src/simulaxon/services/app-server/requirements.txt
+      # TRIBE v2's plotting code (brain-map pictures, lab/maps.py) imports torch; the CPU build is enough here.
+      pip install --no-cache-dir -q torch --index-url https://download.pytorch.org/whl/cpu
       # The lab cuts and encodes clips with ffmpeg; the slim image has none, so use the static build the TRIBE environment carries.
       mkdir -p $HOME/bin && ln -sf $(/data/envs/tribe/bin/python -c "import imageio_ffmpeg; print(imageio_ffmpeg.get_ffmpeg_exe())") $HOME/bin/ffmpeg
       export PATH=$HOME/bin:$PATH
