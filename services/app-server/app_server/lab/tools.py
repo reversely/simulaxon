@@ -148,7 +148,7 @@ def register(tools, broadcast=lambda m: None):
         for p in s.list('project'):   # a project made from a question alone has no template
             if p.data.get('template_id'): used[p.data['template_id']] = used.get(p.data['template_id'], 0) + 1
         return [{**t, 'walkthrough': [{'flow': f, 'flow_name': templates.FLOWS[f], 'text': x} for f, x in t['walkthrough']],
-                 'projects': used.get(t['id'], 0)} for t in templates.TEMPLATES]
+                 'projects': used.get(t['id'], 0)} for t in templates.TEMPLATES if not t.get('retired')]   # a retired template is never offered
 
     @tools.tool('project', 'list', writes_project=False)
     def project_list(actor):

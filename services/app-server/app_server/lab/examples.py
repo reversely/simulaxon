@@ -22,7 +22,7 @@ EXAMPLES = [
      'source': 'Kanwisher, McDermott and Chun, 1997', 'doi': '10.1523/JNEUROSCI.17-11-04302.1997',
      'media': ['examples/faces_objects.mp4'], 'project_title': 'Face versus object selectivity in the fusiform face area (Kanwisher et al., 1997)',
      'goal': 'Replicate the main result of Kanwisher, McDermott and Chun 1997 (doi 10.1523/JNEUROSCI.17-11-04302.1997) with public stimuli.'},
-    {'id': 'humanoid', 'title': 'Appearance and motion congruence of a humanoid', 'what': "How a humanoid's look and motion register in the area that reads actions.",
+    {'id': 'humanoid', 'retired': 'its human is a bare SMPL-X mesh (owner, 15 Nov 2026)', 'title': 'Appearance and motion congruence of a humanoid', 'what': "How a humanoid's look and motion register in the area that reads actions.",
      'source': 'Saygin and others, 2012', 'doi': '10.1093/scan/nsr025',
      'media': ['examples/humanoid.mp4'], 'project_title': 'Appearance and motion congruence of a humanoid robot (after Saygin et al., 2012)',
      'goal': 'Replicate Saygin and others 2012 (doi 10.1093/scan/nsr025): a body whose look and motion disagree, with the G1 and a human body in a scanned room.'},
@@ -42,6 +42,7 @@ def listing(store) -> list[dict]:
     by_title = {p.data.get('title'): p for p in store.list('project')}
     out = []
     for e in EXAMPLES:
+        if e.get('retired'): continue   # taken out of the app; the entry stays for its history
         p = by_title.get(e['project_title']) if e['project_title'] else None
         here, project_id = None, None
         if p is not None:

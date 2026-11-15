@@ -138,6 +138,7 @@ TEMPLATES = [
     },
     {
         'id': 'look_and_motion',
+        'retired': 'its human is a bare SMPL-X mesh; taken out of the app until it can be shown as a person (owner, 15 Nov 2026)',
         'title': 'Look against motion',
         'question': "Does {region} respond when a body's look and its motion disagree?",
         'blurb': 'Real moments of social interaction, each acted out by a human body and a robot, with human and with robotic motion.',
