@@ -33,13 +33,14 @@
     return tl;
   }
 
-  // Adapter: one click fits; the adapter's bar rolls to 0.407 beside TRIBE v2's 0.257, under the 0.675 ceiling.
+  // Adapter: one click fits; bars are shares of the 0.675 noise ceiling, the adapter's rolling to 60% beside TRIBE v2's 38%.
   function adapter(root) {
     const tl = gsap.timeline({ paused: true }), cursor = root.querySelector('.fc-cursor'), btn = root.querySelector('.fc-btn');
     const [b0, b1, b2] = root.querySelectorAll('.fc-btn span'), fit = root.querySelector('[data-fit]'), fitN = root.querySelector('[data-fit-n]'), chip = root.querySelector('.fc-chip');
-    gsap.set(root.querySelector('[data-tribe]'), { scaleX: 0.257 });
+    const CEIL = 0.675;
+    gsap.set(root.querySelector('[data-tribe]'), { scaleX: 0.257 / CEIL });
     rise(tl, root, 0);
-    tl.set([b1, b2, chip], { opacity: 0 }, 0); tl.set(b0, { opacity: 1 }, 0); tl.set(fit, { scaleX: 0 }, 0); tl.call(() => { fitN.textContent = '0.000'; }, null, 0);
+    tl.set([b1, b2, chip], { opacity: 0 }, 0); tl.set(b0, { opacity: 1 }, 0); tl.set(fit, { scaleX: 0 }, 0); tl.call(() => { fitN.textContent = '0%'; }, null, 0);
     const b = () => local(root, btn, 0.35, 0.6);
     tl.fromTo(cursor, { opacity: 0, x: () => b().x + 200, y: () => b().y + 180 }, { opacity: 1, x: () => b().x, y: () => b().y, duration: 0.7, ease: 'power2.inOut' }, 0.6);
     press(tl, cursor, 1.32);
@@ -47,7 +48,7 @@
     tl.to(b0, { opacity: 0, duration: 0.1 }, 1.4); tl.to(b1, { opacity: 1, duration: 0.1 }, 1.4);
     tl.to(b1, { opacity: 0, duration: 0.1 }, 2.7); tl.to(b2, { opacity: 1, duration: 0.1 }, 2.7);
     const f = { v: 0 };
-    tl.fromTo(f, { v: 0 }, { v: 0.407, duration: 1.0, ease: 'power2.out', onUpdate() { fitN.textContent = f.v.toFixed(3); gsap.set(fit, { scaleX: f.v }); } }, 2.5);
+    tl.fromTo(f, { v: 0 }, { v: 0.407, duration: 1.0, ease: 'power2.out', onUpdate() { fitN.textContent = Math.round(100 * f.v / CEIL) + '%'; gsap.set(fit, { scaleX: f.v / CEIL }); } }, 2.5);
     tl.to(chip, { opacity: 1, duration: 0.3 }, 3.5);
     tl.to(cursor, { x: '+=140', y: '+=120', opacity: 0, duration: 0.6, ease: 'power2.in' }, 3.9);
     return tl;

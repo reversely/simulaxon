@@ -159,7 +159,6 @@
         <div class="hd"><span class="h-ico" aria-hidden="true"><svg><use href="#i-layers"/></svg></span><h2>An adapter fits TRIBE v2 to real people</h2></div>
         <p><span class="tok"><svg><use href="#i-brain"/></svg>TRIBE v2</span> predicts an average viewer it has never met. Given people's measured fMRI, one click fits an adapter: a map from <span class="tok"><svg><use href="#i-brain"/></svg>TRIBE v2</span>'s prediction for each brain area to the responses those people had.</p>
       </div>
-      <div class="fit-right">
       <figure class="mapview" data-brain-map>
         <canvas aria-label="Where on the cortex each model predicts measured fMRI, per brain area"></canvas>
         <figcaption>
@@ -167,29 +166,46 @@
           <span data-legend></span>
         </figcaption>
       </figure>
-        <div class="fcard" data-card="adapter">
-          <div class="fc-sheet s2"></div><div class="fc-sheet s1"></div>
-          <div class="fc-card">
-            <div class="fc-head"><span>Adapters · Human Action Dataset</span><span>30 people</span></div>
-            <div class="fc-row"><span>Median r, held-out categories</span><span class="fc-btn"><span>Fit an adapter</span><span>Fitting</span><span>Fitted</span></span></div>
-            <div class="fc-bars">
-              <div class="fc-bar"><span>TRIBE v2 as released</span><span class="fc-lane"><i data-tribe style="background:#8a847b"></i><span class="fc-ceil"></span></span><span class="num">0.257</span></div>
-              <div class="fc-bar"><span><b>Adapter</b></span><span class="fc-lane"><i data-fit style="background:#7fa01c"></i><span class="fc-ceil"></span></span><span class="num" data-fit-n>0.000</span></div>
-            </div>
-            <div class="fc-row" style="font-size:14px"><span class="fc-muted">Line on each bar: noise ceiling 0.675</span><span class="fc-chip">+0.150 over TRIBE v2</span></div>
-          </div>
-          <svg class="fc-cursor" viewBox="0 0 26 26" aria-hidden="true"><path d="M3 2 L3 21 L8.5 16 L12 24 L15.5 22.5 L12 15 L19 15 Z" fill="#f2efe8" stroke="#121110" stroke-width="1.6" stroke-linejoin="round"/></svg>
+    </div>
+    <div class="lines reveal bench-head">
+      <div class="hd"><span class="h-ico" aria-hidden="true"><svg><use href="#i-chart"/></svg></span><h3>Benchmark</h3></div>
+      <p>In one click, the adapter raises <span class="tok"><svg><use href="#i-brain"/></svg>TRIBE v2</span>'s correlation with measured fMRI by 58%, on action categories it never trained on.</p>
+    </div>
+    <div class="bench">
+      <div class="fcard reveal">
+        <div class="fc-sheet s2"></div><div class="fc-sheet s1"></div>
+        <div class="fc-card">
+          <div class="fc-head"><span>Data</span><span>OpenNeuro ds004488</span></div>
+          <div class="fc-row"><span>Dataset</span><span>Human Action Dataset</span></div>
+          <div class="fc-row"><span>People</span><span class="num">30</span></div>
+          <div class="fc-row"><span>Stimuli</span><span>Action video clips</span></div>
+          <div class="fc-row"><span>Brain areas scored</span><span class="num">212 of 360</span></div>
         </div>
       </div>
-    </div>
-    <div class="two top">
-      <div class="lines reveal">
-        <div class="hd"><span class="h-ico" aria-hidden="true"><svg><use href="#i-chart"/></svg></span><h3>Benchmark</h3></div>
-        <p>In one click, the adapter raises <span class="tok"><svg><use href="#i-brain"/></svg>TRIBE v2</span>'s correlation with measured fMRI by 58%, on action categories it never trained on.</p>
-        <p class="note"><b>Data.</b> The <span class="tok"><svg><use href="#i-folder"/></svg>Human Action Dataset</span> (OpenNeuro ds004488): fMRI of 30 people watching video clips of actions, grouped into action categories.</p>
-        <p class="note"><b>Fit.</b> Ridge regression in each of 360 HCP-MMP1 brain areas, from <span class="tok"><svg><use href="#i-brain"/></svg>TRIBE v2</span>'s predicted response to the response measured in the 30 people, with the regularisation chosen per area by leave-one-out. Ten folds over categories: each fold trains on 9 of every 10 categories and scores the tenth.</p>
-        <p class="note"><b>Comparison.</b> Correlation r between predicted and measured responses on the held-out categories, per area, as the median over the <span class="tok"><svg><use href="#i-mesh"/></svg>212 reliable brain areas</span>. The line on each bar is the noise ceiling, 0.675, the highest r the scans allow.</p>
-        <p class="note"><b>Result.</b> <span class="tok"><svg><use href="#i-brain"/></svg>TRIBE v2</span> as released scores 0.257, 38% of the ceiling. With the adapter it scores 0.407 (95% interval 0.364 to 0.461), 60% of the ceiling, and higher in <span class="tok"><svg><use href="#i-compare"/></svg>179 of the 212 areas</span>. The same fit on shuffled labels scores −0.011.</p>
+      <div class="fcard reveal">
+        <div class="fc-sheet s2"></div><div class="fc-sheet s1"></div>
+        <div class="fc-card">
+          <div class="fc-head"><span>Fit</span><span>Ridge regression</span></div>
+          <div class="fc-row"><span>Input</span><span>TRIBE v2, per area</span></div>
+          <div class="fc-row"><span>Target</span><span>Measured fMRI, 30 people</span></div>
+          <div class="fc-row"><span>Split</span><span>10 folds over categories</span></div>
+          <div class="fc-row"><span>Scored on</span><span>Held-out categories</span></div>
+        </div>
+      </div>
+      <div class="fcard" data-card="adapter">
+        <div class="fc-sheet s2"></div><div class="fc-sheet s1"></div>
+        <div class="fc-card">
+          <div class="fc-head"><span>Result</span><span>Share of noise ceiling</span></div>
+          <div class="fc-row"><span>Median over 212 areas</span><span class="fc-btn"><span>Fit an adapter</span><span>Fitting</span><span>Fitted</span></span></div>
+          <div class="fc-bars">
+            <div class="fc-bar"><span>TRIBE v2 <span class="fc-muted">r 0.257</span></span><span class="fc-lane"><i data-tribe style="background:#8a847b"></i></span><span class="num">38%</span></div>
+            <div class="fc-bar"><span><b>Adapter</b> <span class="fc-muted" data-fit-r>r 0.407</span></span><span class="fc-lane"><i data-fit style="background:#7fa01c"></i></span><span class="num" data-fit-n>0%</span></div>
+          </div>
+          <div class="fc-row"><span>Higher in</span><span class="num">179 of 212 areas</span></div>
+          <div class="fc-row"><span>Shuffled-label control</span><span class="num">r −0.011</span></div>
+          <div class="fc-row"><span class="fc-muted">r 0.257 → 0.407</span><span class="fc-chip">+58%</span></div>
+        </div>
+        <svg class="fc-cursor" viewBox="0 0 26 26" aria-hidden="true"><path d="M3 2 L3 21 L8.5 16 L12 24 L15.5 22.5 L12 15 L19 15 Z" fill="#f2efe8" stroke="#121110" stroke-width="1.6" stroke-linejoin="round"/></svg>
       </div>
     </div>
   </div>

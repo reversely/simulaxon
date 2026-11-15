@@ -187,7 +187,6 @@ body.light .live { border-color: #cfc7ba; }
 .fc-bar { display: grid; grid-template-columns: minmax(120px, 190px) 1fr 64px; gap: 14px; align-items: center; font-size: 16px; }
 .fc-lane { position: relative; height: 12px; background: #e4ddd1; border-radius: 3px; }
 .fc-lane i { position: absolute; inset: 0; border-radius: 3px; transform-origin: left center; transform: scaleX(0); }
-.fc-ceil { position: absolute; top: -6px; bottom: -6px; left: 67.5%; width: 2px; background: var(--paper-ink); }
 .fc-chip { display: inline-block; font-size: 14px; padding: 3px 10px; border-radius: 999px; background: #1f1d1a; color: #f2efe8; }   /* light on its dark pill in both chapters */
 .fc-cursor { position: absolute; left: 0; top: 0; width: 24px; height: 24px; opacity: 0; z-index: 3; pointer-events: none; }
 @media (max-width: 820px) { .fc-bar { grid-template-columns: 1fr 56px; } .fc-bar .fc-lane { grid-column: 1 / -1; grid-row: 2; } }
@@ -201,10 +200,16 @@ body.light .live { border-color: #cfc7ba; }
 .stations .frames .grab img { width: auto; height: auto; max-width: 100%; max-height: 100%; min-height: 0; }
 .stations .frames .grab figcaption { text-align: center; }
 
+/* The benchmark: its headline, then data, fit and result as three of the film's cards */
+.bench-head { margin-top: clamp(48px, 8vh, 96px); }
+.bench { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.35fr); gap: clamp(20px, 3vw, 36px); align-items: start; margin-top: 28px; }
+.bench .fc-row { font-size: 16px; }
+.bench .fc-bar { grid-template-columns: 150px 1fr 48px; font-size: 16px; }
+.bench .fc-row .fc-btn { white-space: nowrap; }
+@media (max-width: 1100px) { .bench { grid-template-columns: minmax(0, 1fr); max-width: 640px; margin-inline: auto; } }
+
 /* The adapter's map, large: the result the fitting chapter is about */
 .mapview { margin: 0; display: grid; gap: 14px; }
-.fit-right { display: grid; gap: 22px; align-content: start; min-width: 0; }   /* the map above its card, so the chapter fits one screen */
-.fit-right .mapview canvas { height: min(40vh, 380px); }
 .mapview canvas { width: 100%; height: min(62vh, 640px); display: block; }   /* on the ivory itself: no second contrast block */
 .mapview figcaption { display: flex; justify-content: space-between; align-items: center; gap: 14px; flex-wrap: wrap; font-size: 15px; color: var(--ink-2); }
 body.light .choose button { color: var(--ink-2); } body.light .choose button.on { background: #e2dbcf; color: var(--ink); }
@@ -219,13 +224,12 @@ body.light .choose button { color: var(--ink-2); } body.light .choose button.on 
 .fc-fill, .fc-knob { background: var(--ink); }
 .fc-btn { background: var(--ink); color: var(--ground); }
 .fc-lane { background: var(--rule); }
-.fc-ceil { background: var(--ink); }
 .block .fc-sheet.s1 { background: #e6e0d5; } .block .fc-sheet.s2 { background: #dbd4c8; }
 .block .fc-card { background: #fbfaf7; color: var(--paper-ink); border-color: var(--paper-rule); }
 .block .fc-head { color: var(--paper-ink-2); border-bottom-color: var(--paper-rule); }
 .block .fc-muted { color: var(--paper-ink-2); }
 .block .fc-btn { background: var(--paper-ink); color: var(--paper); }
-.block .fc-lane { background: #e4ddd1; } .block .fc-ceil { background: var(--paper-ink); }
+.block .fc-lane { background: #e4ddd1; }
 
 /* Runs on CIQ: numbered steps on the left; the deployment pinned on the right, lit hop by hop */
 .sprite { position: absolute; width: 0; height: 0; overflow: hidden; }
