@@ -18,13 +18,14 @@ const n = (x: number) => x.toLocaleString()
 const MEDIA_NAMES: Record<string, string> = { image: 'images', video: 'videos', audio: 'audio' }
 const HIDDEN = new Set(['file', 'sha', 'folder'])
 
-export function DatasetsPage({ projects, onOpenProject }: { projects: Row<Project>[]; onOpenProject: (id: string) => void }) {
+export function DatasetsPage({ projects, onOpenProject, show }: { projects: Row<Project>[]; onOpenProject: (id: string) => void; show?: { id: string; tab?: 'samples' | 'adapters' } | null }) {
   const [list, setList] = useState<DS[] | null>(null); const [open, setOpen] = useState<string | null>(null)
+  useEffect(() => { if (show) setOpen(show.id || null) }, [show?.id, show?.tab])   // the guide (#26) opens a dataset, or the list
   const [q, setQ] = useState(''); const [creating, setCreating] = useState(false); const [err, setErr] = useState('')
   const load = () => call<DS[]>('dataset_list').then(setList).catch(e => setErr(String(e?.message ?? e)))
   useEffect(() => { load() }, [])
   useEffect(() => { const f = (e: Event) => { if ((e as CustomEvent).detail?.done) load() }; window.addEventListener('lab-dataset', f); return () => window.removeEventListener('lab-dataset', f) }, [])
-  if (open) return <DatasetView id={open} ds={list?.find(d => d.id === open)} projects={projects} onBack={() => { setOpen(null); load() }} onOpenProject={onOpenProject} onChanged={load} />
+  if (open) return <DatasetView id={open} ds={list?.find(d => d.id === open)} projects={projects} onBack={() => { setOpen(null); load() }} onOpenProject={onOpenProject} onChanged={load} initialTab={show?.id === open ? show.tab : undefined} />
   const shown = (list ?? []).filter(d => !q || `${d.title} ${d.id} ${d.ref}`.toLowerCase().includes(q.toLowerCase()))
   return <div className="dspage">
     <div className="bar dshead">
@@ -60,8 +61,8 @@ function NewDataset({ onClose, onCreated }: { onClose: () => void; onCreated: (i
   </div></div>
 }
 
-function DatasetView({ id, ds, projects, onBack, onOpenProject, onChanged }: { id: string; ds?: DS; projects: Row<Project>[]; onBack: () => void; onOpenProject: (id: string) => void; onChanged: () => void }) {
-  const [tab, setTab] = useState<'samples' | 'projects' | 'adapters'>('samples'); const [stages, setStages] = useState<Stage[]>([]); const [res, setRes] = useState<Query | null>(null)
+function DatasetView({ id, ds, projects, onBack, onOpenProject, onChanged, initialTab }: { id: string; ds?: DS; projects: Row<Project>[]; onBack: () => void; onOpenProject: (id: string) => void; onChanged: () => void; initialTab?: 'samples' | 'adapters' }) {
+  const [tab, setTab] = useState<'samples' | 'projects' | 'adapters'>(initialTab ?? 'samples'); useEffect(() => { if (initialTab) setTab(initialTab) }, [initialTab]); const [stages, setStages] = useState<Stage[]>([]); const [res, setRes] = useState<Query | null>(null)
   const [limit, setLimit] = useState(60); const [indexing, setIndexing] = useState<{ indexed: number; total: number } | null>(null); const [importing, setImporting] = useState(false)
   const [sample, setSample] = useState<Item | null>(null); const [openField, setOpenField] = useState<string | null>(null); const [err, setErr] = useState('')
   const [picked, setPicked] = useState<string[]>([]); const [tag, setTag] = useState(''); const [views, setViews] = useState<{ view_id: string; name: string; stages: Stage[]; items: number }[]>([])

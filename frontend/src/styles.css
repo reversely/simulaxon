@@ -630,3 +630,28 @@ table.data.compact td, table.data.compact th { padding: 3px 8px; font-size: 14px
 .adaptermaps { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; align-items: start; }
 .adaptermaps > div { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
 @media (max-width: 760px) { .adaptermaps { grid-template-columns: minmax(0, 1fr); } }
+/* Demo mode (#26, guide.tsx): the guide's panel and its two diagrams, tiles with one icon and arrows with monospace labels */
+.guide { display: flex; flex-direction: column; gap: 12px; }
+.guide > .bar .gmono { font-size: 13px; }
+.gmono { font-family: var(--mono, ui-monospace, Consolas, monospace); }
+.gdiagram { width: 100%; height: auto; display: block; background: #0f0e0d; border: 1px solid var(--rule); border-radius: var(--radius); }
+.gdiagram .gmono { font-size: 11.5px; fill: var(--ink-2); }
+.gtile rect { fill: var(--raise); stroke: var(--rule-strong); }
+.gtile .glabel { fill: var(--ink-2); font-size: 13.5px; font-weight: 600; }
+.gtile .gsub { fill: var(--ink-3); font-size: 11px; }
+.gtile .gicon { color: var(--ink-3); }
+.gtile.on rect { fill: var(--ink); stroke: var(--ink); }
+.gtile.on .glabel { fill: #1b1917; }
+.gtile.on .gsub { fill: #4a453e; }
+.gtile.on .gicon { color: #4d6309; }
+.gdiagram .gsub { fill: var(--ink-3); font-size: 11px; }
+.garrow path { fill: none; stroke: var(--ink-3); stroke-width: 1.5; }
+.garrow.on path { stroke: var(--accent); }
+.garrow.on .gmono { fill: var(--ink); }
+.gframe { fill: none; stroke: var(--rule-strong); stroke-dasharray: 4 4; }
+.gbox { fill: none; stroke: var(--rule-strong); }
+.gdots { display: flex; flex-wrap: wrap; gap: 4px; list-style: none; margin: 0; padding: 0; }
+.gdots button { width: 22px; height: 22px; border: 0; background: none; padding: 0; display: grid; place-items: center; cursor: pointer; }
+.gdots button::after { content: ''; width: 10px; height: 10px; border-radius: 50%; border: 1px solid var(--ink-3); }
+.gdots button.on::after { background: var(--accent); border-color: var(--accent); }
+@media (max-width: 760px) { .right.guidecol { order: -1; border-top: 0; border-bottom: 1px solid var(--rule); } }

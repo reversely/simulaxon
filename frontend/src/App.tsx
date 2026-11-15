@@ -10,6 +10,7 @@ import { SelectionView } from './selection'
 import { ResultsView, type LiveTrial } from './results'
 import { DatasetsPage } from './datasets'
 import { ClipBrain, samplePreds } from './brain3d'
+import { GuidePanel, GUIDE } from './guide'
 import { SessionDock, Chat, type SessionInfo } from './agent'
 type Example = { id: string; title: string; what: string; source: string; doi: string | null; goal: string; media: string[]; project_id: string | null; here: string }
 import { ExperimentSetup, ExperimentRoom, ReportedCard, OriginChip, type Setup, type Reported } from './experiment'
@@ -45,6 +46,8 @@ export default function App() {
   const [steps, setSteps] = useState<any[]>([])
   const [view, setView] = useState<View>(() => (new URLSearchParams(location.search).get('view') as View) || 'room')
   const [hist, setHist] = useState(false)   // the project's History menu (#21), closed until asked for
+  const [guide, setGuide] = useState<number | null>(null)   // demo mode (#26): the guide's step, or null when it is closed
+  const [dsShow, setDsShow] = useState<{ id: string; tab?: 'samples' | 'adapters' } | null>(null)
   const [picked, setPicked] = useState(false)   // a person or a demo chose the region shown; else only the project's own region counts as chosen (#19)
   const [region, setRegion] = useState('')   // set from the first project's own results; a person's or a demo's choice carries over
   const [unitIdx, setUnitIdx] = useState(0)
@@ -80,6 +83,16 @@ export default function App() {
   useEffect(() => { const go = () => call('machine_get').then(setMachine).catch(() => {}); go(); const t = setInterval(go, 8000); return () => clearInterval(t) }, [])
   useEffect(() => { if (!WIDE.includes(view)) lastCentre.current = view }, [view])
   useEffect(() => { const k = (e: KeyboardEvent) => { if (e.key === 'Escape' && WIDE.includes(view) && !document.querySelector('.overlay, .histpop, .dlmenu')) setView(lastCentre.current) }; addEventListener('keydown', k); return () => removeEventListener('keydown', k) }, [view])
+
+  /** Demo mode (#26): open what a guide step shows, in the real app. A step about an experiment or a world uses the open
+   * project when it is one that has run, else the first that has. */
+  const guideTo = (i: number) => {
+    const g = GUIDE[i].go; setGuide(i)
+    const ok = (p?: Row<Project>) => !!p && p.data.status === 'Done' && (g.project === 'experiment' ? p.data.plan === 'experiment' && (p.data.counts?.clips ?? 0) > 0 : !!(p.data as any).world)
+    const cur = projects.find(p => p.id === pid)
+    if (g.project && !ok(cur)) { const p = projects.find(x => ok(x)); if (p) setPid(p.id) }
+    setHist(!!g.history); setDsShow(g.view === 'datasets' ? g.dataset ?? { id: '' } : null); setView(g.view as View)
+  }
 
   const refreshProjects = useCallback(async () => {
     const [t, p] = await Promise.all([call<Template[]>('template_list'), call<Row<Project>[]>('project_list')])
@@ -250,6 +263,7 @@ export default function App() {
         </div>
         <button className={`btn ${view === 'datasets' ? 'on' : ''}`} onClick={() => setView('datasets')}><Icon name="table" size={16} />Datasets</button>
         <button className="btn" aria-haspopup="dialog" aria-expanded={hist} onClick={() => setHist(h => !h)}><Icon name="clock" size={16} />History</button>
+        <button className={`btn ${guide !== null ? 'on' : ''}`} aria-pressed={guide !== null} onClick={() => guide === null ? guideTo(0) : setGuide(null)}><Icon name="book" size={16} />Guide</button>
         {hist && <History pid={pid!} agent={machine?.agent ?? 'The agent'} tick={steps.length ? steps[steps.length - 1].step_id : ''} onClose={() => setHist(false)}
           onUndo={async id => { await call('step_undo', { step_id: id }); refreshProjects(); loadProject(pid!) }} />}
         <button className="btn" onClick={() => setSheet('templates')}><Icon name="plus" size={16} />New project</button>
@@ -270,13 +284,13 @@ export default function App() {
             sid={projectChat} live={sessionTick} onStarted={() => loadSessions()} onOpenProject={id => { setPid(id); setView('room') }} />
         </aside>}
 
-        <main className={`col centre ${WIDE.includes(view) ? 'span2' : ''}`}>
+        <main className={`col centre ${WIDE.includes(view) && guide === null ? 'span2' : ''}`}>
           {(demo.demo && demo.status !== 'idle' || jobs.length > 0 || sessions.length > 0 || runsNow.length > 0) && <div className="dock">
             <SessionDock sessions={sessions} onOpen={id => { setOpenSession(id); setView('agent') }} onStop={id => fetch(`/agent/sessions/${id}/stop`, { method: 'POST' }).then(loadSessions)} />
             <DemoBar state={demo.status === 'done' && (demo as any).show?.project !== pid ? { ...demo, status: 'idle' } : demo} onControl={a => call<DemoState>('demo_update', { action: a }).then(setDemo)} />
             <LiveWorkspace jobs={jobs} runs={runsNow} onOpen={id => { setPid(id); setView('room') }} />
           </div>}
-          {view === 'datasets' ? <DatasetsPage projects={projects} onOpenProject={id => { setPid(id); setView('room') }} /> : view === 'agent' ? <div className="chatwide"><h1 className="q">{sessions.find(x => x.id === openSession)?.goal ?? 'New chat with the agent'}</h1>
+          {view === 'datasets' ? <DatasetsPage projects={projects} onOpenProject={id => { setPid(id); setView('room') }} show={dsShow} /> : view === 'agent' ? <div className="chatwide"><h1 className="q">{sessions.find(x => x.id === openSession)?.goal ?? 'New chat with the agent'}</h1>
             <Chat sid={openSession} live={sessionTick} onStarted={id => { setOpenSession(id); loadSessions() }} onOpenProject={id => { setPid(id); setView('room') }} /></div> : <>
           <div>
             <h1 className="q">{P.template_id && !(P as any).question_written ? P.title : P.question}</h1>
@@ -314,7 +328,8 @@ export default function App() {
           {WIDE.includes(view) && <div className="muted">Escape returns to the {lastCentre.current}</div>}
         </main>
 
-        {!WIDE.includes(view) && <aside className="col right">
+        {guide !== null ? <aside className="col right guidecol"><GuidePanel step={guide} onStep={guideTo} onClose={() => setGuide(null)} /></aside>
+        : !WIDE.includes(view) && <aside className="col right">
           <Inspector P={P} pid={pid!} template={template} projects={projects} paired={paired} needed={needed} objects={objects} perObject={perObject} region={region} setRegion={pickRegion} picked={picked} named={named} onAsk={send}
             unit={unit} diff={diff} units={units} samples={samples} onFork={(c) => template && createFromTemplate(template, `${P.title}: ${c}`, { ...(P.bindings as Record<string, string>), control: c }, pid!)}
             onOpenProject={setPid} onPickObject={k => { pickUnitByKey(k); setView('room') }} template_analyses={template?.analyses ?? []} analyses={analyses} />
