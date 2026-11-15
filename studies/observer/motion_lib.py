@@ -35,9 +35,37 @@ def _model(g):
     return _models[g]
 
 
+def body_height(betas, gender) -> float:
+    """The body's height standing in its neutral pose, from its fitted shape: top of the head to the soles, in metres."""
+    import torch
+    with torch.no_grad(): v = _model(gender)(betas=torch.tensor(np.asarray(betas).reshape(1, -1), dtype=torch.float32)).vertices.numpy()[0]
+    return float(v[:, 1].max() - v[:, 1].min())
+
+
+def _first_fit(rec: str, taus) -> dict:
+    """The wearer's first fitted body in the moment's window: the fit whose shape (betas) both bodies are drawn from."""
+    c = np.load(os.path.join(WORK, 'cams', rec + '.npz'), allow_pickle=True); ts = (c['ts'] - c['ts'][0]) / 1e7
+    d = glob.glob(os.path.join(ROOT, f'smplx_camera_wearer_*/{rec}/body_idx_*/results'))[0]
+    for tau in taus:
+        j = int(np.argmin(np.abs(ts - tau))); f = os.path.join(d, f"frame_{int(c['frame'][j]):05d}", '000.pkl')
+        if abs(ts[j] - tau) < 0.05 and os.path.exists(f): return pickle.load(open(f, 'rb'))
+    raise ValueError(f'no fitted body for {rec} in its window')
+
+
+def ensure_height(rec: str, path: str) -> float:
+    """Adds body_height_m to a motion file written before it was recorded (2026-11-14), so the G1 is drawn at the wearer's height."""
+    M = np.load(path)
+    if 'body_height_m' in M.files: return float(M['body_height_m'])
+    save = {k: M[k] for k in M.files}; f = _first_fit(rec, M['taus'])
+    save['body_height_m'] = body_height(f['betas'], str(M['gender'])); M.close()
+    tmp = path + '.tmp.npz'; np.savez_compressed(tmp, **save); os.replace(tmp, path)
+    return float(save['body_height_m'])
+
+
 def build(rec: str, k: int, keyframe_s: float, dst: str) -> dict:
-    """Writes dst (npz) with both motions for both bodies; returns a summary. Skips the work if dst exists."""
-    if os.path.exists(dst): return {'file': dst, 'cached': True}
+    """Writes dst (npz) with both motions for both bodies; returns a summary. Skips the work if dst exists (adding the
+    wearer's height if the file predates it)."""
+    if os.path.exists(dst): ensure_height(rec, dst); return {'file': dst, 'cached': True}
     import torch
     t = decision_time(rec, k)
     c = np.load(os.path.join(WORK, 'cams', rec + '.npz'), allow_pickle=True); ts = (c['ts'] - c['ts'][0]) / 1e7; T = c['T_scene_kin']
@@ -69,6 +97,7 @@ def build(rec: str, k: int, keyframe_s: float, dst: str) -> dict:
         with torch.no_grad(): v = _model(g)(**args).vertices.numpy()
         save[f'{name}_verts'] = ((v @ T[:3, :3].T) + T[:3, 3]).astype(np.float32)
     save['faces'] = _model(g).faces.astype(np.int32)
+    save['body_height_m'] = body_height(first['betas'], g)   # the wearer standing, so the G1 can be drawn at his height (owner, 2026-11-14: "the robot and human are misscaled")
     gap = np.linalg.norm(save['recorded_verts'] - save['robotic_verts'], axis=2).mean(1); save['vertex_gap_m'] = gap
     os.makedirs(os.path.dirname(dst), exist_ok=True); tmp = dst + '.tmp.npz'; np.savez_compressed(tmp, **save); os.replace(tmp, dst)
     return {'file': dst, 'cached': False, 'frames': n, 'frames_without_fit': held, 'gender': g,

@@ -28,7 +28,7 @@ WORK = os.path.expanduser('~/data/egobody/work')
 G1_URL = 'https://omniverse-content-production.s3-us-west-2.amazonaws.com/Assets/Isaac/6.2/Isaac/Robots/Unitree/G1/g1.usd'
 KIN = os.path.join(WORK, 'g1_kinematics.json'); PEL_REST = np.array([0.0031, -0.3514, 0.0120])
 REVISION = {'human': 'body-scene 1: scan room, partner-eye camera 0.35 m above the pelvis, 1.6 m in frame, SMPL-X mesh with normals',
-            'g1': 'body-scene 3: as 1, G1 posed through its links only; its root never touched'}
+            'g1': 'body-scene 4: as 3, the G1 scaled uniformly to the wearer\'s standing height, feet on the floor or pelvis on the seat'}
 
 
 def _M(m): return Gf.Matrix4d(np.asarray(m, float).T.tolist())
@@ -104,6 +104,12 @@ class BodyScene:
         self.rp = rep.create.render_product('/World/Film', (W, H)); self.ann = rep.AnnotatorRegistry.get_annotator('LdrColor'); self.ann.attach(self.rp)
         cache = UsdGeom.XformCache(); rest = lambda p: np.array(cache.GetLocalToWorldTransform(st.GetPrimAtPath(p))).T
         self.pelvis_rest = rest('/World/G1/pelvis')
+        # the G1 drawn at the wearer's height (owner, 2026-11-14: "the robot and human are misscaled"): its own standing height
+        # from the robot model's bounds at rest, against the wearer's from his fitted shape (motion_lib.body_height)
+        bb = UsdGeom.BBoxCache(Usd.TimeCode.Default(), [UsdGeom.Tokens.default_, UsdGeom.Tokens.render]).ComputeWorldBound(self.g1).ComputeAlignedRange()
+        self.g1_height = float(bb.GetMax()[2] - bb.GetMin()[2]) if bb.GetSize()[2] > bb.GetSize()[1] else float(bb.GetSize()[1])
+        self.body_height = float(self.Mo['body_height_m']) if 'body_height_m' in self.Mo.files else None
+        self.g1_scale = (self.body_height / self.g1_height) if self.body_height else None   # None: the G1 is not drawn (see _g1)
         # links the stored kinematics cannot reach (both palms' fixed joints share one name in the asset, so one was lost):
         # mount each on the link its mirror image hangs from, at the offset the asset's own rest pose gives
         for path in self.links:
@@ -117,7 +123,7 @@ class BodyScene:
                 jn = f'rest_mount_{name}'; self.FK.parent[name] = (jn, parent); self.FK.j[jn] = {'type': 'fixed'}
                 self.FK.fixed[jn] = np.linalg.inv(rest(ppath)) @ rest(path); self.FK.inv1[jn] = np.eye(4)
         self.loaded = key
-        self.info = dict(rec=rec, k=k, frames=self.N, decision_frame=self.n_t, seated=seated, seat_added=seat, floor=round(floor, 3), focal_mm=round(fl, 1),
+        self.info = dict(g1_scale=round(self.g1_scale, 3) if self.g1_scale else None, g1_height_m=round(self.g1_height, 3), body_height_m=round(self.body_height, 3) if self.body_height else None, rec=rec, k=k, frames=self.N, decision_frame=self.n_t, seated=seated, seat_added=seat, floor=round(floor, 3), focal_mm=round(fl, 1),
                          camera=f"{'seated' if seated else 'standing'}; partner head {np.linalg.norm((ph - target)[[0, 2]]):.2f} m from the body (fit {off:+d} frames), camera 0.5 m behind it, {fl:.0f} mm",
                          frames_without_fit=int(Mo['frames_without_fit']))
         return self.info
@@ -144,14 +150,17 @@ class BodyScene:
         self.hm.GetPointsAttr().Set(Vt.Vec3fArray.FromNumpy(v)); self.hm.GetNormalsAttr().Set(Vt.Vec3fArray.FromNumpy(nv.astype(np.float32)))
 
     def _g1(self, q, n, motion, away=False):
+        if self.g1_scale is None: raise ValueError('the motion file has no body_height_m; rebuild it with observer/motion_lib.build so the G1 is drawn at the wearer\'s height')
         pel, fwd = self.Mo[f'{motion}_pel'][n], self.Mo[f'{motion}_fwd'][n]
         fh = np.array([fwd[0], 0, fwd[2]]) / np.linalg.norm(fwd[[0, 2]]); r_ = Rot.from_euler('y', np.arctan2(-fh[2], fh[0])) * Rot.from_euler('x', -90, degrees=True)
         P = np.eye(4); P[:3, :3] = r_.as_matrix(); P[:3, 3] = [pel[0], pel[1] if self.seated else self.floor + 0.80, pel[2] ]
         if away: P[1, 3] -= 1000.0   # beyond the camera's 100 m far clip, so no hole in the scanned floor shows it
         B = P @ self.pelvis_rest; qq = {**q, **self.legs}; world = {'/World/G1': np.eye(4)}   # the root stays where the stage put it
+        c = P[:3, 3].copy() if self.seated else np.array([P[0, 3], P[1, 3] - 0.80, P[2, 3]])   # scale about the seat, or the floor under the pelvis
+        S = np.eye(4); S[:3, :3] *= self.g1_scale; S[:3, 3] = c - self.g1_scale * c
         for path in self.links:
             name = path.split('/')[-1]; parent = path.rsplit('/', 1)[0]
-            Mw = B if name == 'pelvis' else self.FK.link_world(name, qq, B)
+            Mw = S @ (B if name == 'pelvis' else self.FK.link_world(name, qq, B))
             if parent not in world: world[parent] = world['/World/G1'] @ np.array(UsdGeom.Xformable(self.st.GetPrimAtPath(parent)).GetLocalTransformation()).T
             prim = self.st.GetPrimAtPath(path); xf = UsdGeom.Xformable(prim); xf.ClearXformOpOrder(); xf.AddTransformOp().Set(_M(np.linalg.inv(world[parent]) @ Mw))
             world[path] = Mw

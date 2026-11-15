@@ -83,5 +83,5 @@ def job(kind: str, values: dict, assets: dict, world: dict) -> dict:
         a = assets[values['moment']]
         return {'kind': 'body', 'rec': a['recording'], 'k': int(a['episode']), 'body': values['body'], 'motion': values['motion'],
                 'keyframe_s': round(float(values['keyframe_s']), 3),
-                'renderer': 'body-scene 3' if values['body'] == 'g1' else 'body-scene 1'}   # = feasibility/observer/body_scene.REVISION: a renderer change never reuses an old clip
+                'renderer': 'body-scene 4' if values['body'] == 'g1' else 'body-scene 1'}   # = feasibility/observer/body_scene.REVISION: a renderer change never reuses an old clip
     raise ValueError(kind)
