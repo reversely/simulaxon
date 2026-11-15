@@ -125,7 +125,7 @@ services:
       # Its agent runs on the planner (lab/planner_agent.py), since the cluster has no Claude Code.
       # Restarted in place after a code update, so the planner keeps running:
       #   fuzzball workflow exec <id> app-server -- python3 -c "import os; [os.kill(int(p), 15) for p in os.listdir('/proc') if p.isdigit() and open(f'/proc/{p}/cmdline', 'rb').read().startswith(b'python\\x00-m\\x00app_server.lab.serve')]"
-      while true; do python -m app_server.lab.serve --host 0.0.0.0 --port 8791 --db /data/log/lab.duckdb; echo "app server exited ($?); restarting"; sleep 2; done
+      while true; do python -m app_server.lab.serve --host 0.0.0.0 --port 8791 --db /data/log/lab.duckdb || echo "app server exited ($?); restarting"; sleep 2; done   # || keeps set -e from ending the loop
     network:
       ports:
         - name: web
