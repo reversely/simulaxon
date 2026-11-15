@@ -5,3 +5,4 @@ __pycache__/
 .venv*/
 data/*
 !data/README.md
+docs/progress/
