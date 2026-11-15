@@ -436,3 +436,11 @@ aside.left .convo { padding-bottom: 28px; }
 .sessionrow .bar { margin-left: 0 !important; flex-wrap: nowrap; }
 .sessionrow .btn { padding: 4px 12px; }
 .live .prep { display: inline-flex; align-items: center; gap: 8px; font-size: 14px; }
+
+/* a chip on the ivory card reads in the card's own inks, never the dark theme's faint grey (found reading a result, #15) */
+.paper .chip { color: var(--paper-ink); border-color: var(--paper-ink-2); }
+.paper .chip.match { color: #2f6b12; border-color: #2f6b12; background: #e9f2dc; }
+/* the time course's legend: a swatch of each condition's line colour beside its name */
+.course .legend { flex-wrap: wrap; gap: 6px 16px; }
+.course .legend span { display: inline-flex; align-items: center; gap: 6px; }
+.course .legend i { display: inline-block; width: 16px; height: 3px; border-radius: 2px; flex: none; }
