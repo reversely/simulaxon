@@ -408,3 +408,7 @@ section.ciq video, section.ciq img, section.ciq figure, section.ciq .grab { max-
 .loopline .tok { font-size: 0.86em; }
 .loopline .arr { color: var(--ink-3); margin: 0 0.15em; }
 .lines p.loopline.runs { margin-top: 8px; }
+
+/* The phrase that carries each paragraph */
+p b { font-weight: 500; color: var(--ink); }
+.lines p b { font-weight: 400; }
