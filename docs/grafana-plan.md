@@ -2,7 +2,7 @@
 
 The owner, 15 Nov: "the script and the narrative need to target: rocky linux usage, potentially rlc pro ai (?) and then fuzzball usage, uptime monitoring, use of both clusters in a way that isn't totally absurd. i think plan for when we get back online would be going based off real usage screenshots, so think about the data story and visualization path first in grafana itself and how that would map on elegantly. the dashboard should reflect a focus on compute optimization etc"
 
-This plan comes first; the dashboard changes and the screenshots follow it once the cluster is back online.
+This plan comes first; the dashboard changes and the screenshots follow it once the cluster is back online. Ticket: #35.
 
 ## 1. The data story
 
