@@ -493,6 +493,7 @@ aside.left .convo { padding-bottom: 28px; }
 .startway.first .ico { color: var(--sel); }
 .sechead { display: flex; align-items: center; gap: 10px; font-size: 20px; margin: 30px 0 4px; scroll-margin-top: 20px; }
 .sechead .ico { color: var(--ink-2); }
+.seclede { margin: 0 0 4px; }
 .planline { display: flex; gap: 9px; align-items: flex-start; font-size: 14.5px; color: var(--ink-2); line-height: 1.45; }
 .planline b { color: var(--ink); font-weight: 600; }
 .planline .ico { margin-top: 1px; color: var(--ink); }

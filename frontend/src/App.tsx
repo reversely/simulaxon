@@ -15,7 +15,12 @@ import { Skeleton } from './wait'
 import { ExperimentalPage } from './experimental'
 import { SessionDock, Chat, type SessionInfo } from './agent'
 type Example = { id: string; title: string; what: string; source: string; doi: string | null; goal: string; media: string[]; project_id: string | null; here: string
-  brain: { image: string; view: string; title: string } | null }   // the predicted response beside the stimulus
+  brain: { image: string; view: string; title: string } | null   // the predicted response beside the stimulus
+  kind: 'replication' | 'fine_tuning' | 'new'; dataset_id: string | null }
+const KINDS: [Example['kind'], string, IconName, string][] = [
+  ['replication', 'Classic experiments', 'flask', 'Published results rerun on TRIBE v2 and compared with what each paper reported.'],
+  ['fine_tuning', 'Fine-tuning', 'brain', "Fit TRIBE v2 to people's measured fMRI, scored on stimuli the fit never saw."],
+  ['new', 'New questions', 'search', 'Studies no paper has run yet.']]
 import { ExperimentSetup, ExperimentRoom, ReportedCard, OriginChip, type Setup, type Reported } from './experiment'
 
 type View = 'room' | 'results' | 'datasets' | 'experimental' | 'samples' | 'brain' | 'search' | 'data' | 'findings' | 'sources' | 'agent'
@@ -245,6 +250,7 @@ export default function App() {
   }
 
   const sheetEl = sheet === 'templates' && <TemplateSheet examples={examples} onOpenProject={id => { setSheet(null); setPid(id); setView('room') }}
+        onOpenDataset={id => { setSheet(null); setDsShow({ id, tab: 'adapters' }); setView('datasets') }}
         onGoal={goal => fetch('/agent/sessions', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text: goal, mode: 'discuss' }) }).then(r => r.json()).then(s => { setSheet(null); loadSessions(); setOpenSession(s.id); setView('agent') })}
         onChat={() => { setSheet(null); setOpenSession(null); setView('agent') }} templates={templates} demos={demos} writeErr={writeErr} onWrite={id => call('demo_create', { seed_id: id }).then(() => call<DemoInfo[]>('demo_list').then(setDemos))} onClose={() => setSheet(null)} onCreate={createFromTemplate}
         onPlay={id => { setSheet(null); setNarr([]); call<DemoState>('demo_run', { demo_id: id }).then(setDemo) }} />
@@ -604,7 +610,7 @@ function Inspector({ P, pid, template, projects, paired, needed, objects, perObj
   </>
 }
 
-function TemplateSheet({ examples, onOpenProject, onGoal, onChat, templates, demos, writeErr, onWrite, onClose, onCreate, onPlay }: { examples: Example[]; onOpenProject: (id: string) => void; onGoal: (goal: string) => void; onChat: () => void; templates: Template[]; demos: DemoInfo[]; writeErr: Record<string, string>; onWrite: (id: string) => void; onClose: () => void; onCreate: (t: Template, title: string, b: Record<string, string>, from?: string, datasets?: string[]) => void; onPlay: (id: string) => void }) {
+function TemplateSheet({ examples, onOpenProject, onOpenDataset, onGoal, onChat, templates, demos, writeErr, onWrite, onClose, onCreate, onPlay }: { examples: Example[]; onOpenProject: (id: string) => void; onOpenDataset: (id: string) => void; onGoal: (goal: string) => void; onChat: () => void; templates: Template[]; demos: DemoInfo[]; writeErr: Record<string, string>; onWrite: (id: string) => void; onClose: () => void; onCreate: (t: Template, title: string, b: Record<string, string>, from?: string, datasets?: string[]) => void; onPlay: (id: string) => void }) {
   const [pick, setPick] = useState<Template | null>(null); const [vals, setVals] = useState<Record<string, string>>({}); const [title, setTitle] = useState('')
   const blanks = pick ? [...new Set([...pick.question.matchAll(/\{(\w+)\}/g)].map(m => m[1]))] : []
   const [atlas, setAtlas] = useState<any>(null)
@@ -621,8 +627,10 @@ function TemplateSheet({ examples, onOpenProject, onGoal, onChat, templates, dem
           <button className="startway" onClick={() => document.getElementById('start-examples')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}><Icon name="flask" size={26} /><b>Open a classic experiment</b><span>Set up already, ready to run or change.</span></button>
           <button className="startway" onClick={() => document.getElementById('start-templates')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}><Icon name="template" size={26} /><b>Start from a template</b><span>A study design with blanks to fill in.</span></button>
         </div>
-        <h3 className="sechead" id="start-examples"><Icon name="flask" />Classic experiments</h3>
-        <div className="excards">{examples.map(e => <article key={e.id} className="excard">
+        {KINDS.filter(([k]) => examples.some(e => e.kind === k)).map(([k, head, icon, about], ki) => <section key={k}>
+        <h3 className="sechead" id={ki === 0 ? 'start-examples' : undefined}><Icon name={icon} />{head}</h3>
+        <p className="ink2 seclede">{about}</p>
+        <div className="excards">{examples.filter(e => e.kind === k).map(e => <article key={e.id} className="excard">
           {(e.media.length > 0 || e.brain) && <div className={`pics ${e.brain ? 'split' : ''}`}>
             <div className="stim">{e.media.map(src => src.endsWith('.mp4') ? <video key={src} src={src} autoPlay muted loop playsInline preload="metadata" aria-label={`${e.title}, the stimulus`} /> : <img key={src} src={src} alt="" />)}</div>
             {e.brain && <figure className="exbrain"><img src={e.brain.image} alt={`Predicted brain response: ${e.brain.title}`} /><figcaption>{e.brain.title}</figcaption></figure>}
@@ -631,9 +639,11 @@ function TemplateSheet({ examples, onOpenProject, onGoal, onChat, templates, dem
             <h3>{e.title}</h3>
             <div>{e.what}</div>
             <div className="ink2">{e.doi ? <a href={`https://doi.org/${e.doi}`} target="_blank" rel="noreferrer">{e.source}</a> : e.source}</div>
-            <div className="here"><span>{e.here}</span>{e.project_id ? <button className="btn primary" onClick={() => onOpenProject(e.project_id!)}><Icon name="open" size={16} />Open</button> : <button className="btn" onClick={() => onGoal(e.goal)}><Icon name="chat" size={16} />Start with the agent</button>}</div>
+            <div className="here"><span>{e.here}</span>{e.project_id ? <button className="btn primary" onClick={() => onOpenProject(e.project_id!)}><Icon name="open" size={16} />Open</button>
+              : e.kind === 'fine_tuning' && e.dataset_id ? <button className="btn primary" onClick={() => onOpenDataset(e.dataset_id!)}><Icon name="open" size={16} />Open fitting</button>
+              : <button className="btn" onClick={() => onGoal(e.goal)}><Icon name="chat" size={16} />Start with the agent</button>}</div>
           </div>
-        </article>)}</div>
+        </article>)}</div></section>)}
         <h3 className="sechead" id="start-templates"><Icon name="template" />Templates</h3>
         <p className="ink2">Every template runs the same six steps: build a world, choose what varies, run, compare, challenge, hand off.</p>
         <div className="cards">{templates.map(t => <div key={t.id} className="tcard">
