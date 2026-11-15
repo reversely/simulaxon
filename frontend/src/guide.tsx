@@ -5,18 +5,19 @@ import { useEffect, useRef, type ReactNode } from 'react'
 import { Icon, type IconName } from './icons'
 
 export type Piece = 'app' | 'planner' | 'isaac' | 'cosmos' | 'tribe' | 'vast'
-export type Go = { view: string; project?: 'experiment' | 'world'; prefer?: string[]; history?: boolean; dataset?: { id: string; tab?: 'samples' | 'adapters' } }
+export type Go = { view: string; chat?: string | null; project?: 'experiment' | 'world'; prefer?: string[]; history?: boolean; dataset?: { id: string; tab?: 'samples' | 'adapters' } }
 export type GuideStep = { id: string; title: string; text: string; tile: number; arrow?: number; pieces: Piece[]; data: string; go: Go }
 
 const LOOP: [string, IconName][] = [['Hypothesis', 'chat'], ['Scenes', 'room'], ['Brain response', 'brain'], ['Next test', 'flask']]
 const ARROWS = ['plan what to vary', 'TRIBE v2 predicts', 'compare conditions', 'follow up']
 
 const HUMANOID = ['project_920ddb5712']   // Isaac Sim renders against their Cosmos restyles: the whole pipeline in one project
+const UPLOAD_CHAT = 'session_8f10f294'   // a person uploads stills of a human and a Unitree G1 and asks; the agent sets up, runs and reports
 export const GUIDE: GuideStep[] = [
   { id: 'intro', title: 'How Simulaxon works', text: 'Simulaxon turns a question about the brain into rendered scenes, predicted fMRI and a next test. The steps below walk one project through that loop.',
-    tile: -1, pieces: ['app', 'planner', 'isaac', 'cosmos', 'tribe', 'vast'], data: 'projects, clips, predictions and the step log', go: { view: 'room', project: 'experiment', prefer: HUMANOID } },
-  { id: 'ask', title: 'Ask a question', text: 'Write a hypothesis in the chat. The agent plans the experiment: what to vary, what to hold fixed, which brain areas to read.',
-    tile: 0, arrow: 0, pieces: ['app', 'planner', 'vast'], data: 'the project and every step', go: { view: 'room', project: 'experiment', prefer: HUMANOID } },
+    tile: -1, pieces: ['app', 'planner', 'isaac', 'cosmos', 'tribe', 'vast'], data: 'projects, clips, predictions and the step log', go: { view: 'agent', chat: null } },
+  { id: 'ask', title: 'Upload and ask', text: 'Upload stills or clips and write a hypothesis in the chat. The agent plans the experiment, sets it up, runs it and reports what TRIBE v2 predicts.',
+    tile: 0, arrow: 0, pieces: ['app', 'planner', 'vast'], data: 'the uploads, the project and every step', go: { view: 'agent', chat: UPLOAD_CHAT } },
   { id: 'data', title: 'Bring stimuli', text: 'Import clips, images or a folder, or fetch an open dataset. Every file becomes a sample to filter, tag and save as a view.',
     tile: 0, pieces: ['app', 'vast'], data: 'datasets and their samples', go: { view: 'datasets' } },
   { id: 'scene', title: 'Build a scene', text: 'Each control is one line of the scene script. Change it and Isaac Sim renders the room again; TRIBE v2 reads the new render.',
@@ -88,7 +89,7 @@ export function PlacementDiagram({ pieces, data }: { pieces: Piece[]; data: stri
 /** The guide's first page: one slide over the app. The loop as four stages joined by arrows, each naming the model that
  * does it and its maker, then where it all runs. A stage opens the guide at its first step. */
 const STAGES: { label: string; icon: IconName; does: string; by: string }[] = [
-  { label: 'Hypothesis', icon: 'chat', does: 'Plans what to vary', by: 'Nemotron Super 120B, NVIDIA' },
+  { label: 'Upload and ask', icon: 'upload', does: 'Upload stills or clips and ask a question; the agent plans the test', by: 'Nemotron Super 120B, NVIDIA' },
   { label: 'Scenes', icon: 'room', does: 'Renders each trial and restyles it', by: 'Isaac Sim and Cosmos 3 Nano, NVIDIA' },
   { label: 'Brain response', icon: 'brain', does: 'Predicts fMRI second by second', by: 'TRIBE v2, Meta' },
   { label: 'Next test', icon: 'flask', does: 'Compares conditions and picks a follow-up', by: 'Nemotron Super 120B, NVIDIA' },
@@ -100,8 +101,8 @@ export function IntroSlide({ onStep, onClose }: { onStep: (i: number) => void; o
   return <div className="gslide-scrim" onClick={e => { if (e.target === e.currentTarget) onClose() }}>
     <section className="gslide" role="dialog" aria-modal="true" aria-labelledby="gslide-title">
       <button className="iconbtn gslide-x" aria-label="Close the guide" onClick={onClose}><Icon name="close" size={18} /></button>
-      <h2 id="gslide-title">How Simulaxon works</h2>
-      <p className="gslide-lede">A question about the brain becomes rendered scenes, predicted fMRI and a next test.</p>
+      <h2 id="gslide-title">Welcome to Simulaxon</h2>
+      <p className="gslide-lede">Upload stimuli and ask a question about the brain. Simulaxon renders the scenes, predicts the fMRI response and plans the next test.</p>
       <div className="gloop">
         <ol className="gstages">
           {STAGES.map((st, i) => <li key={st.label}>

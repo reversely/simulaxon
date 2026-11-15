@@ -89,7 +89,7 @@ export default function App() {
   useEffect(() => { call<DemoInfo[]>('demo_list').then(setDemos); call<DemoState>('demo_get').then(d => d.demo && setDemo(d)) }, [])
   const [machine, setMachine] = useState<{ agent: string; world_node: string; brain_node: string; dashboard?: boolean } | null>(null)
   const [widen, setWiden] = useState(false)
-  const [sessions, setSessions] = useState<SessionInfo[]>([]); const [openSession, setOpenSession] = useState<string | null>(null); const [sessionTick, setSessionTick] = useState(0)
+  const [sessions, setSessions] = useState<SessionInfo[]>([]); const [openSession, setOpenSession] = useState<string | null>(null); const [replay, setReplay] = useState(false); const [sessionTick, setSessionTick] = useState(0)
   const loadSessions = () => fetch('/agent/sessions').then(r => r.json()).then(setSessions).catch(() => {})
   useEffect(() => { if (sheet === 'templates') call<Example[]>('example_list').then(setExamples).catch(() => {}) }, [sheet])
   useEffect(() => { loadSessions(); call<Record<string, { done: number; total: number; stage?: string }>>('run_list').then(p => setRunProg(r => ({ ...p, ...r }))).catch(() => {}) }, [])
@@ -113,6 +113,7 @@ export default function App() {
     if (g.project) { const named = g.prefer?.map(id => projects.find(p => p.id === id)).find(ok)
       const best = named ?? projects.filter(ok).sort((a, b) => made(b) - made(a))[0]
       if (best && (named ? cur?.id !== best.id : !ok(cur) || made(cur!) < made(best))) setPid(best.id) }
+    if ('chat' in g) { setOpenSession(g.chat ?? null); setReplay(!!g.chat) } else setReplay(false)   // the guide's chats: a new one, or a stored one replayed
     setHist(!!g.history); setDsShow(g.view === 'datasets' ? g.dataset ?? { id: '' } : null); setView(g.view as View)
   }
 
@@ -272,7 +273,7 @@ export default function App() {
       {machine?.dashboard && <a className="btn" href="/dashboard" target="_blank" rel="noreferrer"><Icon name="gauge" size={16} />Dashboard</a>}
       {offline && <span className="chip flag" role="status">Reconnecting to the lab server</span>}</header>
     <div className="body chatonly"><main className="col centre"><div className="chatwide"><h1 className="q">{sessions.find(x => x.id === openSession)?.goal ?? 'New chat with the agent'}</h1>
-      <Chat sid={openSession} live={sessionTick} onStarted={id => { setOpenSession(id); loadSessions() }} onOpenProject={id => { setPid(id); setView('room') }} /></div></main></div>
+      <Chat sid={openSession} live={sessionTick} replay={replay} onStarted={id => { setReplay(false); setOpenSession(id); loadSessions() }} onOpenProject={id => { setPid(id); setView('room') }} /></div></main></div>
     {sheetEl}
   </div>
 
@@ -321,7 +322,7 @@ export default function App() {
             <LiveWorkspace jobs={jobs} runs={runsNow} onOpen={id => { setPid(id); setView('room') }} />
           </div>}
           {view === 'projects' ? <ProjectsPage projects={projects} current={pid} onOpen={id => { setPid(id); setView('room') }} /> : view === 'datasets' ? <DatasetsPage projects={projects} onOpenProject={id => { setPid(id); setView('room') }} show={dsShow} /> : view === 'experimental' ? <ExperimentalPage /> : view === 'agent' ? <div className="chatwide"><h1 className="q">{sessions.find(x => x.id === openSession)?.goal ?? 'New chat with the agent'}</h1>
-            <Chat sid={openSession} live={sessionTick} onStarted={id => { setOpenSession(id); loadSessions() }} onOpenProject={id => { setPid(id); setView('room') }} /></div> : <>
+            <Chat sid={openSession} live={sessionTick} replay={replay} onStarted={id => { setReplay(false); setOpenSession(id); loadSessions() }} onOpenProject={id => { setPid(id); setView('room') }} /></div> : <>
           <div>
             <h1 className="q">{P.template_id && !(P as any).question_written ? P.title : P.question}</h1>
             <div className="bar" style={{ marginTop: 8 }}>
@@ -359,7 +360,7 @@ export default function App() {
         </main>
 
         {guide === 0 && <IntroSlide onStep={guideTo} onClose={() => setGuide(null)} />}
-        {guide !== null && guide > 0 && <aside className="guidefloat"><GuidePanel step={guide} onStep={guideTo} onClose={() => setGuide(null)}>{GUIDE[guide].id === 'ask' && P && !opening && <GuideProject P={P} />}</GuidePanel></aside>}
+        {guide !== null && guide > 0 && <aside className="guidefloat"><GuidePanel step={guide} onStep={guideTo} onClose={() => setGuide(null)}></GuidePanel></aside>}
         {guide ? <aside className="col guidegap" aria-hidden="true" /> : !WIDE.includes(view) && <aside className="col right">
           <Inspector P={P} pid={pid!} template={template} projects={projects} paired={paired} needed={needed} objects={objects} perObject={perObject} region={region} setRegion={pickRegion} picked={picked} named={named} onAsk={send}
             unit={unit} diff={diff} units={units} samples={samples} onFork={(c) => template && createFromTemplate(template, `${P.title}: ${c}`, { ...(P.bindings as Record<string, string>), control: c }, pid!)}
@@ -774,19 +775,6 @@ function History({ pid, agent, tick, onUndo, onClose }: { pid: string; agent: st
           {shown === s.step_id && <pre className="codebox">{`${s.tool}(${call_(s)})`}</pre>}
         </li></Fragment> })}</ul>}
     {steps !== null && hidden > 0 && <label className="histall"><input type="checkbox" checked={all} onChange={e => setAll(e.target.checked)} />Show item picks, previews and undone changes ({hidden})</label>}
-  </div>
-}
-
-/** The open project on the guide's first experiment step: its question, and the plan the agent made from it. */
-function GuideProject({ P }: { P: Project }) {
-  const conds = (((P as any).setup?.conditions ?? []) as any[])
-  const prov = ((P as any).provenance ?? []) as string[]
-  return <div className="gproj">
-    <span className="gmono ink2">This project</span>
-    <p className="gq">{P.question}</p>
-    {conds.length > 0 && <><span className="gmono ink2">The plan the agent made from it</span>
-      <ul>{conds.map(c => <li key={c.name}><b>{words(c.name)}</b>{c.origin?.label ? `: ${c.origin.label.replace(/^Rendered in /, 'rendered in ').replace(/^Cosmos, from rendered in isaac sim$/i, 'the Isaac Sim render, restyled by Cosmos 3 Nano')}` : ''}</li>)}
-        {prov[1] && <li>{prov[1]}</li>}{prov[3] && <li>Reads {prov[3]}</li>}</ul></>}
   </div>
 }
 
