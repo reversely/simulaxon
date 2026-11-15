@@ -185,7 +185,11 @@
     <div class="two top">
       <div class="lines reveal">
         <div class="hd"><span class="h-ico" aria-hidden="true"><svg><use href="#i-chart"/></svg></span><h3>Benchmark</h3></div>
-        <p class="note">Median r over <span class="tok"><svg><use href="#i-mesh"/></svg>212 reliable brain areas</span> of the <span class="tok"><svg><use href="#i-folder"/></svg>Human Action Dataset</span>, on action categories the fit never saw. The line on each bar is the noise ceiling, 0.675. The adapter reaches 60% of the ceiling, up from 38%, and scores higher in <span class="tok"><svg><use href="#i-compare"/></svg>179 of the 212 areas</span>. With the labels shuffled, the fit scores −0.011.</p>
+        <p>In one click, the adapter raises <span class="tok"><svg><use href="#i-brain"/></svg>TRIBE v2</span>'s correlation with measured fMRI by 58%, on action categories it never trained on.</p>
+        <p class="note"><b>Data.</b> The <span class="tok"><svg><use href="#i-folder"/></svg>Human Action Dataset</span> (OpenNeuro ds004488): fMRI of 30 people watching video clips of actions, grouped into action categories.</p>
+        <p class="note"><b>Fit.</b> Ridge regression in each of 360 HCP-MMP1 brain areas, from <span class="tok"><svg><use href="#i-brain"/></svg>TRIBE v2</span>'s predicted response to the response measured in the 30 people, with the regularisation chosen per area by leave-one-out. Ten folds over categories: each fold trains on 9 of every 10 categories and scores the tenth.</p>
+        <p class="note"><b>Comparison.</b> Correlation r between predicted and measured responses on the held-out categories, per area, as the median over the <span class="tok"><svg><use href="#i-mesh"/></svg>212 reliable brain areas</span>. The line on each bar is the noise ceiling, 0.675, the highest r the scans allow.</p>
+        <p class="note"><b>Result.</b> <span class="tok"><svg><use href="#i-brain"/></svg>TRIBE v2</span> as released scores 0.257, 38% of the ceiling. With the adapter it scores 0.407 (95% interval 0.364 to 0.461), 60% of the ceiling, and higher in <span class="tok"><svg><use href="#i-compare"/></svg>179 of the 212 areas</span>. The same fit on shuffled labels scores −0.011.</p>
       </div>
     </div>
   </div>
