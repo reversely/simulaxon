@@ -218,6 +218,24 @@ def make(db: str, port: int = 8790):
         buf = io.BytesIO(); np.save(buf, np.asarray(ms[index]['map'], np.float32))
         return Response(buf.getvalue(), media_type='application/octet-stream', headers={'Cache-Control': 'no-cache'})
 
+    @app.get('/api/recording/{sample_id}')
+    def recording_download(sample_id: str):
+        """A sample as a recording (#23, lab/recording.py): its clip, TRIBE v2 predictions, audio if any, and its regions' responses by second, zipped."""
+        import re as _re
+        from fastapi import HTTPException
+        from fastapi.responses import Response
+        from . import recording, regions
+        S = app.state.tools.store; row = S.get('sample', sample_id)
+        if row is None: raise HTTPException(404, f'no sample {sample_id}')
+        d = row.data; url = d.get('clip') or ''
+        base = {'/files/': FILES, '/out/': OUT}; pre = next((k for k in base if url.startswith(k)), None)
+        clip = (base[pre] / url[len(pre):]).resolve() if pre else None
+        if clip is None or not clip.is_file() or not d.get('preds') or not Path(d['preds']).is_file(): raise HTTPException(404, f'{sample_id} has no clip and predictions to record')
+        P = S.get('project', d.get('project_id', '')); title = f"{P.data['title']}: {d.get('label', sample_id)}" if P else d.get('label', sample_id)
+        data = recording.export(d, clip, title, list((d.get('readout') or {}).keys()), regions.mask_for)
+        name = (_re.sub(r'[^A-Za-z0-9]+', '_', d.get('label') or sample_id).strip('_')[:60] or sample_id) + '.rec.zip'
+        return Response(data, media_type='application/zip', headers={'Content-Disposition': f'attachment; filename="{name}"'})
+
     @app.get('/api/results/{project_id}/download/{name}')
     def results_download(project_id: str, name: str):
         """One file of a finished run's results, or all.zip with every one (#20): built from the store, as run_get lists them."""

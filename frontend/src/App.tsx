@@ -9,7 +9,7 @@ import { DemoBar, NarrationMsg, type DemoInfo, type DemoState, type Narration } 
 import { SelectionView } from './selection'
 import { ResultsView, type LiveTrial } from './results'
 import { DatasetsPage } from './datasets'
-import { ClipBrain } from './brain3d'
+import { ClipBrain, samplePreds } from './brain3d'
 import { SessionDock, Chat, type SessionInfo } from './agent'
 type Example = { id: string; title: string; what: string; source: string; doi: string | null; goal: string; media: string[]; project_id: string | null; here: string }
 import { ExperimentSetup, ExperimentRoom, ReportedCard, OriginChip, type Setup, type Reported } from './experiment'
@@ -382,7 +382,7 @@ function RoomView({ P, template, unit, units, unitIdx, setUnitIdx, variant, setV
   const noun = template?.unit_noun ?? 'unit'; const unitWord = noun[0].toUpperCase() + noun.slice(1)
   const showBoxes = isLoo && boxes && variant === 0
   return <>
-    {mode === 'clip' && s.clip ? <ClipBrain key={row.id} clip={s.clip} sampleId={row.id}><span className="stageorigin"><OriginChip o={(s as any).origin ?? { kind: 'isaac', label: 'Rendered in Isaac Sim' }} /></span></ClipBrain> : <div className="stage runstage">
+    {mode === 'clip' && s.clip ? <ClipBrain key={row.id} clip={s.clip} sampleId={row.id} predsUrl={samplePreds(row.id)}><span className="stageorigin"><OriginChip o={(s as any).origin ?? { kind: 'isaac', label: 'Rendered in Isaac Sim' }} /></span></ClipBrain> : <div className="stage runstage">
       {s.image ? <img src={s.image} alt={s.label} /> : <div className="empty">No frame</div>}
       <span className="stageorigin"><OriginChip o={(s as any).origin ?? { kind: 'isaac', label: 'Rendered in Isaac Sim' }} /></span>
       {showBoxes && <svg viewBox="0 0 832 480" preserveAspectRatio="none">
@@ -466,7 +466,7 @@ function BrainView({ P, unit, variant, objects, analyses, course, region }: { P:
       </div>
       {busy && <span className="ink2"><span className="spin" /> Drawing the map</span>}
     </div>
-    {playable && sample?.data.clip ? <ClipBrain key={sample.id} clip={sample.data.clip} sampleId={sample.id} /> : map && <>
+    {playable && sample?.data.clip ? <ClipBrain key={sample.id} clip={sample.data.clip} sampleId={sample.id} predsUrl={samplePreds(sample.id)} /> : map && <>
       <div className="headline"><span className="mid">{map.title}</span><span className="legend">{map.kind === 'contrast' ? <>Lower <span className="ramp" /> Higher</> : <>Low <span className="ramp single" /> High</>}</span></div>
       <div className="brains">{Object.entries(map.views).map(([v, url]) => <figure key={v}><img src={`/files/${url}`} alt={`${map.title}, ${VIEW_NAMES[v] ?? v}`} /><figcaption>{VIEW_NAMES[v] ?? v}</figcaption></figure>)}</div>
       <div className="ink2">TRIBE v2 prediction for an average viewer, over the seconds the stimulus is on screen.</div>

@@ -563,7 +563,7 @@ def register(tools, broadcast=lambda m: None):
                     step = s.begin(actor, 'item_create', {'dataset_id': dataset_id})
                     have = {r.id: r for r in s.list('item') if r.data.get('dataset_id') == dataset_id}
                     for x in rows:
-                        data = {k: x[k] for k in ('dataset_id', 'path', 'media_type', 'fields', 'sources', 'ord')}
+                        data = {k: x[k] for k in ('dataset_id', 'path', 'media_type', 'fields', 'sources', 'ord', 'video') if k in x}   # video: a recording's first video (#23)
                         if x['id'] in have: s.update(step, 'item', x['id'], data, have[x['id']].version, mark_stale=False)
                         else: s.create(step, 'item', {**data, 'tags': []}, id=x['id'])
                 broadcast({'dataset': dataset_id, 'indexed': len(rows), 'total': len(rows), 'done': True})

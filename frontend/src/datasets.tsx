@@ -4,6 +4,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { call, uploadWithProgress, type Project, type Row } from './api'
 import { Icon } from './icons'
+import { RecordingView } from './recording'
 
 type DS = { id: string; title?: string; ref?: string; licence?: string | null; fetched_at?: string; files_here?: number; gigabytes?: number
   samples: number; fields: number; media: Record<string, number>; indexed: boolean; embedded?: boolean; projects: string[]; status?: string }
@@ -169,7 +170,7 @@ function SampleView({ item, onClose, onSimilar }: { item: Item; onClose: () => v
       {onSimilar && <button className="btn" style={{ marginLeft: 'auto' }} onClick={onSimilar}>Show the most similar</button>}
       <button className="iconbtn" style={onSimilar ? undefined : { marginLeft: 'auto' }} aria-label="Close" onClick={onClose}><Icon name="close" size={18} /></button></div>
     <div className="dssamplebody">
-      <div className="dsmedia">{item.media_type === 'video' ? <video src={item.media} controls autoPlay muted playsInline /> : item.media_type === 'image' ? <img src={item.media} alt={item.path} />
+      <div className={`dsmedia ${item.media_type === 'recording' ? 'dsrec' : ''}`}>{item.media_type === 'recording' ? <RecordingView manifestUrl={item.media} /> : item.media_type === 'video' ? <video src={item.media} controls autoPlay muted playsInline /> : item.media_type === 'image' ? <img src={item.media} alt={item.path} />
         : item.media_type === 'audio' ? <audio src={item.media} controls /> : <span className="ink2">{item.media_type}</span>}</div>
       <table className="data compact"><thead><tr><th>Field</th><th>Value</th><th>From</th></tr></thead>
         <tbody>{Object.entries(item.fields).map(([k, v]) => <tr key={k}><td>{k}</td><td className="num">{typeof v === 'number' ? v.toLocaleString(undefined, { maximumFractionDigits: 4 }) : String(v)}</td><td className="ink2 small">{item.sources[k] ?? ''}</td></tr>)}

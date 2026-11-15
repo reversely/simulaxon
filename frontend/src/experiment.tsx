@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { call, fmt, regionLabel, type Row, type Sample } from './api'
 import { Icon } from './icons'
-import { ClipBrain } from './brain3d'
+import { ClipBrain, samplePreds } from './brain3d'
 
 export type Origin = { kind: 'dataset' | 'isaac' | 'file' | 'generated' | 'cosmos'; label: string; title?: string; ref?: string; licence?: string | null; dataset_id?: string; from?: Origin; prompt?: string; seeds?: number[] }
 export type Setup = {
@@ -155,7 +155,7 @@ export function ExperimentRoom({ pid, samples, idx, setIdx, region, onS, named =
   const conds = [...new Set(samples.map(x => x.data.condition))]
   const vals = samples.map(x => x.data.readout[region] ?? 0); const lo = Math.min(...vals), hi = Math.max(...vals); const x = (v: number) => hi > lo ? 100 * (v - lo) / (hi - lo) : 50
   return <>
-    {s.clip ? <ClipBrain key={row.id} clip={s.clip} sampleId={row.id} square><span className="stageorigin"><OriginChip o={s.origin} long /></span></ClipBrain>
+    {s.clip ? <ClipBrain key={row.id} clip={s.clip} sampleId={row.id} predsUrl={samplePreds(row.id)} square><span className="stageorigin"><OriginChip o={s.origin} long /></span></ClipBrain>
       : <div className="stage runstage square">{s.image && <img src={s.image} alt={s.label} />}<span className="stageorigin"><OriginChip o={s.origin} long /></span></div>}
     <div className="bar">
       <span className="mid">{s.label}</span>

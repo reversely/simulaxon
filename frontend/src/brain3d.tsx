@@ -70,17 +70,19 @@ function percentile(xs: Float32Array, q: number[]): number[] {
 }
 
 const predsCache = new Map<string, Promise<Preds>>()
-export function loadPreds(sampleId: string): Promise<Preds> {
-  let p = predsCache.get(sampleId)
+/** A .npy of predictions (seconds by vertices), cached by URL: a sample's (/api/brain/preds/<id>) or a recording's tribe stream. */
+export function loadPreds(url: string): Promise<Preds> {
+  let p = predsCache.get(url)
   if (!p) {
-    p = fetch(`/api/brain/preds/${encodeURIComponent(sampleId)}`).then(r => { if (!r.ok) throw new Error(`predictions: ${r.status}`); return r.arrayBuffer() }).then(b => {
+    p = fetch(url).then(r => { if (!r.ok) throw new Error(`predictions: ${r.status}`); return r.arrayBuffer() }).then(b => {
       const { shape, data } = parseNpy(b); const [lo, hi] = percentile(data, [1, 99])
       return { rows: shape.length > 1 ? shape[0] : 1, n: shape[shape.length - 1], data, lo, hi }
     })
-    p.catch(() => predsCache.delete(sampleId)); predsCache.set(sampleId, p)
+    p.catch(() => predsCache.delete(url)); predsCache.set(url, p)
   }
   return p
 }
+export const samplePreds = (sampleId: string) => `/api/brain/preds/${encodeURIComponent(sampleId)}`
 
 const RAMPS: Record<'single' | 'signed', [number, string][]> = {
   single: [[0, '#2a2b2e'], [0.45, '#b3261e'], [0.75, '#ff8c1a'], [1, '#fff2a8']],
@@ -239,33 +241,57 @@ export function BrainCanvas({ onReady, values, signed = false, label }: { onRead
 
 const SPEEDS = [0.5, 1, 2]
 
-/** A clip and its predicted brain on one clock: play, pause, speed and a scrubber; scrubbing recolours the brain at once. */
-export function ClipBrain({ clip, image, sampleId, square, children }: { clip: string | null; image?: string | null; sampleId: string; square?: boolean; children?: ReactNode }) {
-  const video = useRef<HTMLVideoElement>(null); const brain = useRef<BrainGL | null>(null); const preds = useRef<Preds | null>(null)
+/** One stream on the timeline: values over time (a line), a span (a bar), or labelled moments (ticks). */
+export type Lane = { name: string; start?: number; dur?: number; times?: number[]; values?: number[]; labels?: string[]; ticks?: boolean }
+
+function Timeline({ lanes, t, T, onSeek }: { lanes: Lane[]; t: number; T: number; onSeek: (x: number) => void }) {
+  const X = (s: number) => 1000 * Math.min(1, Math.max(0, s / (T || 1)))
+  const at = (e: React.PointerEvent) => { const r = (e.currentTarget as Element).getBoundingClientRect(); onSeek(Math.max(0, Math.min(T, (e.clientX - r.left) / r.width * T))) }
+  return <div className="lanes">{lanes.map(l => {
+    const s0 = l.start ?? 0; let mark: ReactNode = null
+    if (l.ticks && l.times) mark = l.times.map((x, i) => <line key={i} x1={X(s0 + x)} x2={X(s0 + x)} y1={3} y2={21} className="lanetick"><title>{`${(s0 + x).toFixed(2)} s${l.labels?.[i] ? `: ${l.labels[i]}` : ''}`}</title></line>)
+    else if (l.values && l.values.length > 1) {
+      const lo = Math.min(...l.values), hi = Math.max(...l.values), ts = l.times ?? l.values.map((_, i) => i)
+      mark = <polyline className="laneline" points={l.values.map((v, i) => `${X(s0 + ts[i]).toFixed(1)},${(21 - 18 * (hi > lo ? (v - lo) / (hi - lo) : 0.5)).toFixed(1)}`).join(' ')} />
+    } else if (l.dur) mark = <rect className="lanespan" x={X(s0)} y={7} width={X(s0 + l.dur) - X(s0)} height={10} rx={2} />
+    return <div key={l.name} className="lane"><span className="ink2 small">{l.name}</span>
+      <svg viewBox="0 0 1000 24" preserveAspectRatio="none" onPointerDown={at} role="img" aria-label={`${l.name} over the recording`}>{mark}<line className="lanecursor" x1={X(t)} x2={X(t)} y1={0} y2={24} /></svg></div>
+  })}</div>
+}
+
+/** A clip and its predicted brain on one clock: play, pause, speed and a scrubber; scrubbing recolours the brain at once.
+ * A recording adds its audio on the same clock and a timeline with one lane per stream (#23). */
+export function ClipBrain({ clip, image, predsUrl, sampleId, audio, lanes, square, children }: { clip: string | null; image?: string | null; predsUrl: string | null; sampleId?: string
+  audio?: string | null; lanes?: Lane[]; square?: boolean; children?: ReactNode }) {
+  const video = useRef<HTMLVideoElement>(null); const sound = useRef<HTMLAudioElement>(null); const brain = useRef<BrainGL | null>(null); const preds = useRef<Preds | null>(null)
   const buf = useRef<Float32Array | null>(null); const tRef = useRef(0); const raf = useRef(0); const last = useRef(0)
   const [t, setT] = useState(0); const [dur, setDur] = useState(0); const [playing, setPlaying] = useState(true); const [speed, setSpeed] = useState(1)
-  const [state, setState] = useState<'loading' | 'ready' | 'none'>('loading'); const playingRef = useRef(true); const speedRef = useRef(1)
+  const [state, setState] = useState<'loading' | 'ready' | 'none'>('loading'); const playingRef = useRef(true); const speedRef = useRef(1); const [mean, setMean] = useState<number[] | null>(null)
   const total = () => Math.max(dur, preds.current?.rows ?? 0)
   const paint = () => { const b = brain.current, p = preds.current; if (!b || !p) return; buf.current ??= new Float32Array(p.n); b.setValues(frameAt(p, tRef.current, buf.current), false); b.draw() }
-  const sync = () => { const v = video.current; if (!v || !v.duration) return; const want = Math.min(tRef.current, v.duration - 0.02)
-    if (!playingRef.current || tRef.current >= v.duration) { if (!v.paused) v.pause(); if (Math.abs(v.currentTime - want) > 0.03) v.currentTime = want; return }
-    v.playbackRate = speedRef.current; if (v.paused) v.play().catch(() => {}); if (Math.abs(v.currentTime - want) > 0.25) v.currentTime = want }
+  const follow = (m: HTMLMediaElement | null) => { if (!m || !m.duration) return; const want = Math.min(tRef.current, m.duration - 0.02)
+    if (!playingRef.current || tRef.current >= m.duration) { if (!m.paused) m.pause(); if (Math.abs(m.currentTime - want) > 0.03) m.currentTime = want; return }
+    m.playbackRate = speedRef.current; if (m.paused) m.play().catch(() => {}); if (Math.abs(m.currentTime - want) > 0.25) m.currentTime = want }
+  const sync = () => { follow(video.current); follow(sound.current) }
   useEffect(() => {
-    let live = true; setState('loading'); preds.current = null; buf.current = null; tRef.current = 0; setT(0)
-    loadPreds(sampleId).then(p => { if (!live) return; preds.current = p; setState('ready'); paint() }).catch(() => live && setState('none'))
+    let live = true; setState('loading'); preds.current = null; buf.current = null; tRef.current = 0; setT(0); setMean(null)
+    if (!predsUrl) { setState('none'); return }
+    loadPreds(predsUrl).then(p => { if (!live) return; preds.current = p; setState('ready'); paint()
+      setMean(Array.from({ length: p.rows }, (_, i) => { let s = 0; for (let v = 0; v < p.n; v++) { const x = p.data[i * p.n + v]; if (Number.isFinite(x)) s += x } return s / p.n })) }).catch(() => live && setState('none'))
     return () => { live = false }
-  }, [sampleId])
+  }, [predsUrl])
   useEffect(() => {
     const tick = (now: number) => {
       const dt = last.current ? (now - last.current) / 1000 : 0; last.current = now
-      if (playingRef.current && preds.current) { const T = total() || 1; tRef.current += dt * speedRef.current; if (tRef.current >= T) tRef.current = 0; paint(); sync(); setT(tRef.current) }
+      if (playingRef.current && (preds.current || dur)) { const T = total() || 1; tRef.current += dt * speedRef.current; if (tRef.current >= T) tRef.current = 0; paint(); sync(); setT(tRef.current) }
       raf.current = requestAnimationFrame(tick)
     }
     raf.current = requestAnimationFrame(tick); return () => cancelAnimationFrame(raf.current)
   }, [dur])
   const seek = (x: number) => { tRef.current = x; paint(); sync(); setT(x) }
   const toggle = () => { playingRef.current = !playingRef.current; setPlaying(playingRef.current); last.current = 0; sync() }
-  const T = total()
+  const T = total(); const canPlay = state === 'ready' || (state === 'none' && dur > 0)
+  const allLanes = lanes && [...(mean ? [{ name: 'TRIBE v2, cortex mean', values: mean }] : []), ...lanes]
   return <div className="clipbrain">
     <div className="twoup">
       <div className={`stage runstage ${square ? 'square' : ''}`}>
@@ -275,15 +301,18 @@ export function ClipBrain({ clip, image, sampleId, square, children }: { clip: s
       <div className="brainside">
         <BrainCanvas label="TRIBE v2 prediction on the cortex, second by second" onReady={b => { brain.current = b; if (b) paint() }} />
         <div className="headline"><span className="legend">Low <span className="ramp single" /> High</span></div>
-        {state === 'none' && <div className="ink2">No predictions stored for this sample</div>}
+        {state === 'none' && <div className="ink2">No TRIBE v2 predictions in this {sampleId ? 'sample' : 'recording'}</div>}
       </div>
     </div>
+    {audio && <audio ref={sound} src={audio} preload="auto" />}
     <div className="bar player">
-      <button className="btn" onClick={toggle} aria-label={playing ? 'Pause' : 'Play'} disabled={state !== 'ready'}>{playing ? 'Pause' : 'Play'}</button>
-      <input type="range" aria-label="Time" min={0} max={T || 1} step={0.01} value={Math.min(t, T || 1)} disabled={state !== 'ready'} onChange={e => seek(Number(e.target.value))} />
+      <button className="btn" onClick={toggle} aria-label={playing ? 'Pause' : 'Play'} disabled={!canPlay}>{playing ? 'Pause' : 'Play'}</button>
+      <input type="range" aria-label="Time" min={0} max={T || 1} step={0.01} value={Math.min(t, T || 1)} disabled={!canPlay} onChange={e => seek(Number(e.target.value))} />
       <span className="num ink2">{t.toFixed(1)} of {T.toFixed(0)} s</span>
       <div className="seg" role="group" aria-label="Speed">{SPEEDS.map(s => <button key={s} className={speed === s ? 'on' : ''} onClick={() => { speedRef.current = s; setSpeed(s); sync() }}>{s}×</button>)}</div>
+      {sampleId && state === 'ready' && <a className="btn" href={`/api/recording/${encodeURIComponent(sampleId)}`} download>Download recording</a>}
     </div>
+    {allLanes && allLanes.length > 0 && <Timeline lanes={allLanes} t={t} T={T} onSeek={seek} />}
     <div className="ink2 small">TRIBE v2 prediction for an average viewer at each second of the clip{T > dur + 0.5 && dur > 0 ? `; the clip ends at ${dur.toFixed(1)} s and the response runs on` : ''}. Drag the brain to turn it.</div>
   </div>
 }

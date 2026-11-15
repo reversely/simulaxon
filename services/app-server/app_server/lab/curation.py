@@ -15,7 +15,8 @@ A stage is plain data, the same for the page and the agent:
 
 Fields: file, folder, category (the folder an item sits in), media_type, size_mb, width, height, and for images
 luminance and contrast (mean and standard deviation of grey level, 0 to 255, on a 256 px copy); for video duration_s,
-fps and frames; sha (content hash) and duplicates (how many other items have the same bytes). Columns of a CSV beside the
+fps and frames; for a recording (a folder with recording.json, lab/recording.py) streams, n_streams, has_tribe
+and duration_s; sha (content hash) and duplicates (how many other items have the same bytes). Columns of a CSV beside the
 files whose first matching column names the files become fields too. Each field records where it came from.
 
 Ported from visual-cortex-lab backend/vcl/data (views and schema) onto this store.
@@ -96,8 +97,10 @@ def index(did: str, on_event=lambda m: None) -> list[dict]:
     """Every media file of a dataset with its fields, ready to store. Runs outside the store's lock."""
     root = dsets.dataset_dir(did)
     if not root.exists(): raise ValueError(f'no dataset {did} on this machine')
-    files = sorted(p for p in root.rglob('*') if p.is_file() and dsets.kind_of(p.name) in MEDIA and not p.name.endswith('.part'))
-    rels = {p.relative_to(root).as_posix() for p in files}; extra, xsrc = _sidecars(root, rels)
+    from . import recording
+    recs = sorted({m.parent for m in root.rglob(recording.MANIFEST)})   # a recording is one item; its files are not items of their own (#23)
+    files = sorted(p for p in root.rglob('*') if p.is_file() and dsets.kind_of(p.name) in MEDIA and not p.name.endswith('.part') and not any(p.is_relative_to(r) for r in recs))
+    rels = {p.relative_to(root).as_posix() for p in files} | {r.relative_to(root).as_posix() for r in recs}; extra, xsrc = _sidecars(root, rels)
     out = []; t0 = time.time()
     for i, p in enumerate(files):
         f, src = read_fields(root, p); rel = f['file']
@@ -105,6 +108,13 @@ def index(did: str, on_event=lambda m: None) -> list[dict]:
         out.append({'id': 'item_' + hashlib.sha1(f'{did}/{rel}'.encode()).hexdigest()[:12], 'dataset_id': did, 'path': rel, 'media_type': f['media_type'],
                     'fields': f, 'sources': src, 'ord': i})
         if i % 50 == 0 or i == len(files) - 1: on_event({'dataset': did, 'indexed': i + 1, 'total': len(files), 'seconds': round(time.time() - t0, 1)})
+    for r in recs:
+        try: f, src = recording.fields(root, r)
+        except Exception as e: on_event({'dataset': did, 'skipped': r.relative_to(root).as_posix(), 'reason': str(e)}); continue
+        rel = f['file']; video = next(s['file'] for s in recording.read(r)['streams'] if s['kind'] == 'video')
+        if rel in extra: f.update(extra[rel]); src.update({k: xsrc[k] for k in extra[rel]})
+        out.append({'id': 'item_' + hashlib.sha1(f'{did}/{rel}'.encode()).hexdigest()[:12], 'dataset_id': did, 'path': rel, 'media_type': 'recording',
+                    'fields': f, 'sources': src, 'ord': len(out), 'video': f'{rel}/{video}'})
     counts: dict[str, int] = {}
     for x in out: counts[x['fields']['sha']] = counts.get(x['fields']['sha'], 0) + 1
     for x in out: x['fields']['duplicates'] = counts[x['fields']['sha']] - 1; x['sources']['duplicates'] = 'other items with the same content hash'
@@ -235,6 +245,11 @@ def public(s: dict) -> dict:
     """An item as the page and the agent see it: its media under /files, fields, tags and where each field came from."""
     from urllib.parse import quote
     rel = quote(f"{s['dataset_id']}/{s['path']}")
+    if s['media_type'] == 'recording':   # the manifest, and the first video's frame as the thumbnail (#23)
+        vid = quote(f"{s['dataset_id']}/{s.get('video', '')}")
+        return {'id': s['id'], 'dataset_id': s['dataset_id'], 'path': s['path'], 'media_type': 'recording', 'media': f'/datasets/media/{rel}/recording.json',
+                'thumb': f'/datasets/thumb/{vid}' if s.get('video') else None, 'fields': s['fields'], 'tags': s.get('tags') or [], 'sources': s.get('sources') or {},
+                **({'group': s['group']} if 'group' in s else {})}
     return {'id': s['id'], 'dataset_id': s['dataset_id'], 'path': s['path'], 'media_type': s['media_type'], 'media': f'/datasets/media/{rel}',
             'thumb': f'/datasets/thumb/{rel}' if s['media_type'] in ('image', 'video') else None, 'fields': s['fields'],
             'tags': s.get('tags') or [], 'sources': s.get('sources') or {}, **({'group': s['group']} if 'group' in s else {})}
