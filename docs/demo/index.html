@@ -208,19 +208,19 @@
   <div class="stations">
     <div class="text">
       <div class="station"><h2>Compute, measured per stage</h2><p>Where do the GPU hours go? Busy GPU-seconds per stage: planner, Isaac, Cosmos, TRIBE v2.</p></div>
-      <div class="station"><p>Is a GPU working while it is held? Renders run as tasks that release the GPU when they finish.</p></div>
+      <div class="station"><p>Is a GPU working while it is held? Utilisation per job, counted only while the job holds its GPU.</p></div>
       <div class="station"><p>Does each node fit in 128 GB? Memory per service on each node, under the line.</p></div>
-      <div class="station"><p>How much work per GPU-hour? Clips per hour, TRIBE v2 seconds per second of video, planner tokens per second.</p></div>
-      <div class="station"><p>Is it up, and what failed? Node state over time, and each failed step with Fuzzball's error.</p></div>
+      <div class="station"><p>How much work per GPU-hour? Planner tokens per second, with speculative decoding.</p></div>
+      <div class="station"><p>Is it up? The share of scrapes each service answered.</p></div>
     </div>
     <div class="pin">
       <div>
         <div class="frames">
-          <div class="slot"><b>Grafana: GPU hours by stage</b><span>Screenshot from the live dashboard (#35)</span></div>
-          <div class="slot"><b>Grafana: busy while held</b><span>Screenshot from the live dashboard (#35)</span></div>
-          <div class="slot"><b>Grafana: memory on each node</b><span>Screenshot from the live dashboard (#35)</span></div>
-          <div class="slot"><b>Grafana: work per GPU-hour</b><span>Screenshot from the live dashboard (#35)</span></div>
-          <div class="slot"><b>Grafana: uptime and failures</b><span>Screenshot from the live dashboard (#35)</span></div>
+          <figure class="grab"><img src="assets/grafana/gpu-hours.png" alt="Grafana: busy GPUs by service over three hours, the planner and render-score stacked"><figcaption>Busy GPUs by service on the cluster, 15 Nov: render-score's Isaac, Cosmos and TRIBE v2 jobs, then the planner.</figcaption></figure>
+          <figure class="grab"><img src="assets/grafana/busy-while-held.png" alt="Grafana: GPU utilisation per job while each job holds its GPU"><figcaption>Utilisation per job while it holds its GPU.</figcaption></figure>
+          <figure class="grab"><img src="assets/grafana/memory-per-node.png" alt="Grafana: memory in use on each of the two GB10 nodes, under the 128 GB line"><figcaption>Memory in use on each GB10 node: the planner's node near 112 GiB, under the 128 GB line.</figcaption></figure>
+          <figure class="grab"><img src="assets/grafana/planner-tokens.png" alt="Grafana: planner tokens per second"><figcaption>Planner tokens per second, with MTP speculative decoding: 21.5 tokens/s measured on one answer, against 11 to 16 before.</figcaption></figure>
+          <figure class="grab"><img src="assets/grafana/uptime.png" alt="Grafana: share of scrapes answered per target over 24 hours"><figcaption>Share of scrapes answered per target over 24 hours, the planner's restarts included.</figcaption></figure>
         </div>
         <div class="ticks" aria-hidden="true"></div>
       </div>
