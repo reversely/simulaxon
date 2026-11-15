@@ -239,7 +239,7 @@ def resume_all(tools, broadcast, base_url: str):
         d = json.loads(f.read_text())
         if d.get('status') in ('working', 'waiting') and not d.get('stop_requested'):
             s = _load(d['id'], tools, broadcast, base_url)
-            s.say('The lab restarted while you were working. Check where things stand and continue.', d.get('mode', 'through'), 'wake')
+            s.say('The lab restarted while you were working. Runs that were going resume on their own from the clips already read, so leave them running: do not stop or restart them. Check where things stand and continue.', d.get('mode', 'through'), 'wake')
 
 
 def get(sid: str) -> dict:

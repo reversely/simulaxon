@@ -264,6 +264,8 @@ def run(tools, broadcast, project_id: str, actor: str) -> dict:
     if not spec: raise ValueError('this project has no experiment; set one up with experiment_create')
     P = plan(spec); total = len(P['trials'])
     tools.call('project_update', actor, project_id=project_id, expect_version=Prow.version, status='Running')
+    import uuid
+    token = uuid.uuid4().hex; runner.LIVE[project_id] = token
 
     def go():
         ev = lambda **k: broadcast({'run': project_id, **k})
@@ -281,7 +283,7 @@ def run(tools, broadcast, project_id: str, actor: str) -> dict:
                 done.append({**tr, 'clip': str(clip), 'still': str(still), 'preds': str(pred)})
                 ev(done=k + 1, total=total, image=out_url(still))
                 if runner.SHUTTING_DOWN.is_set(): return
-                if project_id in runner.STOP: raise RuntimeError(f'Stopped by a person after {k + 1} of {total} clips; running it again picks up from there')
+                if token in runner.STOP: raise RuntimeError(f"Stopped by {runner.STOP[token]} after {k + 1} of {total} clips; running it again picks up from there")
             ev(stage='comparing')
             res = analyse(done, P, out_url)
             rec = plans.Deferred()
@@ -306,12 +308,16 @@ def run(tools, broadcast, project_id: str, actor: str) -> dict:
             ev(stage='done')
         except Exception as e:
             if runner.SHUTTING_DOWN.is_set(): return
-            runner.STOP.discard(project_id)
             import traceback; traceback.print_exc()
             cur = s.get('project', project_id)
             tools.call('project_update', actor, project_id=project_id, expect_version=cur.version, status='Draft')
             ev(stage='failed', error=str(e)[-300:])
-    threading.Thread(target=go, daemon=True).start()
+    def run_once():
+        try: go()
+        finally:   # the run is over, however it ended: its token and any stop request for it go
+            if runner.LIVE.get(project_id) == token: runner.LIVE.pop(project_id, None)
+            runner.STOP.pop(token, None)
+    threading.Thread(target=run_once, daemon=True).start()
     return {'queued': True, 'clips': total, 'minutes_estimate': P['minutes_estimate']}
 
 

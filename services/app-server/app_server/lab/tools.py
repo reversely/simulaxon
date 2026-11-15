@@ -334,8 +334,9 @@ def register(tools, broadcast=lambda m: None):
         where it stopped. The project goes back to Draft."""
         from . import runner
         P = s.get('project', project_id).data
-        if P.get('status') != 'Running': return {'stopped': False, 'why': f"the project is {P.get('status')}, not running"}
-        runner.STOP.add(project_id); return {'stopped': True, 'note': 'it stops after the clip under way'}
+        if P.get('status') != 'Running' or project_id not in runner.LIVE: return {'stopped': False, 'why': f"the project is {P.get('status')}, with no run going in this server"}
+        runner.STOP[runner.LIVE[project_id]] = 'the agent' if actor == 'agent' else 'a person'
+        return {'stopped': True, 'note': 'it stops after the clip under way'}
 
     @tools.tool('run', 'list', writes_project=False)
     def run_list(actor):

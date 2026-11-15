@@ -16,10 +16,13 @@ from .preview import render_and_read, REVISION, _label
 
 
 SHUTTING_DOWN = threading.Event()
-STOP: set[str] = set()   # projects whose run a person or the agent stopped (run_stop); each run checks between clips
+LIVE: dict[str, str] = {}   # project id -> the token of its one run in progress in this server
+STOP: dict[str, str] = {}   # run token -> who asked it to stop (run_stop); only that run stops, never a later one
 
 
 def start(tools, broadcast, project_id: str, actor: str):
+    if project_id in LIVE:   # one run per project: a second would make every clip twice and write its samples twice
+        raise ValueError(f'project {project_id} is already running; run_list shows its progress, and run_stop stops it')
     s = tools.store; P = s.get('project', project_id)
     d = P.data; w = d.get('world'); pairs = d.get('pairs')
     if d.get('plan') == 'factorial': return _factorial(tools, broadcast, project_id, actor)
