@@ -46,7 +46,7 @@ export function DatasetsPage({ projects, onOpenProject, show }: { projects: Row<
           <td>{d.status && d.status !== 'done' ? `Fetching, ${d.status}` : d.indexed ? `${count(d.samples, 'sample')}, ${count(d.fields, 'field')}` : `${count(d.files_here ?? 0, 'file')}, not indexed yet`}</td>
           <td className="ink2">{Object.entries(d.media ?? {}).map(([k, v]) => `${n(v)} ${MEDIA_NAMES[k] ?? k}`).join(', ') || '–'}</td>
           <td className="ink2">{d.ref === 'upload' ? 'Imported here' : d.ref}{d.licence ? `, ${d.licence}` : ''}</td>
-          <td className="ink2">{d.fetched_at ?? '–'}</td>
+          <td className="ink2 num">{d.fetched_at ?? '–'}</td>
           <td className="num">{d.projects?.length ?? 0}</td></tr>)}</tbody>
       </table></div>}
     {creating && <NewDataset onClose={() => setCreating(false)} onCreated={id => { setCreating(false); load(); setOpen(id) }} />}

@@ -42,12 +42,12 @@ export function FindingsView({ P, pid, projects, region, analysesFor, onOpen, on
   return <div className="wide">
     <div className="card"><h3>Evidence, {region}</h3>
       {sibs.length < 2 ? <div className="ink2">Only one project from this template has run. Fork it with a control from Challenge to compare.</div> :
-        <table className="data"><thead><tr><th>Project</th><th>Controls</th><th>Effect</th><th>Interval</th><th>Share of this project</th></tr></thead>
+        <table className="data"><thead><tr><th>Project</th><th>Controls</th><th className="num">Effect</th><th className="num">Interval</th><th className="num">Share of this project</th></tr></thead>
           <tbody>{sibs.map(s => { const v = vals[s.id]; return <tr key={s.id} onClick={() => onOpen(s.id)} style={{ cursor: 'pointer' }}>
             <td>{s.data.title}{s.id === pid && <span className="chip" style={{ marginLeft: 8 }}>This project</span>}</td>
             <td className="ink2">{[s.data.bindings.match_on && `matched on ${s.data.bindings.match_on}`, s.data.bindings.control && String(s.data.bindings.control)].filter(Boolean).join(' and ') || 'None'}</td>
-            <td>{fmt(v?.value)}</td><td className="ink2">{v ? `${fmt(v.interval_95[0])} to ${fmt(v.interval_95[1])}` : 'Not run'}</td>
-            <td>{v && ref && ref.value !== 0 ? `${Math.round(100 * v.value / ref.value)}%` : 'None'}</td></tr> })}</tbody></table>}
+            <td className="num">{fmt(v?.value)}</td><td className="ink2 num">{v ? `${fmt(v.interval_95[0])} to ${fmt(v.interval_95[1])}` : 'Not run'}</td>
+            <td className="num">{v && ref && ref.value !== 0 ? `${Math.round(100 * v.value / ref.value)}%` : 'None'}</td></tr> })}</tbody></table>}
     </div>
     <div className="card"><h3>Observations</h3>
       <div className="ink2" style={{ marginBottom: 10 }}>Things noticed while exploring, each with its numbers, before they are tested.</div>

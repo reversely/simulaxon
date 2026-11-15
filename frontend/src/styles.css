@@ -129,6 +129,8 @@ a.btn { color: inherit; text-decoration: none; }   /* a link styled as a button,
 
 table.data { border-collapse: collapse; width: 100%; font-size: 14px; font-variant-numeric: tabular-nums; }
 table.data th, table.data td { border-bottom: 1px solid var(--rule); padding: 7px 10px; text-align: right; white-space: nowrap; }
+table.data td:not(.num) { white-space: normal; min-width: 7em; }   /* text wraps within its panel; numbers and headings stay on one line */
+.dash table.data td { white-space: nowrap; }   /* Results' figure tables keep one line per row and scroll in their own box */
 table.data th { position: sticky; top: 0; background: var(--panel); color: var(--ink-2); font-weight: 500; cursor: pointer; }
 table.data th:first-child, table.data td:first-child, table.data th:nth-child(2), table.data td:nth-child(2) { text-align: left; }
 table.data tr:hover td { background: #16181b; }
