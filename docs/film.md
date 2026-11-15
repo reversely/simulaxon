@@ -12,6 +12,7 @@ it. Claims in the script are checked in `docs/research/pitch-claims.md`.
 - Sound: the files in `docs/resources/Ramp Video sfx/`.
 - Less time on the sales pitch; cut a line.
 - A Grafana section, showing it working; it need not be live.
+- The narrative targets Rocky Linux usage, possibly RLC Pro AI, then Fuzzball usage, uptime monitoring, and both clusters used in a way that is not absurd. Plan the Grafana data story first, from real usage screenshots once back online, with the dashboard focused on compute optimization: `docs/grafana-plan.md`.
 
 ## The owner's lines, in order
 
