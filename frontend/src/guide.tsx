@@ -5,27 +5,30 @@ import { useEffect, useRef, type ReactNode } from 'react'
 import { Icon, type IconName } from './icons'
 
 export type Piece = 'app' | 'planner' | 'isaac' | 'cosmos' | 'tribe' | 'vast'
-export type Go = { view: string; project?: 'experiment' | 'world'; history?: boolean; dataset?: { id: string; tab?: 'samples' | 'adapters' } }
+export type Go = { view: string; project?: 'experiment' | 'world'; prefer?: string[]; history?: boolean; dataset?: { id: string; tab?: 'samples' | 'adapters' } }
 export type GuideStep = { id: string; title: string; text: string; tile: number; arrow?: number; pieces: Piece[]; data: string; go: Go }
 
 const LOOP: [string, IconName][] = [['Hypothesis', 'chat'], ['Scenes', 'room'], ['Brain response', 'brain'], ['Next test', 'flask']]
 const ARROWS = ['plan what to vary', 'TRIBE v2 predicts', 'compare conditions', 'follow up']
 
+const HUMANOID = ['project_920ddb5712']   // Isaac Sim renders against their Cosmos restyles: the whole pipeline in one project
 export const GUIDE: GuideStep[] = [
+  { id: 'intro', title: 'How Simulaxon works', text: 'Simulaxon turns a question about the brain into rendered scenes, predicted fMRI and a next test. The steps below walk one project through that loop.',
+    tile: -1, pieces: ['app', 'planner', 'isaac', 'cosmos', 'tribe', 'vast'], data: 'projects, clips, predictions and the step log', go: { view: 'room', project: 'experiment', prefer: HUMANOID } },
   { id: 'ask', title: 'Ask a question', text: 'Write a hypothesis in the chat. The agent plans the experiment: what to vary, what to hold fixed, which brain areas to read.',
-    tile: 0, arrow: 0, pieces: ['app', 'planner', 'vast'], data: 'the project and every step', go: { view: 'room', project: 'experiment' } },
+    tile: 0, arrow: 0, pieces: ['app', 'planner', 'vast'], data: 'the project and every step', go: { view: 'room', project: 'experiment', prefer: HUMANOID } },
   { id: 'data', title: 'Bring stimuli', text: 'Import clips, images or a folder, or fetch an open dataset. Every file becomes a sample to filter, tag and save as a view.',
     tile: 0, pieces: ['app', 'vast'], data: 'datasets and their samples', go: { view: 'datasets' } },
   { id: 'scene', title: 'Build a scene', text: 'Each control is one line of the scene script. Change it and Isaac Sim renders the room again; TRIBE v2 reads the new render.',
-    tile: 1, arrow: 1, pieces: ['app', 'isaac', 'tribe', 'vast'], data: 'renders and their predictions', go: { view: 'room', project: 'world' } },
+    tile: 1, arrow: 1, pieces: ['app', 'isaac', 'tribe', 'vast'], data: 'renders and their predictions', go: { view: 'room', project: 'world', prefer: ['falls'] } },
   { id: 'run', title: 'Run the experiment', text: 'A run renders every trial, can restyle each with Cosmos so it looks filmed, and predicts the response second by second.',
-    tile: 1, arrow: 1, pieces: ['app', 'isaac', 'cosmos', 'tribe', 'vast'], data: 'clips and predictions', go: { view: 'samples', project: 'experiment' } },
+    tile: 1, arrow: 1, pieces: ['app', 'isaac', 'cosmos', 'tribe', 'vast'], data: 'clips and predictions', go: { view: 'samples', project: 'experiment', prefer: HUMANOID } },
   { id: 'brain', title: 'Watch the brain', text: 'A trial and its predicted cortex play on one clock. Scrub to any second, and drag the brain to turn it.',
-    tile: 2, pieces: ['app', 'vast'], data: 'predictions, drawn in your browser', go: { view: 'room', project: 'experiment' } },
+    tile: 2, pieces: ['app', 'vast'], data: 'predictions, drawn in your browser', go: { view: 'room', project: 'experiment', prefer: HUMANOID } },
   { id: 'results', title: 'Read the results', text: 'Each contrast with its 95% interval, its baselines and the whole cortex. Every table and figure downloads.',
-    tile: 2, arrow: 2, pieces: ['app', 'vast'], data: 'the run record and its maps', go: { view: 'results', project: 'experiment' } },
+    tile: 2, arrow: 2, pieces: ['app', 'vast'], data: 'the run record and its maps', go: { view: 'results', project: 'experiment', prefer: HUMANOID } },
   { id: 'follow', title: 'Follow up, or undo', text: "The agent's next tests land in the same project. Every change is a step: History says who made it, and any step can be undone.",
-    tile: 3, arrow: 3, pieces: ['app', 'planner', 'vast'], data: 'the step log', go: { view: 'room', project: 'experiment', history: true } },
+    tile: 3, arrow: 3, pieces: ['app', 'planner', 'vast'], data: 'the step log', go: { view: 'room', project: 'experiment', prefer: HUMANOID, history: true } },
   { id: 'adapter', title: 'Fit the model to people', text: 'Where a dataset has measured fMRI, fit an adapter in one action and see how much closer it gets on stimuli it never saw.',
     tile: 2, pieces: ['app', 'vast'], data: "measured responses and the adapter's weights", go: { view: 'datasets', dataset: { id: 'openneuro_ds004488', tab: 'adapters' } } },
 ]
@@ -52,7 +55,7 @@ function Arrow({ d, label, lx, ly, on, head }: { d: string; label: string; lx: n
 export function LoopDiagram({ tile, arrow }: { tile: number; arrow?: number }) {
   const W = 120, H = 70, L = 14, R = 266, T = 14, B = 196
   const pos = [[L, T], [R, T], [R, B], [L, B]]
-  return <svg className="gdiagram" viewBox="0 0 400 280" role="img" aria-label={`The loop: ${LOOP.map(l => l[0]).join(', ')}. This step: ${LOOP[tile][0]}.`}>
+  return <svg className="gdiagram" viewBox="0 0 400 280" role="img" aria-label={`The loop: ${LOOP.map(l => l[0]).join(', ')}. ${tile >= 0 ? ` This step: ${LOOP[tile][0]}.` : ''}`}>
     <Arrow on={arrow === 0} d={`M${L + W + 6} ${T + 35} H${R - 8}`} head={`M${R - 14} ${T + 30} L${R - 6} ${T + 35} L${R - 14} ${T + 40}`} label={ARROWS[0]} lx={200} ly={T + 26} />
     <Arrow on={arrow === 1} d={`M${R + 60} ${T + H + 6} V${T + H + 34} M${R + 60} ${T + H + 58} V${B - 8}`} head={`M${R + 55} ${B - 14} L${R + 60} ${B - 6} L${R + 65} ${B - 14}`} label={ARROWS[1]} lx={R + 60} ly={T + H + 50} />
     <Arrow on={arrow === 2} d={`M${R - 6} ${B + 35} H${L + W + 8}`} head={`M${L + W + 14} ${B + 30} L${L + W + 6} ${B + 35} L${L + W + 14} ${B + 40}`} label={ARROWS[2]} lx={200} ly={B + 56} />
@@ -93,10 +96,19 @@ export function GuidePanel({ step, onStep, onClose, children }: { step: number; 
     </div>
     <h2 className="section-title" style={{ margin: 0 }}>{s.title}</h2>
     <p style={{ margin: 0 }}>{s.text}</p>
-    {children}
-    <LoopDiagram tile={s.tile} arrow={s.arrow} />
-    <PlacementDiagram pieces={s.pieces} data={s.data} />
-    <p className="ink2 small" style={{ margin: 0 }}>Fuzzball runs these services on CIQ's cluster. On the Spark, the same code runs from spark/start.sh.</p>
+    {s.id === 'intro' ? <>
+      <h3 className="gh">Roadmap</h3>
+      <ol className="groad">{GUIDE.slice(1).map((g, i) => <li key={g.id}><button onClick={() => onStep(i + 1)}><span className="gn">{i + 1}</span><span><b>{g.title}</b><span className="ink2">{g.text.split('. ')[0].replace(/\.$/, '')}.</span></span></button></li>)}</ol>
+      <h3 className="gh">The loop</h3>
+      <LoopDiagram tile={s.tile} />
+      <h3 className="gh">Architecture</h3>
+      <PlacementDiagram pieces={s.pieces} data={s.data} />
+      <p className="ink2 small" style={{ margin: 0 }}>Fuzzball starts the app and the video pipeline on two workstations of CIQ's cluster, which share one VAST volume. On the Spark, the same code runs from spark/start.sh.</p>
+    </> : <>
+      {children}
+      <LoopDiagram tile={s.tile} arrow={s.arrow} />
+      <PlacementDiagram pieces={s.pieces} data={s.data} />
+    </>}
     <div className="bar gnav">
       <button className="btn" disabled={step === 0} onClick={() => onStep(step - 1)}>Back</button>
       <ol className="gdots" aria-label="Steps">{GUIDE.map((g, i) => <li key={g.id}><button className={i === step ? 'on' : ''} aria-label={`Step ${i + 1}: ${g.title}`} aria-current={i === step ? 'step' : undefined} onClick={() => onStep(i)} /></li>)}</ol>

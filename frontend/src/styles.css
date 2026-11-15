@@ -735,4 +735,17 @@ table.data.compact td, table.data.compact th { padding: 3px 8px; font-size: 14px
 .msg .text { overflow-wrap: anywhere; }
 /* a segmented control fits its card: the buttons share the width and shrink their padding before anything is cut */
 .seg { max-width: 100%; }
-.seg button { flex: 1 1 auto; min-width: 0; padding-left: clamp(6px, 1vw, 14px); padding-right: clamp(6px, 1vw, 14px); white-space: nowrap; }
+.seg { flex-wrap: wrap; }
+.seg button { flex: 1 0 auto; white-space: nowrap; }
+
+/* the guide's intro: a numbered roadmap, then the loop and the architecture */
+.guidefloat .gh { font-size: 13px; font-weight: 600; margin: 6px 0 0; color: var(--ink-2); }
+.groad { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.groad button { display: grid; grid-template-columns: 26px 1fr; gap: 10px; width: 100%; text-align: left; background: none; border: 0; border-radius: 8px; padding: 7px 8px; color: var(--ink); cursor: pointer; }
+.groad button:hover { background: rgba(47, 127, 193, 0.08); }
+.groad b { display: block; font-weight: 600; }
+.groad .ink2 { font-size: 13px; }
+.groad .gn { width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; font-size: 12px; font-weight: 600; color: #2f7fc1; border: 1px solid #2f7fc1; }
+.gproj { display: grid; gap: 6px; padding: 12px 14px; border-radius: 12px; background: rgba(255, 255, 255, 0.7); border: 1px solid var(--rule); }
+.gproj .gq { margin: 0 0 4px; font-weight: 600; }
+.gproj ul { margin: 0; padding-left: 18px; } .gproj li { margin: 2px 0; }

@@ -108,8 +108,9 @@ export default function App() {
     const made = (p: Row<Project>) => { const o = (((p.data as any).setup?.conditions ?? []) as any[]).map(c => `${c.origin?.kind ?? ''} ${c.origin?.label ?? ''}`).join(' ').toLowerCase()
       return (/cosmos/.test(o) ? 2 : 0) + (/isaac/.test(o) || (p.data as any).world ? 1 : 0) }
     const cur = projects.find(p => p.id === pid)
-    if (g.project) { const best = projects.filter(ok).sort((a, b) => made(b) - made(a))[0]
-      if (best && (!ok(cur) || made(cur!) < made(best))) setPid(best.id) }
+    if (g.project) { const named = g.prefer?.map(id => projects.find(p => p.id === id)).find(ok)
+      const best = named ?? projects.filter(ok).sort((a, b) => made(b) - made(a))[0]
+      if (best && (named ? cur?.id !== best.id : !ok(cur) || made(cur!) < made(best))) setPid(best.id) }
     setHist(!!g.history); setDsShow(g.view === 'datasets' ? g.dataset ?? { id: '' } : null); setView(g.view as View)
   }
 
@@ -353,7 +354,7 @@ export default function App() {
           {WIDE.includes(view) && <div className="muted">Escape returns to the {lastCentre.current}</div>}
         </main>
 
-        {guide !== null && <aside className="guidefloat"><GuidePanel step={guide} onStep={guideTo} onClose={() => setGuide(null)} /></aside>}
+        {guide !== null && <aside className="guidefloat"><GuidePanel step={guide} onStep={guideTo} onClose={() => setGuide(null)}>{GUIDE[guide].id === 'ask' && P && !opening && <GuideProject P={P} />}</GuidePanel></aside>}
         {guide !== null ? <aside className="col guidegap" aria-hidden="true" /> : !WIDE.includes(view) && <aside className="col right">
           <Inspector P={P} pid={pid!} template={template} projects={projects} paired={paired} needed={needed} objects={objects} perObject={perObject} region={region} setRegion={pickRegion} picked={picked} named={named} onAsk={send}
             unit={unit} diff={diff} units={units} samples={samples} onFork={(c) => template && createFromTemplate(template, `${P.title}: ${c}`, { ...(P.bindings as Record<string, string>), control: c }, pid!)}
@@ -760,3 +761,17 @@ function History({ pid, agent, tick, onUndo, onClose }: { pid: string; agent: st
         </li> })}</ul>}
   </div>
 }
+
+/** The open project on the guide's first experiment step: its question, and the plan the agent made from it. */
+function GuideProject({ P }: { P: Project }) {
+  const conds = (((P as any).setup?.conditions ?? []) as any[])
+  const prov = ((P as any).provenance ?? []) as string[]
+  return <div className="gproj">
+    <span className="gmono ink2">This project</span>
+    <p className="gq">{P.question}</p>
+    {conds.length > 0 && <><span className="gmono ink2">The plan the agent made from it</span>
+      <ul>{conds.map(c => <li key={c.name}><b>{c.name}</b>{c.origin?.label ? `: ${c.origin.label.replace(/^Rendered in /, 'rendered in ').replace(/^Cosmos, from rendered in isaac sim$/i, 'the Isaac Sim render, restyled by Cosmos 3 Nano')}` : ''}</li>)}
+        {prov[1] && <li>{prov[1]}</li>}{prov[3] && <li>Reads {prov[3]}</li>}</ul></>}
+  </div>
+}
+
