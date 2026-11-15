@@ -52,10 +52,14 @@ def start(tools, broadcast, project_id: str, actor: str):
                     res = render_and_read(inputs, out, key, 'batch', ctx={'project': project_id, 'title': d.get('title'), 'label': _label(vals, assets), 'source': f'Run, {k + 1} of {total}', 'actor': actor}); k += 1
                     side[cond] = {'label': assets.get(aid, {}).get('label', aid), 'image': Path(res['rgb']), 'clip': Path(res['clip_on']), 'preds': Path(res['preds'])}
                     _live(ev, k, total, f'pair {i + 1}', labels[0 if cond == 'a' else 1], side[cond]['label'], res, (0, 3))   # the trial in the live Table 2 (#20)
+                    if token in STOP: raise RuntimeError(f"Stopped by {STOP[token]} after {k} of {total} clips; running it again picks up from there")   # run_stop, as experiments honour it
                 units.append({'unit': f'pair {i + 1}', **side})
             url = lambda p: '/files/' + str(Path(p).resolve().relative_to(FILES.resolve())) if p else None
             with tools.lock:
                 step = s.begin(actor, 'project_run', {'project_id': project_id})
+                for kind in ('result', 'analysis', 'neural_map', 'sample'):   # a run replaces the project's earlier results, in the same step, so undo brings them back
+                    for row in s.list(kind):
+                        if row.data.get('project_id') == project_id: s.delete(step, kind, row.id, row.version)
                 plans.matched(s, step, project_id, units, (0, 3), labels, FILES, url)
             cur = s.get('project', project_id)
             tools.call('project_update', actor, project_id=project_id, expect_version=cur.version, status='Done',
@@ -74,6 +78,7 @@ def start(tools, broadcast, project_id: str, actor: str):
         try: go()
         finally:
             if LIVE.get(project_id) == token: LIVE.pop(project_id, None)
+            STOP.pop(token, None)
     threading.Thread(target=run_once, daemon=True).start()
     return {'queued': True, 'clips': 2 * len(pairs)}
 
@@ -115,6 +120,7 @@ def _factorial(tools, broadcast, project_id: str, actor: str):
                     res = render_and_read(inputs, out, key, 'batch', ctx={'project': project_id, 'title': d.get('title'), 'label': _label(vals, assets),
                                                                          'source': f'Run, {done + 1} of {total}', 'actor': actor})
                     done += 1; _live(ev, done, total, assets.get(u, {}).get('label', u), c['label'], _label(vals, assets), res, tuple(t['window_s']))   # the trial in the live Table 2 (#20)
+                    if token in STOP: raise RuntimeError(f"Stopped by {STOP[token]} after {done} of {total} clips; running it again picks up from there")   # run_stop, as experiments honour it
                     cl[c['id']] = {'label': _label(vals, assets), 'image': Path(res['rgb']), 'clip': Path(res['clip_on']), 'preds': Path(res['preds'])}
                 rows.append({'unit': assets.get(u, {}).get('label', u), 'cells': cl})
             url = lambda p: '/files/' + str(Path(p).resolve().relative_to(FILES.resolve())) if p else None
@@ -123,6 +129,9 @@ def _factorial(tools, broadcast, project_id: str, actor: str):
             plans.factorial(rec, None, project_id, rows, tuple(t['window_s']), cells, t['contrasts'], FILES, url)
             with tools.lock:
                 step = s.begin(actor, 'project_run', {'project_id': project_id})
+                for kind in ('result', 'analysis', 'neural_map', 'sample'):   # a run replaces the project's earlier results, in the same step, so undo brings them back
+                    for row in s.list(kind):
+                        if row.data.get('project_id') == project_id: s.delete(step, kind, row.id, row.version)
                 rec.apply(s, step)
             cur = s.get('project', project_id)
             tools.call('project_update', actor, project_id=project_id, expect_version=cur.version, status='Done',
@@ -141,5 +150,6 @@ def _factorial(tools, broadcast, project_id: str, actor: str):
         try: go()
         finally:
             if LIVE.get(project_id) == token: LIVE.pop(project_id, None)
+            STOP.pop(token, None)
     threading.Thread(target=run_once, daemon=True).start()
     return {'queued': True, 'clips': total}
