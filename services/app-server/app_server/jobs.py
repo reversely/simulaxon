@@ -97,6 +97,19 @@ class WarmWorker:
         except Exception: self.p.kill()
 
 
+def visible(outputs, wait_s: float = 60) -> None:
+    """Wait until the files a remote job wrote can be seen here. On the cluster the job runs on the other node and both
+    reach the files over NFS, where this node can keep a cached 'no such file' for several seconds; listing a folder
+    makes the client look again."""
+    paths = [v for v in (outputs.values() if isinstance(outputs, dict) else []) if isinstance(v, str) and v.startswith('/') and '.' in os.path.basename(v)]
+    end = time.time() + wait_s
+    for p in paths:
+        while not os.path.exists(p) and time.time() < end:
+            try: os.listdir(os.path.dirname(p))
+            except OSError: pass
+            time.sleep(1)
+
+
 class HttpWorker:
     """A connector whose warm worker lives in another queue: each job is one POST {connector, inputs, settings, lane}
     to its /job, answered with the outputs (200) or {"error"} (4xx, 5xx). Holds no process, no GPU and no memory here."""
@@ -112,7 +125,9 @@ class HttpWorker:
         body = json.dumps({'connector': self.c.connector_id, 'inputs': inputs, 'settings': settings, 'lane': lane}).encode()
         try:
             req = urllib.request.Request(self.base() + '/job', data=body, headers={'Content-Type': 'application/json'})
-            with urllib.request.urlopen(req, timeout=job_limit(self.c) + 120) as r: return {'job_id': job_id, 'outputs': json.loads(r.read())}   # the remote stops the job at its limit first
+            with urllib.request.urlopen(req, timeout=job_limit(self.c) + 120) as r: outputs = json.loads(r.read())   # the remote stops the job at its limit first
+            visible(outputs)
+            return {'job_id': job_id, 'outputs': outputs}
         except urllib.error.HTTPError as e:
             try: err = json.loads(e.read() or b'{}').get('error')
             except ValueError: err = None
