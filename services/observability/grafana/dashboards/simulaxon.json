@@ -8,10 +8,685 @@
  "refresh": "30s",
  "schemaVersion": 39,
  "time": {
-  "from": "now-3h",
+  "from": "now-24h",
   "to": "now"
  },
  "panels": [
+  {
+   "type": "row",
+   "title": "Compute, measured per stage",
+   "collapsed": false,
+   "gridPos": {
+    "x": 0,
+    "y": 0,
+    "w": 24,
+    "h": 1
+   },
+   "panels": [],
+   "id": 26
+  },
+  {
+   "type": "stat",
+   "title": "GPU-hours in range",
+   "description": "Busy GPU time summed over every service in the selected range: nvidia-smi utilisation integrated over time, 15 s samples.",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prometheus"
+   },
+   "gridPos": {
+    "x": 0,
+    "y": 1,
+    "w": 6,
+    "h": 4
+   },
+   "targets": [
+    {
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus"
+     },
+     "expr": "sum(sum by (job) (sum_over_time((simulaxon_gpu_utilization_percent / 100)[$__range:15s])) * 15) / 3600",
+     "legendFormat": "GPU-hours",
+     "refId": "A",
+     "instant": true,
+     "range": false
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "h"
+    },
+    "overrides": []
+   },
+   "options": {
+    "reduceOptions": {
+     "calcs": [
+      "lastNotNull"
+     ]
+    },
+    "colorMode": "value",
+    "graphMode": "none",
+    "textMode": "value_and_name"
+   },
+   "id": 27
+  },
+  {
+   "type": "stat",
+   "title": "Busy while held",
+   "description": "Mean GPU utilisation while a service holds its GPU, in the selected range. A series exists only while the job runs, so idle time outside a job is not counted.",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prometheus"
+   },
+   "gridPos": {
+    "x": 6,
+    "y": 1,
+    "w": 6,
+    "h": 4
+   },
+   "targets": [
+    {
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus"
+     },
+     "expr": "avg(avg_over_time(simulaxon_gpu_utilization_percent[$__range]))",
+     "legendFormat": "busy",
+     "refId": "A",
+     "instant": true,
+     "range": false
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "percent"
+    },
+    "overrides": []
+   },
+   "options": {
+    "reduceOptions": {
+     "calcs": [
+      "lastNotNull"
+     ]
+    },
+    "colorMode": "value",
+    "graphMode": "none",
+    "textMode": "value_and_name"
+   },
+   "id": 28
+  },
+  {
+   "type": "stat",
+   "title": "Planner tokens per second",
+   "description": "Nemotron 3 Super generation rate, vLLM with MTP speculative decoding (#2), over the last 5 minutes with traffic.",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prometheus"
+   },
+   "gridPos": {
+    "x": 12,
+    "y": 1,
+    "w": 6,
+    "h": 4
+   },
+   "targets": [
+    {
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus"
+     },
+     "expr": "sum(rate(vllm:generation_tokens_total[5m])) > 0 or vector(0)",
+     "legendFormat": "tokens/s",
+     "refId": "A",
+     "instant": true,
+     "range": false
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "short"
+    },
+    "overrides": []
+   },
+   "options": {
+    "reduceOptions": {
+     "calcs": [
+      "lastNotNull"
+     ]
+    },
+    "colorMode": "value",
+    "graphMode": "none",
+    "textMode": "value_and_name"
+   },
+   "id": 29
+  },
+  {
+   "type": "stat",
+   "title": "Uptime",
+   "description": "Share of scrapes that answered in the selected range, over every target: Prometheus, the exporter and the planner.",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prometheus"
+   },
+   "gridPos": {
+    "x": 18,
+    "y": 1,
+    "w": 6,
+    "h": 4
+   },
+   "targets": [
+    {
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus"
+     },
+     "expr": "100 * avg(avg_over_time(up[$__range]))",
+     "legendFormat": "up",
+     "refId": "A",
+     "instant": true,
+     "range": false
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "percent"
+    },
+    "overrides": []
+   },
+   "options": {
+    "reduceOptions": {
+     "calcs": [
+      "lastNotNull"
+     ]
+    },
+    "colorMode": "value",
+    "graphMode": "none",
+    "textMode": "value_and_name"
+   },
+   "id": 30
+  },
+  {
+   "type": "row",
+   "title": "1. Where do the GPU hours go?",
+   "collapsed": false,
+   "gridPos": {
+    "x": 0,
+    "y": 5,
+    "w": 24,
+    "h": 1
+   },
+   "panels": [],
+   "id": 31
+  },
+  {
+   "type": "bargauge",
+   "title": "GPU-hours by service",
+   "description": "Busy GPU time per service in the selected range: planner, render-score (Isaac Sim, Cosmos, TRIBE v2), study tasks.",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prometheus"
+   },
+   "gridPos": {
+    "x": 0,
+    "y": 6,
+    "w": 8,
+    "h": 8
+   },
+   "targets": [
+    {
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus"
+     },
+     "expr": "sum by (job) (sum_over_time((simulaxon_gpu_utilization_percent / 100)[$__range:15s])) * 15 / 3600",
+     "legendFormat": "{{job}}",
+     "refId": "A",
+     "instant": true,
+     "range": false
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "h"
+    },
+    "overrides": []
+   },
+   "options": {
+    "orientation": "horizontal",
+    "displayMode": "gradient",
+    "reduceOptions": {
+     "calcs": [
+      "lastNotNull"
+     ]
+    }
+   },
+   "id": 32
+  },
+  {
+   "type": "timeseries",
+   "title": "Busy GPUs by service",
+   "description": "How many GPUs are busy at each moment, stacked by service: utilisation divided by 100.",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prometheus"
+   },
+   "gridPos": {
+    "x": 8,
+    "y": 6,
+    "w": 16,
+    "h": 8
+   },
+   "targets": [
+    {
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus"
+     },
+     "expr": "sum by (job) (simulaxon_gpu_utilization_percent) / 100",
+     "legendFormat": "{{job}}",
+     "refId": "A"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "short",
+     "custom": {
+      "stacking": {
+       "mode": "normal"
+      },
+      "fillOpacity": 60,
+      "lineWidth": 1
+     }
+    },
+    "overrides": []
+   },
+   "id": 33
+  },
+  {
+   "type": "row",
+   "title": "2. Is a GPU working while it is held?",
+   "collapsed": false,
+   "gridPos": {
+    "x": 0,
+    "y": 14,
+    "w": 24,
+    "h": 1
+   },
+   "panels": [],
+   "id": 34
+  },
+  {
+   "type": "status-history",
+   "title": "Utilisation while allocated, per job",
+   "description": "Each row is one job while it holds a GPU; colour is utilisation. A service held idle shows as a long low band; a render task shows busy, then ends.",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prometheus"
+   },
+   "gridPos": {
+    "x": 0,
+    "y": 15,
+    "w": 16,
+    "h": 8
+   },
+   "targets": [
+    {
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus"
+     },
+     "expr": "max by (workflow_name, job) (simulaxon_gpu_utilization_percent)",
+     "legendFormat": "{{workflow_name}}/{{job}}",
+     "refId": "A"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "percent",
+     "min": 0,
+     "max": 100,
+     "color": {
+      "mode": "continuous-GrYlRd"
+     }
+    },
+    "overrides": []
+   },
+   "options": {
+    "showValue": "never",
+    "rowHeight": 0.8
+   },
+   "id": 35
+  },
+  {
+   "type": "bargauge",
+   "title": "Busy share per job",
+   "description": "Mean utilisation of each job over the selected range, counted only while it runs.",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prometheus"
+   },
+   "gridPos": {
+    "x": 16,
+    "y": 15,
+    "w": 8,
+    "h": 8
+   },
+   "targets": [
+    {
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus"
+     },
+     "expr": "avg by (job) (avg_over_time(simulaxon_gpu_utilization_percent[$__range]))",
+     "legendFormat": "{{job}}",
+     "refId": "A",
+     "instant": true,
+     "range": false
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "percent"
+    },
+    "overrides": []
+   },
+   "options": {
+    "orientation": "horizontal",
+    "displayMode": "gradient",
+    "reduceOptions": {
+     "calcs": [
+      "lastNotNull"
+     ]
+    }
+   },
+   "id": 36
+  },
+  {
+   "type": "row",
+   "title": "3. Does each node fit in 128 GB?",
+   "collapsed": false,
+   "gridPos": {
+    "x": 0,
+    "y": 23,
+    "w": 24,
+    "h": 1
+   },
+   "panels": [],
+   "id": 37
+  },
+  {
+   "type": "timeseries",
+   "title": "Memory per service, node 1 (SPARK25)",
+   "description": "Each service's container memory from its cgroup, stacked; the red line is the node's 128 GB. GB10 memory is shared by CPU and GPU, and nvidia-smi reports none for the GPU, so this is the container's whole share.",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prometheus"
+   },
+   "gridPos": {
+    "x": 0,
+    "y": 24,
+    "w": 12,
+    "h": 8
+   },
+   "targets": [
+    {
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus"
+     },
+     "expr": "sum by (job) (simulaxon_job_memory_bytes{node=\"192.168.99.34\"})",
+     "legendFormat": "{{job}}",
+     "refId": "A"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "bytes",
+     "custom": {
+      "stacking": {
+       "mode": "normal"
+      },
+      "fillOpacity": 60,
+      "lineWidth": 1,
+      "thresholdsStyle": {
+       "mode": "line"
+      }
+     },
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "transparent",
+        "value": null
+       },
+       {
+        "color": "red",
+        "value": 128000000000.0
+       }
+      ]
+     },
+     "max": 128000000000.0
+    },
+    "overrides": []
+   },
+   "id": 38
+  },
+  {
+   "type": "timeseries",
+   "title": "Memory per service, node 2 (SPARK26)",
+   "description": "As node 1. The planner runs at 0.75 of GPU memory, after 0.85 died during FlashInfer autotuning (docs/onboarding.md § 4).",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prometheus"
+   },
+   "gridPos": {
+    "x": 12,
+    "y": 24,
+    "w": 12,
+    "h": 8
+   },
+   "targets": [
+    {
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus"
+     },
+     "expr": "sum by (job) (simulaxon_job_memory_bytes{node=\"192.168.99.35\"})",
+     "legendFormat": "{{job}}",
+     "refId": "A"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "bytes",
+     "custom": {
+      "stacking": {
+       "mode": "normal"
+      },
+      "fillOpacity": 60,
+      "lineWidth": 1,
+      "thresholdsStyle": {
+       "mode": "line"
+      }
+     },
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "transparent",
+        "value": null
+       },
+       {
+        "color": "red",
+        "value": 128000000000.0
+       }
+      ]
+     },
+     "max": 128000000000.0
+    },
+    "overrides": []
+   },
+   "id": 39
+  },
+  {
+   "type": "row",
+   "title": "4. How much work per GPU-hour?",
+   "collapsed": false,
+   "gridPos": {
+    "x": 0,
+    "y": 32,
+    "w": 24,
+    "h": 1
+   },
+   "panels": [],
+   "id": 40
+  },
+  {
+   "type": "timeseries",
+   "title": "Planner tokens per GPU-second",
+   "description": "Generated tokens per second of busy planner GPU time.",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prometheus"
+   },
+   "gridPos": {
+    "x": 0,
+    "y": 33,
+    "w": 12,
+    "h": 8
+   },
+   "targets": [
+    {
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus"
+     },
+     "expr": "sum(rate(vllm:generation_tokens_total[1m])) / clamp_min(sum(simulaxon_gpu_utilization_percent{job=\"planner\"}) / 100, 0.01)",
+     "legendFormat": "tokens per busy GPU-second",
+     "refId": "A"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "short"
+    },
+    "overrides": []
+   },
+   "id": 41
+  },
+  {
+   "type": "timeseries",
+   "title": "Planner time to first token",
+   "description": "Median and 95th percentile, 5-minute windows.",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prometheus"
+   },
+   "gridPos": {
+    "x": 12,
+    "y": 33,
+    "w": 12,
+    "h": 8
+   },
+   "targets": [
+    {
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus"
+     },
+     "expr": "histogram_quantile(0.5, sum by (le) (rate(vllm:time_to_first_token_seconds_bucket[5m])))",
+     "legendFormat": "median",
+     "refId": "A"
+    },
+    {
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus"
+     },
+     "expr": "histogram_quantile(0.95, sum by (le) (rate(vllm:time_to_first_token_seconds_bucket[5m])))",
+     "legendFormat": "p95",
+     "refId": "B"
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "s"
+    },
+    "overrides": []
+   },
+   "id": 42
+  },
+  {
+   "type": "row",
+   "title": "5. Is it up, and what failed?",
+   "collapsed": false,
+   "gridPos": {
+    "x": 0,
+    "y": 41,
+    "w": 24,
+    "h": 1
+   },
+   "panels": [],
+   "id": 43
+  },
+  {
+   "type": "stat",
+   "title": "Uptime per target",
+   "description": "Share of scrapes that answered in the selected range.",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prometheus"
+   },
+   "gridPos": {
+    "x": 0,
+    "y": 42,
+    "w": 24,
+    "h": 4
+   },
+   "targets": [
+    {
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus"
+     },
+     "expr": "100 * avg by (job) (avg_over_time(up[$__range]))",
+     "legendFormat": "{{job}}",
+     "refId": "A",
+     "instant": true,
+     "range": false
+    }
+   ],
+   "fieldConfig": {
+    "defaults": {
+     "unit": "percent"
+    },
+    "overrides": []
+   },
+   "options": {
+    "reduceOptions": {
+     "calcs": [
+      "lastNotNull"
+     ]
+    },
+    "colorMode": "value",
+    "graphMode": "none",
+    "textMode": "value_and_name"
+   },
+   "id": 44
+  },
+  {
+   "type": "row",
+   "title": "Reference",
+   "collapsed": false,
+   "gridPos": {
+    "x": 0,
+    "y": 46,
+    "w": 24,
+    "h": 1
+   },
+   "panels": [],
+   "id": 45
+  },
   {
    "type": "row",
    "title": "Nodes",
@@ -20,7 +695,7 @@
     "h": 1,
     "w": 24,
     "x": 0,
-    "y": 0
+    "y": 47
    },
    "id": 1,
    "panels": []
@@ -37,7 +712,7 @@
     "h": 6,
     "w": 24,
     "x": 0,
-    "y": 1
+    "y": 48
    },
    "description": "One row per node the team uses. Unreachable: the node's node_exporter did not answer. Memory pressure: under 10% of the node's memory is available; on the GB10 the GPU draws on this same memory, so a model loading or running there can be killed. In use: reachable, with the team's jobs on it. Idle: reachable, no team jobs. Fuzzball's own node status (Ready, Cordoned, Degraded) is refused to workflow tokens, so these states come from each node's own readings.",
    "targets": [
@@ -124,7 +799,7 @@
     "h": 6,
     "w": 24,
     "x": 0,
-    "y": 7
+    "y": 54
    },
    "description": "Each node now: its state, the memory it can still hand out, its one-minute load, and the team jobs running on it.",
    "targets": [
@@ -314,7 +989,7 @@
     "h": 1,
     "w": 24,
     "x": 0,
-    "y": 13
+    "y": 60
    },
    "id": 4,
    "panels": []
@@ -327,7 +1002,7 @@
     "h": 9,
     "w": 24,
     "x": 0,
-    "y": 14
+    "y": 61
    },
    "description": "One row per observer run from the last 6 hours, newest first (start time in UTC and the workflow's short ID), one column per step. A cell shows the worst state of the step's tasks: one failed render task makes the render cell red.",
    "datasource": {
@@ -463,7 +1138,7 @@
     "h": 1,
     "w": 24,
     "x": 0,
-    "y": 26
+    "y": 73
    },
    "panels": [],
    "id": 6
@@ -480,7 +1155,7 @@
     "h": 10,
     "w": 24,
     "x": 0,
-    "y": 27
+    "y": 74
    },
    "targets": [
     {
@@ -568,7 +1243,7 @@
     "h": 1,
     "w": 24,
     "x": 0,
-    "y": 37
+    "y": 84
    },
    "panels": [],
    "id": 8
@@ -585,7 +1260,7 @@
     "h": 8,
     "w": 12,
     "x": 0,
-    "y": 38
+    "y": 85
    },
    "fieldConfig": {
     "defaults": {
@@ -640,7 +1315,7 @@
     "h": 8,
     "w": 12,
     "x": 12,
-    "y": 38
+    "y": 85
    },
    "fieldConfig": {
     "defaults": {
@@ -694,7 +1369,7 @@
     "h": 8,
     "w": 12,
     "x": 0,
-    "y": 46
+    "y": 93
    },
    "fieldConfig": {
     "defaults": {
@@ -749,7 +1424,7 @@
     "h": 8,
     "w": 12,
     "x": 12,
-    "y": 46
+    "y": 93
    },
    "fieldConfig": {
     "defaults": {
@@ -803,7 +1478,7 @@
     "h": 9,
     "w": 24,
     "x": 0,
-    "y": 54
+    "y": 101
    },
    "targets": [
     {
@@ -858,7 +1533,7 @@
     "h": 1,
     "w": 24,
     "x": 0,
-    "y": 63
+    "y": 110
    },
    "panels": [],
    "id": 14
@@ -875,7 +1550,7 @@
     "h": 8,
     "w": 8,
     "x": 0,
-    "y": 64
+    "y": 111
    },
    "fieldConfig": {
     "defaults": {
@@ -937,7 +1612,7 @@
     "h": 8,
     "w": 8,
     "x": 8,
-    "y": 64
+    "y": 111
    },
    "fieldConfig": {
     "defaults": {
@@ -999,7 +1674,7 @@
     "h": 8,
     "w": 8,
     "x": 16,
-    "y": 64
+    "y": 111
    },
    "fieldConfig": {
     "defaults": {
@@ -1054,7 +1729,7 @@
     "h": 8,
     "w": 12,
     "x": 0,
-    "y": 72
+    "y": 119
    },
    "fieldConfig": {
     "defaults": {
@@ -1116,7 +1791,7 @@
     "h": 8,
     "w": 12,
     "x": 12,
-    "y": 72
+    "y": 119
    },
    "fieldConfig": {
     "defaults": {
@@ -1174,7 +1849,7 @@
     "h": 1,
     "w": 24,
     "x": 0,
-    "y": 80
+    "y": 127
    },
    "panels": [],
    "id": 20
@@ -1191,7 +1866,7 @@
     "h": 10,
     "w": 24,
     "x": 0,
-    "y": 81
+    "y": 128
    },
    "targets": [
     {
@@ -1248,7 +1923,7 @@
     "h": 6,
     "w": 12,
     "x": 0,
-    "y": 91
+    "y": 138
    },
    "targets": [
     {
@@ -1322,7 +1997,7 @@
     "h": 6,
     "w": 12,
     "x": 12,
-    "y": 91
+    "y": 138
    },
    "targets": [
     {
@@ -1379,7 +2054,7 @@
     "h": 1,
     "w": 24,
     "x": 0,
-    "y": 97
+    "y": 144
    },
    "id": 24,
    "panels": []
@@ -1396,7 +2071,7 @@
     "h": 8,
     "w": 24,
     "x": 0,
-    "y": 98
+    "y": 145
    },
    "description": "Size of each folder in /data/weights, measured every 10 minutes.",
    "targets": [
