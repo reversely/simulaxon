@@ -415,3 +415,24 @@ aside.left .convo { padding-bottom: 28px; }
 
 .live .runsnow { display: flex; flex-direction: column; gap: 6px; flex: 1; min-width: 0; }   /* one row per run, so every run keeps its title */
 .live .runsnow .runnow .title { flex: 1; }
+
+/* a picked value whose render isn't shown yet: dashed outline and a loader on the thing you picked, not elsewhere */
+.thumbs button { position: relative; }
+.thumbs button.pending, .seg button.pending { outline: 2px dashed var(--sel); outline-offset: 2px; }
+.thumbs button .tileload { position: absolute; top: 6px; left: 6px; right: 6px; display: flex; align-items: center; gap: 6px; justify-content: center; background: rgba(10, 11, 12, 0.82); color: var(--ink); border-radius: 6px; padding: 3px 6px; font-size: 13px; }
+.seg button .tileload, .ctl .bar .tileload { display: inline-flex; align-items: center; gap: 5px; margin-left: 8px; font-size: 13px; color: var(--ink-2); }
+.tileload .spin { width: 12px; height: 12px; }
+/* an older render shown while the new one is made: dimmed, with what is being made on top */
+.stage.stale img, .brainside.stale img { opacity: 0.38; filter: saturate(0.4); transition: opacity 0.2s; }
+.brainside.stale .big { opacity: 0.45; }
+.stageload { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); display: flex; flex-direction: column; align-items: center; gap: 6px; background: rgba(14, 15, 17, 0.9); border: 1px solid var(--rule-strong); border-radius: 10px; padding: 12px 18px; text-align: center; }
+.stageload .spin { width: 20px; height: 20px; }
+.ctlwait { display: flex; align-items: center; gap: 8px; color: var(--ink-2); font-size: 14px; margin: 4px 0 -4px; }
+
+/* the dock: one line per chat, so the work it watches stays on screen */
+.sessionrow { display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto auto; align-items: center; gap: 10px; }
+.sessionrow .sgoal { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.sessionrow .num { white-space: nowrap; }
+.sessionrow .bar { margin-left: 0 !important; flex-wrap: nowrap; }
+.sessionrow .btn { padding: 4px 12px; }
+.live .prep { display: inline-flex; align-items: center; gap: 8px; font-size: 14px; }

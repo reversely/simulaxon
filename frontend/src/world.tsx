@@ -8,6 +8,7 @@ type Asset = { label: string; image?: string | null; source?: string }
 const VIEW_NAMES: Record<string, string> = { left: 'Left', right: 'Right', ventral: 'Underside', posterior: 'Back' }
 const STAGE_TEXT: Record<string, string> = { waiting: 'Waiting for the GPU', underway: 'Already being made ahead', render: 'Isaac is rendering', rendered: 'TRIBE is reading the clip, about a minute', drawing: 'Drawing the brain map', done: '', failed: 'Failed' }
 
+const TILE_TEXT: Record<string, string> = { waiting: 'Queued', underway: 'Queued', render: 'Isaac', rendered: 'TRIBE', drawing: 'Map' }   // on the tile itself: few words
 const fmtVal = (v: any, unit?: string) => typeof v === 'number' ? `${+v.toFixed(2)}${unit === 'deg' ? '°' : unit ? ' ' + unit : ''}` : String(v).replace(/_/g, ' ')
 const same = (a: Record<string, any>, b: Record<string, any>) => Object.keys(b).every(k => JSON.stringify(a[k]) === JSON.stringify(b[k]))
 
@@ -25,6 +26,11 @@ export function WorldPanel({ pid, world, script, params, previews, assets, event
   const latest = current ?? nearest
   const differs = nearest ? params.filter(p => JSON.stringify(nearest.values[p.data.name]) !== JSON.stringify(p.data.value)).map(p => `${(p.data.label ?? p.data.name).toLowerCase()} ${fmtVal(nearest.values[p.data.name], p.data.unit)}`) : []
   const working = event && !['done', 'failed'].includes(event.stage)
+  const since = useRef<number | null>(null); const [, tick] = useState(0)   // how long this render has been under way, shown where it will appear
+  if (working && since.current == null) since.current = Date.now(); if (!working) since.current = null
+  useEffect(() => { if (!working) return; const i = setInterval(() => tick(n => n + 1), 1000); return () => clearInterval(i) }, [working])
+  const elapsed = since.current ? Math.round((Date.now() - since.current) / 1000) : 0
+  const making = working ? `${STAGE_TEXT[event!.stage] ?? 'Working'}, ${elapsed} s` : null
   const [view, setView] = useState('ventral'); const [showScript, setShowScript] = useState(false); const [add, setAdd] = useState(false)
   const [err, setErr] = useState<string | null>(null)
   const stepActor = Object.fromEntries(steps.map(s => [s.step_id, s.actor]))
@@ -46,10 +52,11 @@ export function WorldPanel({ pid, world, script, params, previews, assets, event
     </div>
     {showScript && <pre className="codebox" style={{ maxHeight: 260 }}>{script}</pre>}
     <div className="twoup">
-      <div className="stage">{imgSrc ? <img src={imgSrc} alt="The world as rendered by Isaac Sim" /> : <div className="empty">No render yet. Change a control to render it.</div>}
-        {latest && !current && <div className="stagenote">Nearest render, {differs.join(' and ')}{working ? '. The exact values are rendering' : ''}</div>}
+      <div className={`stage ${working && !current ? 'stale' : ''}`}>{imgSrc ? <img src={imgSrc} alt="The world as rendered by Isaac Sim" /> : <div className="empty">No render yet. Change a control to render it.</div>}
+        {working && !current && <div className="stageload" role="status"><span className="spin" /><b>Making the new render</b><span>{making}</span></div>}
+        {latest && !current && <div className="stagenote">{working ? 'Showing the nearest render' : 'Nearest render'}, {differs.join(' and ')}</div>}
         {runImage && !working && <div className="stagenote">Render from the run. Change a control to render it live</div>}</div>
-      <div className="brainside">
+      <div className={`brainside ${working && !current ? 'stale' : ''}`}>
         {latest ? <>
           <img src={`/files/${latest.map.views[view]}`} alt={`TRIBE prediction, ${VIEW_NAMES[view]}`} />
           <div className="seg" role="group" aria-label="Brain view">{Object.keys(VIEW_NAMES).map(v => <button key={v} className={view === v ? 'on' : ''} onClick={() => setView(v)}>{VIEW_NAMES[v]}</button>)}</div>
@@ -58,26 +65,29 @@ export function WorldPanel({ pid, world, script, params, previews, assets, event
         </> : <div className="empty">TRIBE reads the world here once a control changes</div>}
       </div>
     </div>
+    {working && <div className="ctlwait" role="status"><span className="spin" /> Controls wait for this render: {making}</div>}
     <div className="controls">
-      {[...params].sort((a, b) => ((a.data as any).line ?? 0) - ((b.data as any).line ?? 0)).map(p => <Control key={p.id} p={p} assets={assets} byAgent={p.version > 1 && stepActor[p.step_id] === 'agent'} onSet={v => update(p, v)} disabled={!!working} />)}
+      {[...params].sort((a, b) => ((a.data as any).line ?? 0) - ((b.data as any).line ?? 0)).map(p => <Control key={p.id} p={p} assets={assets} byAgent={p.version > 1 && stepActor[p.step_id] === 'agent'} onSet={v => update(p, v)} disabled={!!working}
+        pending={working && !current && JSON.stringify(latest?.values?.[p.data.name]) !== JSON.stringify(p.data.value) ? TILE_TEXT[event!.stage] ?? 'Working' : null} />)}
     </div>
   </div>
 }
 
-function Control({ p, assets, byAgent, onSet, disabled }: { p: Row<Param>; assets: Record<string, Asset>; byAgent: boolean; onSet: (v: any) => void; disabled: boolean }) {
+function Control({ p, assets, byAgent, onSet, disabled, pending }: { p: Row<Param>; assets: Record<string, Asset>; byAgent: boolean; onSet: (v: any) => void; disabled: boolean; pending: string | null }) {
+  const load = pending ? <span className="tileload" role="status" aria-label={`Rendering, ${pending}`}><span className="spin" />{pending}</span> : null
   const d = p.data; const [v, setV] = useState(d.value); useEffect(() => setV(d.value), [d.value])
   const head = <div className="ctlhead"><span>{d.label ?? d.name}</span><span className="chip">{ROLE_NAMES[d.role] ?? d.role}</span>{byAgent && <span className="chip agent">Changed by the agent</span>}</div>
   if (d.type === 'number' || d.type === 'angle') {
     const [lo, hi] = d.range ?? [0, 1]; const step = +((hi - lo) / 20).toFixed(6); const min = +(lo + (((d.value - lo) % step) + step) % step).toFixed(6)   /* twenty steps on a grid through the current value, matching the values rendered ahead */
     return <label className="ctl">{head}<div className="bar"><input type="range" min={min} max={hi} step={step} value={v} disabled={disabled} aria-label={d.label ?? d.name}
       onChange={e => setV(parseFloat(e.target.value))} onPointerUp={() => v !== d.value && onSet(+(min + Math.round((v - min) / step) * step).toFixed(6))} onKeyUp={() => v !== d.value && onSet(+(min + Math.round((v - min) / step) * step).toFixed(6))} />
-      <span className="num">{Number(v).toFixed(2).replace(/\.?0+$/, '')} {d.unit === 'deg' ? '°' : d.unit ?? ''}</span></div></label>
+      <span className="num">{Number(v).toFixed(2).replace(/\.?0+$/, '')} {d.unit === 'deg' ? '°' : d.unit ?? ''}</span>{load}</div></label>
   }
-  if (d.type === 'choice') return <div className="ctl">{head}<div className="seg" role="group" aria-label={d.label ?? d.name}>{d.options!.map(o => <button key={o} disabled={disabled} className={o === d.value ? 'on' : ''} onClick={() => o !== d.value && onSet(o)}>{o.replace(/_/g, ' ')}</button>)}</div></div>
+  if (d.type === 'choice') return <div className="ctl">{head}<div className="seg" role="group" aria-label={d.label ?? d.name}>{d.options!.map(o => <button key={o} disabled={disabled} className={o === d.value ? `on ${pending ? 'pending' : ''}` : ''} onClick={() => o !== d.value && onSet(o)}>{o.replace(/_/g, ' ')}{o === d.value && load}</button>)}</div></div>
   if (d.type === 'asset') {
     const opts = d.options ?? []; const pictured = opts.filter(o => assets[o]?.image).length > opts.length / 2
-    if (pictured) return <div className="ctl wide">{head}<div className="thumbs" role="listbox" aria-label={d.label ?? d.name}>{opts.map(o => <button key={o} ref={el => { if (el && o === d.value && el.parentElement) { const box = el.parentElement; box.scrollLeft = el.offsetLeft - box.offsetLeft - box.clientWidth / 2 + el.clientWidth / 2 } }}   /* scroll the strip sideways only, never the page */ role="option" aria-selected={o === d.value} disabled={disabled} className={o === d.value ? 'on' : ''} onClick={() => o !== d.value && onSet(o)} title={assets[o]?.label ?? o}>
-      {assets[o]?.image ? <img src={assets[o].image!} alt="" loading="lazy" /> : <span className="noimg">{assets[o]?.label ?? o}</span>}<span>{assets[o]?.label ?? o}</span></button>)}</div></div>
+    if (pictured) return <div className="ctl wide">{head}<div className="thumbs" role="listbox" aria-label={d.label ?? d.name}>{opts.map(o => <button key={o} ref={el => { if (el && o === d.value && el.parentElement) { const box = el.parentElement; box.scrollLeft = el.offsetLeft - box.offsetLeft - box.clientWidth / 2 + el.clientWidth / 2 } }}   /* scroll the strip sideways only, never the page */ role="option" aria-selected={o === d.value} aria-busy={o === d.value && !!pending} disabled={disabled} className={o === d.value ? `on ${pending ? 'pending' : ''}` : ''} onClick={() => o !== d.value && onSet(o)} title={assets[o]?.label ?? o}>
+      {assets[o]?.image ? <img src={assets[o].image!} alt="" loading="lazy" /> : <span className="noimg">{assets[o]?.label ?? o}</span>}<span>{assets[o]?.label ?? o}</span>{o === d.value && load}</button>)}</div></div>
     return <label className="ctl">{head}<select value={d.value} disabled={disabled} onChange={e => onSet(e.target.value)}>{opts.map(o => <option key={o} value={o}>{o === 'none' ? 'None' : assets[o]?.label ?? o}</option>)}</select></label>
   }
   return <div className="ctl">{head}<span className="ink2">{String(d.value)}</span></div>
