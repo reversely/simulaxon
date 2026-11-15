@@ -22,7 +22,8 @@ on_job = lambda msg: None   # set by the app: every stimulus's stages go to the 
 
 
 CONNECTORS = [('isaac_counter', 'renderer', 'isaac-6.2.0-counter'), ('isaac_stage', 'renderer', 'isaac-6.2.0-stage'), ('isaac_body', 'renderer', 'isaac-6.2.0-body'),
-              ('tribe_v2', 'neural model', 'tribev2-bf16'), ('cosmos_sim_transfer', 'generator', 'cosmos3-nano-sim-transfer-c3a2e37')]
+              ('tribe_v2', 'neural model', 'tribev2-bf16'), ('cosmos_sim_transfer', 'generator', 'cosmos3-nano-sim-transfer-c3a2e37'),
+              ('vjepa_embed', 'neural model', 'vjepa2-vitg-fpc64-256')]
 
 
 def remote() -> bool:

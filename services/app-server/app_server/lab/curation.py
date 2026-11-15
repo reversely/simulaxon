@@ -175,11 +175,20 @@ def describe(st: dict) -> str:
     return str(k)
 
 
-def apply(items: list[dict], stages: list[dict]) -> tuple[list[dict], list[dict]]:
-    """The items after every stage, and the count after each stage."""
+def apply(items: list[dict], stages: list[dict], emb: tuple[list[str], 'object'] | None = None) -> tuple[list[dict], list[dict]]:
+    """The items after every stage, and the count after each stage. emb: (item ids, unit vectors) for similar_to."""
     trail = [{'stage': 'dataset', 'text': 'all items', 'count': len(items)}]
     for st in stages or []:
         k = st.get('stage')
+        if k == 'similar_to':   # most like one item, by V-JEPA 2 vectors (embedding_create); items without a vector go last
+            if emb is None: raise ValueError('no embeddings for this dataset yet: run embedding_create first')
+            import numpy as np
+            row = {i: n for n, i in enumerate(emb[0])}
+            if st['id'] not in row: raise ValueError(f"item {st['id']} has no embedding")
+            sims = np.asarray(emb[1], np.float32) @ np.asarray(emb[1][row[st['id']]], np.float32)
+            have = [{**s, 'fields': {**s['fields'], 'similarity': round(float(sims[row[s['id']]]), 4)}} for s in items if s['id'] in row]
+            items = sorted(have, key=lambda s: -s['fields']['similarity']) + [s for s in items if s['id'] not in row]
+            trail.append({'stage': k, 'text': f"most like {st.get('label') or st['id']}", 'count': len(items)}); continue
         if k == 'match': items = [s for s in items if test(get(s, st['path']), st['op'], st['value'])]
         elif k == 'exists': items = [s for s in items if (get(s, st['path']) not in (None, [])) == st.get('present', True)]
         elif k == 'tagged': items = [s for s in items if (st['tag'] in (s.get('tags') or [])) == st.get('present', True)]

@@ -80,7 +80,7 @@ export async function upload(url: string, f: File): Promise<Response> {
 /** Every tool a step or a chat can record, in plain words (#21). One table for the History menu and the chat's steps; a
  * tool missing here fails services/app-server/tests/test_tool_names.py rather than showing its code name. */
 export const TOOL_NAMES: Record<string, string> = {
-  analysis_create: 'Added an analysis', dataset_create: 'Made a dataset', dataset_delete: 'Removed a dataset', item_create: 'Indexed a dataset', item_query: 'Looked through a dataset',
+  analysis_create: 'Added an analysis', dataset_create: 'Made a dataset', dataset_delete: 'Removed a dataset', embedding_create: 'Computed similarity vectors', item_create: 'Indexed a dataset', item_query: 'Looked through a dataset',
   item_update: 'Tagged samples', view_create: 'Saved a view', view_list: 'Listed the saved views', analysis_list: 'Read the analyses', analysis_run: 'Ran an analysis', asset_create: 'Added an asset', asset_list: 'Listed the assets',
   assumption_list: 'Read the assumptions', course_get: 'Read a time course', dataset_fetch: 'Fetched data', dataset_get: 'Looked at a dataset', dataset_list: 'Checked the data here',
   demo_create: 'Wrote a demo', demo_get: 'Read a demo', demo_list: 'Listed the demos', demo_run: 'Played a demo', demo_update: 'Changed a demo', display_get: 'Read the display',

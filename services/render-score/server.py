@@ -33,6 +33,7 @@ CONNECTORS = [   # the lab's connector names, so its previews and runs need no t
     Connector('isaac_body', 'renderer', ISAAC_PY, str(HERE / 'isaac/isaac_body_worker.py'), 'isaac-6.2.0-body', env=ISAAC_ENV),
     Connector('tribe_v2', 'neural model', str(ENVS / 'tribe/bin/python'), str(HERE / 'tribe/tribe_worker.py'), 'tribev2-bf16'),
     Connector('cosmos_sim_transfer', 'generator', str(ENVS / 'cosmos/bin/python'), str(HERE / 'cosmos/cosmos_worker.py'), 'cosmos3-nano-sim-transfer-c3a2e37'),
+    Connector('vjepa_embed', 'neural model', str(ENVS / 'tribe/bin/python'), str(HERE / 'tribe/embed_worker.py'), 'vjepa2-vitg-fpc64-256'),   # dataset similarity (#22)
 ]
 Q = Queue(CONNECTORS)
 

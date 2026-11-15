@@ -406,7 +406,7 @@ def register(tools, broadcast=lambda m: None):
             items = by.get(d.get('id'), []); media: dict = {}
             for x in items: media[x.get('media_type')] = media.get(x.get('media_type'), 0) + 1
             out.append({**d, 'samples': len(items), 'fields': len(curation.schema([{'fields': x.get('fields') or {}, 'tags': x.get('tags')} for x in items])) if items else 0,
-                        'media': media, 'indexed': bool(items), 'projects': uses.get(d.get('id'), [])})
+                        'media': media, 'indexed': bool(items), 'embedded': _emb_file(d.get('id')).exists(), 'projects': uses.get(d.get('id'), [])})
         return out
 
     @tools.tool('file', 'list', writes_project=False)
@@ -482,6 +482,41 @@ def register(tools, broadcast=lambda m: None):
         return {**{k: x for k, x in c.items() if k != 'view_id'}, 'dataset_id': v.data['dataset_id'], 'files': [_glob.escape(x['path']) for x in items],
                 'view': {'id': v.id, 'name': v.data['name'], 'items': len(items)}}
 
+    def _emb_file(dataset_id):
+        return FILES / 'embeddings' / f'{dataset_id}.npz'
+
+    def _emb(dataset_id):
+        import numpy as np
+        f = _emb_file(dataset_id)
+        if not f.exists(): return None
+        z = np.load(f); return [str(x) for x in z['ids']], z['vectors']
+
+    @tools.tool('embedding', 'create', writes_project=False)
+    def embedding_create(actor, dataset_id):
+        """Compute a V-JEPA 2 vector (the encoder TRIBE v2 reads video with) for every image and video item of a dataset, so
+        item_query can sort it by similarity to one item ({stage: similar_to, id}). Runs in the background on the worker
+        server, 32 items a job; progress on the live feed. About 0.3 s an item."""
+        import threading as _th, numpy as np
+        from . import preview
+        items = [x for x in _items(dataset_id) if x.get('media_type') in ('image', 'video')]
+        if not items: raise ValueError(f'no image or video items in {dataset_id}; index it with item_create first')
+        root = dsets.dataset_dir(dataset_id); out = _emb_file(dataset_id); out.parent.mkdir(parents=True, exist_ok=True)
+        def go():
+            try:
+                ids, parts = [], []
+                for k in range(0, len(items), 32):
+                    chunk = items[k:k + 32]; part = out.parent / f'{dataset_id}.part{k // 32}.npy'
+                    j = preview.queue().submit('vjepa_embed', {'paths': [str(root / x['path']) for x in chunk], 'out': str(part)}, {}, lane='batch'); j.done.wait()
+                    if j.status != 'done': raise RuntimeError(j.error or 'embedding failed')
+                    parts.append(np.load(part)); ids += [x['id'] for x in chunk]; part.unlink(missing_ok=True)
+                    broadcast({'dataset': dataset_id, 'embedding': len(ids), 'total': len(items)})
+                np.savez(out, ids=np.array(ids), vectors=np.concatenate(parts))
+                broadcast({'dataset': dataset_id, 'embedding': len(ids), 'total': len(items), 'embedded': True})
+            except Exception as e:
+                import traceback; traceback.print_exc(); broadcast({'dataset': dataset_id, 'error': str(e)[-300:]})
+        _th.Thread(target=go, daemon=True).start()
+        return {'queued': True, 'items': len(items)}
+
     @tools.tool('dataset', 'create', writes_project=False)
     def dataset_create(actor, title):
         """A new, empty dataset with this title, for files a person adds (upload to /datasets/upload?dataset_id=...).
@@ -550,7 +585,7 @@ def register(tools, broadcast=lambda m: None):
         st = (s.get('view', view_id).data['stages'] if view_id else []) + list(stages or [])
         items = _items(dataset_id)
         if not items: return {'total': 0, 'items': [], 'trail': [], 'schema': [], 'facets': {}, 'indexed': False}
-        out, trail = curation.apply(items, st); sch = curation.schema(items)
+        out, trail = curation.apply(items, st, _emb(dataset_id) if any(x.get('stage') == 'similar_to' for x in st) else None); sch = curation.schema(items)
         return {'total': len(out), 'items': [curation.public(x) for x in out[offset:offset + limit]], 'trail': trail, 'schema': sch,
                 'facets': curation.facets(out, sch) if facets else {}, 'indexed': True}
 

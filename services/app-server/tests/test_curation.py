@@ -53,6 +53,14 @@ class Curation(unittest.TestCase):
         self.assertEqual(self.t.call('item_query', 'person', dataset_id='toy', view_id=v['view_id'])['total'], 3)
         self.assertEqual(self.t.call('dataset_list', 'person')[0]['samples'], 7)
 
+    def test_similar_to_sorts_by_vector(self):
+        import numpy as np
+        items = [{'id': i, 'fields': {}} for i in ('a', 'b', 'c', 'd')]
+        v = np.array([[1, 0], [0.6, 0.8], [0.99, 0.141], [0, 1]], np.float32)
+        out, trail = curation.apply(items, [{'stage': 'similar_to', 'id': 'a', 'label': 'a.png'}], (['a', 'b', 'c', 'd'], v))
+        self.assertEqual([x['id'] for x in out], ['a', 'c', 'b', 'd']); self.assertEqual(trail[-1]['text'], 'most like a.png')
+        with self.assertRaises(ValueError): curation.apply(items, [{'stage': 'similar_to', 'id': 'a'}], None)
+
 
 if __name__ == '__main__':
     unittest.main()

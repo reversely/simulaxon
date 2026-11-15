@@ -6,7 +6,7 @@ import { call, uploadWithProgress, type Project, type Row } from './api'
 import { Icon } from './icons'
 
 type DS = { id: string; title?: string; ref?: string; licence?: string | null; fetched_at?: string; files_here?: number; gigabytes?: number
-  samples: number; fields: number; media: Record<string, number>; indexed: boolean; projects: string[]; status?: string }
+  samples: number; fields: number; media: Record<string, number>; indexed: boolean; embedded?: boolean; projects: string[]; status?: string }
 type Item = { id: string; path: string; media_type: string; media: string; thumb?: string | null; fields: Record<string, any>; tags: string[]; sources: Record<string, string> }
 type Facet = { count: number; missing: number; kind: string; min?: number; max?: number; values?: [string, number][]; distinct?: number; hist?: number[] }
 type Query = { total: number; items: Item[]; trail: { stage: string; text: string; count: number }[]; schema: { path: string; type: string; count: number }[]; facets: Record<string, Facet>; indexed: boolean }
@@ -72,9 +72,17 @@ function DatasetView({ id, ds, projects, onBack, onOpenProject, onChanged }: { i
   useEffect(() => { load() }, [id, JSON.stringify(stages), limit])
   useEffect(() => {
     const f = (e: Event) => { const m = (e as CustomEvent).detail; if (m?.dataset !== id) return
-      if (m.error) { setIndexing(null); setErr(`Indexing stopped: ${m.error}`) } else if (m.done) { setIndexing(null); load(); onChanged() } else setIndexing({ indexed: m.indexed, total: m.total }) }
+      if (m.embedding != null) return
+      if (m.error) { setIndexing(null); setEmbedding(null); setErr(`Stopped: ${m.error}`) } else if (m.done) { setIndexing(null); load(); onChanged() } else setIndexing({ indexed: m.indexed, total: m.total }) }
     window.addEventListener('lab-dataset', f); return () => window.removeEventListener('lab-dataset', f)
   }, [id, JSON.stringify(stages)])
+  const [embedding, setEmbedding] = useState<{ done: number; total: number } | null>(null)
+  useEffect(() => {
+    const f = (e: Event) => { const m = (e as CustomEvent).detail; if (m?.dataset !== id || m.embedding == null) return
+      if (m.embedded) { setEmbedding(null); onChanged() } else setEmbedding({ done: m.embedding, total: m.total }) }
+    window.addEventListener('lab-dataset', f); return () => window.removeEventListener('lab-dataset', f)
+  }, [id])
+  const embed = () => { setEmbedding({ done: 0, total: res?.trail[0]?.count ?? 0 }); call('embedding_create', { dataset_id: id }).catch(e => { setEmbedding(null); setErr(String(e?.message ?? e)) }) }
   const index = () => { setIndexing({ indexed: 0, total: ds?.files_here ?? 0 }); call('item_create', { dataset_id: id }).catch(e => { setIndexing(null); setErr(String(e?.message ?? e)) }) }
   const users = projects.filter(p => (ds?.projects ?? []).includes(p.id))
   const fields = (res?.schema ?? []).filter(f => !HIDDEN.has(f.path))
@@ -87,9 +95,11 @@ function DatasetView({ id, ds, projects, onBack, onOpenProject, onChanged }: { i
         <button role="tab" aria-selected={tab === 'samples'} className={tab === 'samples' ? 'on' : ''} onClick={() => setTab('samples')}>Samples{res?.indexed ? ` (${n(res.trail[0]?.count ?? 0)})` : ''}</button>
         <button role="tab" aria-selected={tab === 'projects'} className={tab === 'projects' ? 'on' : ''} onClick={() => setTab('projects')}>Projects ({users.length})</button>
       </div>
-      <button className="btn primary" style={{ marginLeft: 'auto' }} onClick={() => setImporting(true)}><Icon name="upload" size={16} />Import</button>
+      {res?.indexed && !ds?.embedded && !embedding && <button className="btn" style={{ marginLeft: 'auto' }} onClick={embed}>Compute similarity</button>}
+      <button className="btn primary" style={res?.indexed && !ds?.embedded && !embedding ? undefined : { marginLeft: 'auto' }} onClick={() => setImporting(true)}><Icon name="upload" size={16} />Import</button>
     </div>
     {err && <div className="dsnote">{err}</div>}
+    {embedding && <div className="dsnote" role="status"><span className="spin" /> Computing V-JEPA 2 vectors for similarity: {n(embedding.done)} of {n(embedding.total)} samples.</div>}
     {indexing && <div className="dsnote" role="status"><span className="spin" /> Indexing {indexing.total ? `${n(indexing.indexed)} of ${n(indexing.total)} files` : 'the files'}: fields and filters fill in when it finishes.</div>}
     {tab === 'projects' ? <div className="tablewrap"><table className="data dstable"><thead><tr><th>Project</th><th>Status</th></tr></thead>
       <tbody>{users.length ? users.map(p => <tr key={p.id} onClick={() => onOpenProject(p.id)} style={{ cursor: 'pointer' }}><td>{p.data.title}</td><td>{p.data.status}</td></tr>)
@@ -137,7 +147,7 @@ function DatasetView({ id, ds, projects, onBack, onOpenProject, onChanged }: { i
           {res.items.length < res.total && <div className="bar" style={{ justifyContent: 'center' }}><button className="btn" onClick={() => setLimit(l => l + 120)}>Show more ({n(res.total - res.items.length)} left)</button></div>}
         </section>
       </div>}
-    {sample && <SampleView item={sample} onClose={() => setSample(null)} />}
+    {sample && <SampleView item={sample} onClose={() => setSample(null)} onSimilar={ds?.embedded ? () => { setLimit(60); setStages([{ stage: 'similar_to', id: sample.id, label: sample.path.split('/').pop() }]); setSample(null) } : undefined} />}
     {importing && <ImportPanel id={id} title={ds?.title || id} onClose={() => setImporting(false)} onDone={() => { setImporting(false); index(); onChanged() }} />}
   </div>
 }
@@ -152,10 +162,12 @@ function Range({ f, fc, onApply }: { f: string; fc: Facet; onApply: (lo: number,
   </div>
 }
 
-function SampleView({ item, onClose }: { item: Item; onClose: () => void }) {
+function SampleView({ item, onClose, onSimilar }: { item: Item; onClose: () => void; onSimilar?: () => void }) {
   useEffect(() => { const esc = (e: KeyboardEvent) => { if (e.key === 'Escape') { e.stopPropagation(); onClose() } }; document.addEventListener('keydown', esc); return () => document.removeEventListener('keydown', esc) }, [onClose])
   return <div className="overlay" onClick={onClose}><div className="sheet dssample" onClick={e => e.stopPropagation()} role="dialog" aria-label={item.path}>
-    <div className="bar"><h2 className="section-title" style={{ margin: 0 }}>{item.path}</h2><button className="iconbtn" style={{ marginLeft: 'auto' }} aria-label="Close" onClick={onClose}><Icon name="close" size={18} /></button></div>
+    <div className="bar"><h2 className="section-title" style={{ margin: 0 }}>{item.path}</h2>
+      {onSimilar && <button className="btn" style={{ marginLeft: 'auto' }} onClick={onSimilar}>Show the most similar</button>}
+      <button className="iconbtn" style={onSimilar ? undefined : { marginLeft: 'auto' }} aria-label="Close" onClick={onClose}><Icon name="close" size={18} /></button></div>
     <div className="dssamplebody">
       <div className="dsmedia">{item.media_type === 'video' ? <video src={item.media} controls autoPlay muted playsInline /> : item.media_type === 'image' ? <img src={item.media} alt={item.path} />
         : item.media_type === 'audio' ? <audio src={item.media} controls /> : <span className="ink2">{item.media_type}</span>}</div>
