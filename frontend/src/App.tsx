@@ -681,6 +681,7 @@ function SceneCard({ scene, selected, onPick }: { scene: { room: string; objects
  * steps collapse into one row. Undo and the tool call sit behind each row's menu. Closed until asked for. */
 function History({ pid, agent, tick, onUndo, onClose }: { pid: string; agent: string; tick: string; onUndo: (id: string) => Promise<void>; onClose: () => void }) {
   const [steps, setSteps] = useState<Step[] | null>(null); const [menu, setMenu] = useState<string | null>(null); const [shown, setShown] = useState<string | null>(null)
+  const [failed, setFailed] = useState<{ id: string; why: string } | null>(null)   // an undo the store refused, said under its row
   const ref = useRef<HTMLDivElement>(null)
   const load = () => call<Step[]>('step_list', { project_id: pid }).then(setSteps).catch(() => setSteps([]))
   useEffect(() => { load() }, [pid, tick])
@@ -709,9 +710,10 @@ function History({ pid, agent, tick, onUndo, onClose }: { pid: string; agent: st
             <span className="ink2 small">{r.who}, <span title={new Date(Number(s.ts) * 1000).toLocaleString()}>{ago(s.ts)}</span></span>
           </div>
           {menu === s.step_id && <div className="rowmenu" role="menu">
-            {canUndo && <button role="menuitem" onClick={async () => { setMenu(null); await onUndo(s.step_id); load() }}><Icon name="undo" size={15} />Undo</button>}
+            {canUndo && <button role="menuitem" onClick={async () => { setMenu(null); setFailed(null); try { await onUndo(s.step_id) } catch (e: any) { setFailed({ id: s.step_id, why: String(e?.message ?? e) }) } load() }}><Icon name="undo" size={15} />Undo</button>}
             <button role="menuitem" onClick={() => { setShown(o => o === s.step_id ? null : s.step_id); setMenu(null) }}><Icon name="code" size={15} />{shown === s.step_id ? 'Hide call' : 'Show call'}</button>
           </div>}
+          {failed?.id === s.step_id && <div className="dsnote" role="alert">Not undone: {failed.why}</div>}
           {shown === s.step_id && <pre className="codebox">{`${s.tool}(${call_(s)})`}</pre>}
         </li> })}</ul>}
   </div>

@@ -3,7 +3,8 @@ export type Row<T = any> = { kind: string; id: string; version: number; data: T;
 export async function call<T = any>(tool: string, args: Record<string, unknown> = {}, actor = 'person'): Promise<T> {
   const r = await fetch(`/tools/${tool}`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Actor': actor }, body: JSON.stringify(args) })
   const j = await r.json()
-  if (!r.ok) throw new Error(typeof j.detail === 'string' ? j.detail : JSON.stringify(j.detail))
+  const d = j.detail; const said = d && typeof d === 'object' && Object.values(d).every(v => typeof v === 'string') ? Object.values(d).join('; ') : null   // {conflict: '...'}: the message itself
+  if (!r.ok) throw new Error(typeof d === 'string' ? d : said ?? JSON.stringify(d))
   return j.result as T
 }
 
@@ -115,6 +116,10 @@ export function describeStep(s: Step, byId: Record<string, Step> = {}): string {
     if (a.status === 'Done') return a.counts?.clips ? `Finished a run of ${a.counts.clips} trials` : 'Finished a run'
     if (a.status === 'Draft') return 'Returned the project to draft'
     if (a.pairs || a.labels) return 'Changed the pairs'
+  }
+  if (s.tool === 'parameter_update' && a.parameter_id && 'value' in a) {   // name the control and its new value, so two changes never read as one
+    const v = typeof a.value === 'string' ? a.value.replace(/_/g, ' ') : typeof a.value === 'number' ? String(a.value) : JSON.stringify(a.value)
+    return `Set ${String(a.parameter_id).split('.').pop()!.replace(/_/g, ' ')} to ${v}`
   }
   return toolName(s.tool)
 }

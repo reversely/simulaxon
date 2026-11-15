@@ -129,20 +129,26 @@ class Store:
 
         A step can write the same row more than once (create a project, then update it), so each row's writes collapse
         to its version before the step's first write and after its last. Every row is checked before any is written:
-        if one changed after the step, nothing is undone."""
+        if one changed after the step, nothing is undone. A row is unchanged since the step when it is at the step's
+        version, or when later steps left it as the step did (a later change that was itself undone), so changes undo
+        one by one, newest first."""
         touched = self.db.execute('select kind, id, min(before_version), max(after_version) from touched where step_id=? group by kind, id', [step_id]).fetchall()
         if not touched: raise Missing(f'step {step_id} changed nothing')
+        rows = []
         for kind, id, before, after in touched:
             latest = self.db.execute('select max(version) from rows where kind=? and id=?', [kind, id]).fetchone()[0]
             if latest != after:
-                raise Conflict(f'{kind} {id} changed after step {step_id}; undo the later steps first')
+                now, then = self.version_of(kind, id, latest), self.version_of(kind, id, after)
+                if not (now and then and now.data == then.data and bool(now.deleted) == bool(then.deleted)):
+                    raise Conflict(f'{kind} {id} changed after step {step_id}; undo the later steps first')
+            rows.append((kind, id, before, latest))
         u = self.begin(actor, 'step_undo', {'step_id': step_id}, undoes=step_id)
         try:
-            for kind, id, before, after in touched:
+            for kind, id, before, latest in rows:
                 if before == 0:
-                    cur = self.get(kind, id); self._write(u, kind, id, cur.data if cur else {}, after, deleted=True)
+                    cur = self.get(kind, id); self._write(u, kind, id, cur.data if cur else {}, latest, deleted=True)
                 else:
-                    old = self.version_of(kind, id, before); self._write(u, kind, id, old.data, after, deleted=old.deleted)
+                    old = self.version_of(kind, id, before); self._write(u, kind, id, old.data, latest, deleted=old.deleted)
         except Exception:
             self.discard(u); raise
         return u

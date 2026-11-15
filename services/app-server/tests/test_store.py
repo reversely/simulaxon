@@ -30,6 +30,21 @@ class Undo(unittest.TestCase):
         self.assertEqual(len(self.s.steps()), steps_before)           # no undo step left behind
 
 
+    def test_changes_undo_one_by_one_newest_first(self):
+        st = self.s.begin('person', 'make', {}); a = self.s.create(st, 'parameter', {'value': 'vase'})
+        first = self.s.begin('person', 'set', {}); self.s.update(first, 'parameter', a.id, {'value': 'bust'}, expect_version=1)
+        second = self.s.begin('person', 'set', {}); self.s.update(second, 'parameter', a.id, {'value': 'other vase'}, expect_version=2)
+        self.s.undo(second, 'person'); self.assertEqual(self.s.get('parameter', a.id).data, {'value': 'bust'})
+        self.s.undo(first, 'person'); self.assertEqual(self.s.get('parameter', a.id).data, {'value': 'vase'})
+
+    def test_a_later_change_still_blocks_an_undo(self):
+        st = self.s.begin('person', 'make', {}); a = self.s.create(st, 'parameter', {'value': 'vase'})
+        first = self.s.begin('person', 'set', {}); self.s.update(first, 'parameter', a.id, {'value': 'bust'}, expect_version=1)
+        second = self.s.begin('person', 'set', {}); self.s.update(second, 'parameter', a.id, {'value': 'other vase'}, expect_version=2)
+        with self.assertRaises(Conflict):
+            self.s.undo(first, 'person')
+        self.assertEqual(self.s.get('parameter', a.id).data, {'value': 'other vase'})
+
 class FailedStep(unittest.TestCase):
     def test_tool_that_raises_leaves_nothing(self):
         t = Tools(Store())
