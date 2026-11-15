@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Simulaxon Demo</title>
+<!-- A plain scroll page: open index.html, or serve this folder. Copy follows docs/pitch.md; facts are checked in
+     docs/research/pitch-claims.md and docs/film.md. Dashed frames are places for live recordings still to be taken. -->
+<link rel="stylesheet" href="./assets/demo.css">
+<script defer src="./assets/demo.js"></script>
+</head>
+<body>
+
+<!-- Hero -->
+<header class="section hero">
+  <span class="brand">Simulaxon</span>
+  <div class="two">
+    <div class="lines">
+      <h1>Prototype neuroscience experiments in hours.</h1>
+      <p class="typed"><span data-typed="Simulaxon's AI agents turn a hypothesis into scenes they can generate, predict how the brain would respond, and use those predictions to decide what to test next."></span><span class="caret" aria-hidden="true"></span></p>
+    </div>
+    <figure class="card"><img src="assets/card-title.gif" alt="The title with brain area names drifting round it"><figcaption>FFC, PH and MT, in green: the brain areas the experiments read.</figcaption></figure>
+  </div>
+  <p class="scroll-cue">Scroll</p>
+</header>
+
+<!-- Cost -->
+<section class="section">
+  <div class="two">
+    <div class="lines reveal">
+      <p class="cut">How does the brain make sense of an event as it unfolds?</p>
+      <p>To find out what drives a response, researchers need to vary what people see, hear, or know going into a scene.</p>
+      <p>Testing those comparisons with people gets expensive fast. A 20-person fMRI study with one hour per participant can cost nearly $14,000 in scan time alone.</p>
+    </div>
+    <figure class="card reveal"><img src="assets/card-cost.gif" alt="A slider drags participants from 1 to 20 while the scan-time total rolls from $710 to $14,200"><figcaption>$710 an hour, Harvard Center for Brain Science, academic external, FY27: 20 hours come to $14,200.</figcaption></figure>
+  </div>
+</section>
+
+<!-- Develop the experiment first: the picture follows the text -->
+<section class="section">
+  <div class="stations">
+    <div class="text">
+      <div class="station"><p>Simulaxon gives researchers a way to develop the experiment before they bring in participants.</p></div>
+      <div class="station"><p>The agent decides what to vary and what to hold fixed, generates the clips, and compares the predicted brain responses.</p></div>
+      <div class="station"><p>It can then run a follow-up to see whether a pattern persists when another detail changes.</p></div>
+    </div>
+    <div class="pin">
+      <div>
+        <div class="frames">
+          <div class="slot"><b>A hypothesis typed to the agent becomes a project</b><span>Live GIF: Nemotron plans what to vary and what to hold fixed; the chat shows its steps</span></div>
+          <div class="slot"><b>One control changes the scene</b><span>Live GIF: busts against height-matched vases; the item switches, the render and its brain map update</span></div>
+          <div class="slot"><b>A follow-up changes one detail</b><span>Live GIF: colour-matched, then shape-matched objects; the same region, two runs side by side</span></div>
+        </div>
+        <div class="ticks" aria-hidden="true"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- The model -->
+<section class="section">
+  <div class="two flip top">
+    <figure class="paper reveal"><img src="assets/papers/tribev2.png" alt="First page of the TRIBE v2 paper"><figcaption>d'Ascoli and others, A foundation model of vision, audition, and language for in-silico neuroscience, arXiv:2605.04326, 2026.</figcaption></figure>
+    <div class="lines reveal">
+      <p>The predictions come from Meta's TRIBE v2, which trained on fMRI recordings of people watching films, television, and short videos of everyday events.</p>
+      <p>In separate evaluations, it recovered known patterns of brain activity for seeing faces versus places and hearing descriptions of emotional versus physical pain.</p>
+      <p class="note">Trained on Friends and four films, 1,102 three-second clips of everyday events, silent video clips, and podcasts (Table 1). Faces and places: § 2.5. Emotional against physical pain: § 2.6.</p>
+    </div>
+  </div>
+  <div class="examples">
+    <article class="excard reveal">
+      <div class="pics"><img class="stim" src="assets/stim-rivalry.jpg" alt="A face from the rivalry stimulus"><figure><img class="brain" src="assets/brain-rivalry.png" alt="Predicted response, face only against house only, from below"><figcaption>Face only against house only</figcaption></figure></div>
+      <div class="body"><h3>Face and house binocular rivalry</h3><span class="src">After Tong and others, 1998 · 24 clips run</span></div>
+    </article>
+    <article class="excard reveal">
+      <div class="pics"><img class="stim" src="assets/stim-flash.jpg" alt="The grey field of the flash stimulus"><figure><img class="brain" src="assets/brain-flash.png" alt="Predicted response, flash against grey, from behind"><figcaption>Flash against grey</figcaption></figure></div>
+      <div class="body"><h3>Periodic full-field flash</h3><span class="src">After Logothetis and others, 2001 · 2 clips run</span></div>
+    </article>
+    <article class="excard reveal">
+      <div class="pics"><img class="stim" src="assets/stim-faces.jpg" alt="A face from the localizer"><figure><img class="brain" src="assets/brain-faces.png" alt="Predicted response, faces against objects, from below"><figcaption>Faces against objects</figcaption></figure></div>
+      <div class="body"><h3>Face versus object selectivity</h3><span class="src">After Kanwisher and others, 1997 · 48 clips run</span></div>
+    </article>
+  </div>
+  <p class="note" style="margin-top:18px">Each card is a run in the app: the stimulus beside TRIBE v2's predicted response, red higher and blue lower.</p>
+</section>
+
+<!-- Fitting to measured fMRI: the one ivory block, the benchmark set apart from live use -->
+<section class="block">
+  <div class="inner">
+    <div class="two">
+      <div class="lines reveal">
+        <h2>Fitting TRIBE v2 to measured fMRI</h2>
+        <p>TRIBE v2 predicts an average viewer it has never met. Given people's measured fMRI, one click fits an adapter: a map from TRIBE v2's prediction for each brain area to the responses those people had.</p>
+      </div>
+      <figure class="card reveal"><img src="assets/card-adapter.gif" alt="Fit an adapter is clicked; the adapter's bar rolls to 0.407 beside TRIBE v2's 0.257 under a ceiling of 0.675"><figcaption>The Human Action Dataset: 30 people, 3,600 clips.</figcaption></figure>
+    </div>
+    <div class="two top">
+      <div class="lines reveal">
+        <h3>Benchmark</h3>
+        <p class="note">Median r over 212 reliable brain areas, on action categories the fit never saw. The line on each bar is the noise ceiling, 0.675: the adapter moves from 38% to 60% of what the data allow, and is higher in 179 of the 212 areas. Same people, scanner and kind of stimulus it was fitted on; it says nothing yet about new stimuli.</p>
+      </div>
+      <div class="bars" role="img" aria-label="Median r: TRIBE v2 as released 0.257, adapter 0.407, labels shuffled −0.011, noise ceiling 0.675">
+        <div class="bar"><span>TRIBE v2 as released</span><span class="lane"><i data-w="36.7%" style="background:var(--grey)"></i><span class="ceil"></span></span><span class="big num">0.257</span></div>
+        <div class="bar"><span><b>Adapter</b></span><span class="lane"><i data-w="58.1%" style="background:var(--a)"></i><span class="ceil"></span></span><span class="big num"><b>0.407</b></span></div>
+        <div class="bar"><span>Labels shuffled</span><span class="lane"><i data-w="0%"></i><span class="ceil"></span></span><span class="big num">−0.011</span></div>
+      </div>
+    </div>
+    <div class="two top">
+      <div class="live reveal"><b>Live: new stimuli, no measured fMRI</b><span class="note">An experiment read through the adapter. Its results name the adapter, show no r, and say when the stimuli lie outside what it was fitted on. To build: #28 item 3, #37.</span></div>
+      <div class="live reveal"><b>To come</b><span class="note">Known results with and without the adapter (faces against objects); transfer to the Natural Object Dataset's images. #37.</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- Runs on CIQ: the pipeline, moving sideways -->
+<section class="traverse">
+  <div class="sticky">
+    <h2>Runs on CIQ</h2>
+    <div class="strip">
+      <article class="stage"><span class="where">Fuzzball, two 128 GB workstations, one VAST volume</span><p>The app and the video pipeline together need an estimated 150 GB of memory, so Fuzzball starts them on separate 128 GB workstations and gives both access to the same VAST storage.</p><img class="arch" src="assets/architecture.png" alt="Architecture: render-score on node A, Nemotron and the app server on node B, one VAST volume"></article>
+      <article class="stage"><span class="where">Workstation 1</span><p>When you submit a hypothesis, Nemotron Super 120B plans the experiment on the first workstation.</p><div class="slot"><b>Nemotron planning</b><span>Live GIF: the plan streaming into the chat</span></div></article>
+      <article class="stage"><span class="where">Workstation 2</span><p>The app sends the scene specifications to the second, where Isaac Sim renders a reference video, NVIDIA Cosmos 3 Nano uses it to generate realistic footage, and TRIBE v2 predicts the fMRI response to each clip.</p><div class="slot"><b>Render, restyle, predict</b><span>Live GIF: an Isaac render, its Cosmos version, the predicted brain</span></div></article>
+      <article class="stage"><span class="where">Back to Workstation 1, then Fuzzball</span><p>The app sends the predictions back to Nemotron to compare conditions. If the agent chooses a follow-up, the app submits it to Fuzzball.</p><div class="slot"><b>A follow-up as a workflow</b><span>Live GIF: the workflow starting; its task array rendering in parallel</span></div></article>
+      <article class="stage"><span class="where">VAST</span><p>Each round adds its clips, predictions, and log to the same VAST volume, so you can trace each result back to what the agent changed.</p><figure class="card"><img src="assets/card-workstations.gif" alt="Each message travelling between the two workstations, results landing on VAST"></figure></article>
+    </div>
+    <div class="dots" aria-hidden="true"></div>
+  </div>
+</section>
+
+<!-- Two machines -->
+<section class="section">
+  <div class="two top">
+    <div class="lines reveal">
+      <h2>The desk and production</h2>
+      <p class="note">The same study code runs on both. The observer study ran on the cluster and matched the Spark's predictions at a median per-clip r of 0.9991.</p>
+    </div>
+    <div class="tablescroll reveal">
+      <table class="machines">
+        <thead><tr><th>Machine</th><th>Role</th><th>Runs on</th></tr></thead>
+        <tbody>
+          <tr><td>DGX Spark</td><td>The desk: the lab app, interactive previews, the agent while a study is designed</td><td>The same repository</td></tr>
+          <tr><td>Fuzzball cluster, GB10 nodes</td><td>Production: the planner as a service, study runs as workflows and task arrays, Prometheus and Grafana</td><td>Rocky Linux; study steps in <code>rockylinux/rockylinux:10</code></td></tr>
+        </tbody>
+      </table>
+      <div class="slot" style="margin-top:28px;aspect-ratio:16/7"><b>RLC Pro AI's container, on the same weights</b><span>Benchmark to come: TRIBE v2, model loading, study steps and the planner against today's images (#36)</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- Compute and uptime: the screenshot follows the question -->
+<section class="section">
+  <div class="stations">
+    <div class="text">
+      <div class="station"><h2>Compute, measured per stage</h2><p>Where do the GPU hours go? Busy GPU-seconds per stage: planner, Isaac, Cosmos, TRIBE v2.</p></div>
+      <div class="station"><p>Is a GPU working while it is held? Renders run as tasks that release the GPU when they finish.</p></div>
+      <div class="station"><p>Does each node fit in 128 GB? Memory per service on each node, under the line.</p></div>
+      <div class="station"><p>How much work per GPU-hour? Clips per hour, TRIBE v2 seconds per second of video, planner tokens per second.</p></div>
+      <div class="station"><p>Is it up, and what failed? Node state over time, and each failed step with Fuzzball's error.</p></div>
+    </div>
+    <div class="pin">
+      <div>
+        <div class="frames">
+          <div class="slot"><b>Grafana: GPU hours by stage</b><span>Screenshot from the live dashboard (#35)</span></div>
+          <div class="slot"><b>Grafana: busy while held</b><span>Screenshot from the live dashboard (#35)</span></div>
+          <div class="slot"><b>Grafana: memory on each node</b><span>Screenshot from the live dashboard (#35)</span></div>
+          <div class="slot"><b>Grafana: work per GPU-hour</b><span>Screenshot from the live dashboard (#35)</span></div>
+          <div class="slot"><b>Grafana: uptime and failures</b><span>Screenshot from the live dashboard (#35)</span></div>
+        </div>
+        <div class="ticks" aria-hidden="true"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Workflow -->
+<section class="section">
+  <h2 class="reveal">Workflow</h2>
+  <div class="steps">
+    <div class="step reveal"><div><span class="n">1</span><p>Ask the agent to design an experiment around your hypothesis.</p></div><div class="slot"><b>The agent's chat</b><span>Live GIF: the hypothesis, its plan, the project it sets up</span></div></div>
+    <div class="step reveal"><div><span class="n">2</span><p>Upload footage or describe the scenes you want to test.</p></div><div class="slot"><b>Upload or describe</b><span>Live GIF: an upload into a dataset, or a scene described in the chat</span></div></div>
+    <div class="step reveal"><div><span class="n">3</span><p>Review the generated scenes and predicted responses alongside the agent's follow-up experiments.</p></div><div class="slot"><b>Scenes and responses</b><span>Live GIF: a trial playing beside its brain; Results with the follow-up</span></div></div>
+    <div class="step reveal"><div><span class="n">4</span><p>Provide a participant's fMRI recordings and the videos they watched. Fine-tune the model in one click to predict how that person would respond to new footage.</p></div><div class="slot"><b>Fit an adapter</b><span>Live GIF: one click on measured fMRI; the benchmark, labelled as one</span></div></div>
+    <div class="step reveal"><div><span class="n">5</span><p>Run robotics experiments that use predicted human brain responses to test whether a robot can better anticipate what someone is about to do from the way they move.</p></div><div class="slot"><b>Experimental</b><span>Live GIF: a grasp recording with the predicted response beside it</span></div></div>
+  </div>
+</section>
+
+<footer class="section end">
+  <h1>Prototype neuroscience experiments in hours.</h1>
+  <p class="note">Draft. Dashed frames are places for live recordings and screenshots still to be taken.</p>
+</footer>
+
+</body>
+</html>
