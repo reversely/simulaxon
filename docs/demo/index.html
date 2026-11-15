@@ -82,9 +82,8 @@
   <div class="two">
     <div class="lines reveal">
       <span class="h-ico" aria-hidden="true"><svg><use href="#i-scan"/></svg></span>
-      <p class="cut">How does the brain make sense of an event as it unfolds?</p>
       <p>To find out what drives a response, researchers need to vary what people see, hear, or know going into a scene.</p>
-      <p>Testing those comparisons with people gets expensive fast. A <span class="tok"><svg><use href="#i-people"/></svg>20-person</span> fMRI study with <span class="tok"><svg><use href="#i-clock"/></svg>one hour per participant</span> can cost nearly <span class="tok"><svg><use href="#i-cost"/></svg>$14,000</span> in scan time alone.</p>
+      <p>Testing those comparisons with people gets expensive fast, at <span class="tok"><svg><use href="#i-cost"/></svg>tens of thousands of dollars</span> per study.</p>
     </div>
     <div>
       <div class="fcard" data-card="cost">
@@ -93,7 +92,7 @@
           <div class="fc-head"><span>fMRI scan time</span><span>1 h per participant</span></div>
           <div class="fc-row"><span>Participants</span><span class="num" data-n>1</span></div>
           <div class="fc-track"><div class="fc-fill"></div><div class="fc-knob"></div></div>
-          <div class="fc-row"><span class="fc-muted">$710 per hour</span><span class="fc-big" data-total>$710</span></div>
+          <div class="fc-row"><span class="fc-muted">Scanner hours</span><span class="fc-big" data-total>1 h</span></div>
         </div>
         <svg class="fc-cursor" viewBox="0 0 26 26" aria-hidden="true"><path d="M3 2 L3 21 L8.5 16 L12 24 L15.5 22.5 L12 15 L19 15 Z" fill="#f2efe8" stroke="#121110" stroke-width="1.6" stroke-linejoin="round"/></svg>
       </div>
@@ -329,12 +328,12 @@
 
 <!-- Workflow -->
 <section class="section" data-biome="home">
-  <div class="hd reveal"><span class="h-ico" aria-hidden="true"><svg><use href="#i-flow"/></svg></span><h2>Workflow</h2></div>
+  <div class="hd reveal"><span class="h-ico" aria-hidden="true"><svg><use href="#i-flow"/></svg></span><h2>Demo</h2></div>
   <div class="steps">
     <div class="step reveal"><div><div class="hd"><span class="h-ico" aria-hidden="true"><svg><use href="#i-llm"/></svg></span><span class="n">1</span></div><p>Ask the agent to design an experiment around your hypothesis.</p></div><div class="slot"><b>The agent's chat</b><span>Recording to come: the hypothesis, its plan, the project it sets up</span></div></div>
     <div class="step reveal"><div><div class="hd"><span class="h-ico" aria-hidden="true"><svg><use href="#i-upload"/></svg></span><span class="n">2</span></div><p>Upload footage or describe the scenes you want to test.</p></div><figure class="grab"><video src="assets/grabs/grab-upload.mp4" muted loop playsinline autoplay aria-label="Uploading a clip from the chat into a new dataset"></video><figcaption>Upload from the chat: the file goes into a dataset you name, and the agent sees it with your next message.</figcaption></figure></div>
     <div class="step reveal"><div><div class="hd"><span class="h-ico" aria-hidden="true"><svg><use href="#i-chart"/></svg></span><span class="n">3</span></div><p>Review the generated scenes and predicted responses alongside the agent's follow-up experiments.</p></div><figure class="grab"><img src="assets/grabs/grab-results.gif" alt="The Results tab of the free-fall project: the brain map, then the regions table"><figcaption>Results for <span class="tok"><svg><use href="#i-render"/></svg>20 Isaac Sim busts</span> against <span class="tok"><svg><use href="#i-render"/></svg>20 height-matched vases</span>: every brain area ranked, then each region with its interval.</figcaption></figure></div>
-    <div class="step reveal"><div><div class="hd"><span class="h-ico" aria-hidden="true"><svg><use href="#i-layers"/></svg></span><span class="n">4</span></div><p>Provide a participant's fMRI recordings and the videos they watched. Fine-tune the model in one click to predict how that person would respond to new footage.</p></div><figure class="grab"><img src="assets/grabs/grab-adapter.gif" alt="The adapter card in the app: scores against measured fMRI and the map of where it improves"><figcaption>The Adapters tab: the benchmark table, and the cortex map switching between adapter, <span class="tok"><svg><use href="#i-brain"/></svg>TRIBE v2</span> and their difference.</figcaption></figure></div>
+    <div class="step reveal"><div><div class="hd"><span class="h-ico" aria-hidden="true"><svg><use href="#i-layers"/></svg></span><span class="n">4</span></div><p>If you have access to some fMRI recordings that you want to extrapolate on, these can be fine-tuned to customize simulation results.</p></div><figure class="grab"><img src="assets/grabs/grab-adapter.gif" alt="The adapter card in the app: scores against measured fMRI and the map of where it improves"><figcaption>The Adapters tab: the benchmark table, and the cortex map switching between adapter, <span class="tok"><svg><use href="#i-brain"/></svg>TRIBE v2</span> and their difference.</figcaption></figure></div>
     <div class="step reveal"><div><div class="hd"><span class="h-ico" aria-hidden="true"><svg><use href="#i-robot"/></svg></span><span class="n">5</span></div><p>Run robotics experiments that use predicted human brain responses to test whether a robot can better anticipate what someone is about to do from the way they move.</p></div><figure class="grab"><video src="assets/grabs/grab-experimental.mp4" muted loop playsinline autoplay aria-label="A simulated SO-101 grasp recording playing in the Experimental section"></video><figcaption>Experimental, on the cluster: a simulated <span class="tok"><svg><use href="#i-robot"/></svg>SO-101</span> grasp in <span class="tok"><svg><use href="#i-render"/></svg>Isaac Sim</span>, with its joints and phases, from the robotic empathy study.</figcaption></figure></div>
   </div>
 </section>
