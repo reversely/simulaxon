@@ -515,7 +515,7 @@ def register(tools, broadcast=lambda m: None):
             mine = [x for x in samples if x.get('condition') == c.get('name')]
             o = (mine[0].get('origin') or {}) if mine else {}
             stimuli.append({'condition': c.get('name'), 'clips': len(mine), 'files': len(c.get('files') or []), 'origin': o.get('label') or c.get('origin'),
-                            'dataset': o.get('dataset_id') or c.get('dataset_id'), 'cosmos': c.get('cosmos')})
+                            'dataset': o.get('title') or o.get('dataset_id') or c.get('dataset_id'), 'dataset_ref': o.get('ref'), 'cosmos': c.get('cosmos')})
         if not stimuli:   # world plans: one row per cell or side, from the clips themselves
             for name in dict.fromkeys(x.get('condition') for x in samples):
                 stimuli.append({'condition': name, 'clips': sum(1 for x in samples if x.get('condition') == name), 'origin': 'Isaac Sim' if P.get('world') else None})

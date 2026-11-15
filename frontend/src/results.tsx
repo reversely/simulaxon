@@ -19,7 +19,7 @@ export type LiveTrial = { index: number; unit: string; condition: string; label:
 type Trial = LiveTrial & { origin?: string }
 type Named = { region: string; named_by: string; definition: string; hcp_areas: string[] }
 type Figure = { title: string; weights: Record<string, number>; window_s: [number, number | null]; views: Record<string, string>; areas: { area: string; value: number; rank: number }[] }
-type Stimulus = { condition: string; clips: number; origin?: string | null; dataset?: string | null; cosmos?: { prompt?: string; seeds?: number[]; control?: string } | null }
+type Stimulus = { condition: string; clips: number; origin?: string | null; dataset?: string | null; dataset_ref?: string | null; cosmos?: { prompt?: string; seeds?: number[]; control?: string } | null }
 type RunRecord = {
   project: { id: string; title: string; question: string; status: string }
   made: Record<string, any>; stimuli: Stimulus[]; regions_named: Named[]; regions_read: string[]
@@ -122,7 +122,7 @@ export function ResultsView({ pid, status, progress, live, focus, agentName, onP
   const named = rec.regions_named; const namedNames = named.map(n => n.region)
   const plotted = focus && !namedNames.includes(focus) ? [...namedNames, focus] : namedNames
   const tribe = (m.connectors ?? []).find((c: any) => c.name === 'tribe_v2')
-  const sources = [...new Set(rec.stimuli.map(s => [s.origin, s.dataset].filter(Boolean).join(', ')).filter(Boolean))]
+  const sources = [...new Set(rec.stimuli.map(s => s.dataset ? `${s.dataset}${s.dataset_ref ? ` (${s.dataset_ref})` : ''}` : s.origin ?? '').filter(Boolean))]
   const seed = t.seed ?? m.parameters?.seed
   const window = rec.contrasts.find(c => c.window_s)?.window_s
   const trialRegions = [...namedNames.filter(r => rec.regions_read.includes(r)), ...rec.regions_read.filter(r => !namedNames.includes(r))]
@@ -147,7 +147,7 @@ export function ResultsView({ pid, status, progress, live, focus, agentName, onP
     {(rec.missing.length > 0 || !m.started_at || seed == null) && <p className="muted" style={{ margin: 0 }}>Not recorded by this run: {[...(m.started_at ? [] : ['its start and duration']), ...(m.run_id ? [] : ['a run ID']), ...rec.missing, ...(seed == null ? ['a seed'] : [])].join(', ')}.</p>}
 
     <figure className="card fig">
-      <figcaption><b>Fig. 1.</b> Response over time by condition{plotted.length ? `, ${plotted.map(regionLabel).join(', ')}` : ''}. TRIBE v2, average subject; mean over each condition's trials.</figcaption>
+      <figcaption><b>Fig. 1.</b> Response over time by condition{plotted.length ? `, ${plotted.map(regionLabel).join(', ')}` : ''}: the mean of each condition's trials.</figcaption>
       {plotted.length ? <div className="figgrid">{plotted.map(r => <div key={r}><div className="figtag">{r === focus && !namedNames.includes(r) ? 'Your pick' : `Named by ${by(named.find(n => n.region === r)?.named_by)}`}</div>
         <ConditionCourse pid={pid} region={r} onS={t.item_s ?? window?.[1]} /></div>)}</div>
         : <p className="ink2">No region was named for this project. Pick one in Table 1 to plot it here.</p>}

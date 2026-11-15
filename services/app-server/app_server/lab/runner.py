@@ -68,7 +68,13 @@ def start(tools, broadcast, project_id: str, actor: str):
             cur = s.get('project', project_id)
             tools.call('project_update', actor, project_id=project_id, expect_version=cur.version, status='Draft')
             ev(stage='failed', error=str(e)[-300:])
-    threading.Thread(target=go, daemon=True).start()
+    import uuid
+    token = uuid.uuid4().hex; LIVE[project_id] = token   # registered like an experiment run: one run per project, and renders made ahead wait for it (#13)
+    def run_once():
+        try: go()
+        finally:
+            if LIVE.get(project_id) == token: LIVE.pop(project_id, None)
+    threading.Thread(target=run_once, daemon=True).start()
     return {'queued': True, 'clips': 2 * len(pairs)}
 
 
@@ -129,5 +135,11 @@ def _factorial(tools, broadcast, project_id: str, actor: str):
             cur = s.get('project', project_id)
             tools.call('project_update', actor, project_id=project_id, expect_version=cur.version, status='Draft')
             ev(stage='failed', error=str(e)[-300:])
-    threading.Thread(target=go, daemon=True).start()
+    import uuid
+    token = uuid.uuid4().hex; LIVE[project_id] = token   # registered like an experiment run: one run per project, and renders made ahead wait for it (#13)
+    def run_once():
+        try: go()
+        finally:
+            if LIVE.get(project_id) == token: LIVE.pop(project_id, None)
+    threading.Thread(target=run_once, daemon=True).start()
     return {'queued': True, 'clips': total}

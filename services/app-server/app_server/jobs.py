@@ -155,6 +155,7 @@ class Queue:
         self.jobs: dict[str, Job] = {}
         self.q: queue.PriorityQueue = queue.PriorityQueue(); self.n = 0
         self.gpu = threading.Lock()
+        self.hold_ahead = lambda: False   # set by the lab: true while any run is going, so renders made ahead never start between a run's clips (#13)
         self.last_live, self.hold_s = 0.0, 3.0   # renders made ahead hold off this long after a fast or batch job, so its follow-up (a render's TRIBE read) goes first
         self.listeners: list = []
         self.remotes = remotes or {}; self.remote_wait_s = remote_wait_s
@@ -216,7 +217,7 @@ class Queue:
     def _loop(self):
         while True:
             pri, n, jid = self.q.get(); j = self.jobs[jid]
-            if pri == 2 and time.time() - self.last_live < self.hold_s:   # an ahead job waits while a preview or run is between its steps
+            if pri == 2 and (time.time() - self.last_live < self.hold_s or self.hold_ahead()):   # an ahead job waits while a preview or run is between its steps, and for any whole run
                 self.q.put((pri, n, jid)); time.sleep(0.25); continue
             c = self.connectors[j.connector_id]
             lock = self.gpu if c.uses_gpu else threading.Lock()

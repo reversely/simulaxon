@@ -46,6 +46,8 @@ def queue() -> Queue:
                         Connector('tribe_v2', 'neural model', str(FE / '.venv/bin/python'), str(ROOT / 'backend/workers/tribe_worker.py'), 'tribev2-bf16', memory_gb=15),
                         Connector('cosmos_sim_transfer', 'generator', str(FE / 'cosmos-src/.venv/bin/python'), str(ROOT / 'backend/workers/cosmos_worker.py'),
                                   'cosmos3-nano-sim-transfer-c3a2e37', memory_gb=48)])   # restyles a clip toward photoreal; idle workers unload to make room
+        if not getattr(_q, '_holds', False):   # renders made ahead wait for any run in progress (#13)
+            from . import runner; _q.hold_ahead = lambda: bool(runner.LIVE); _q._holds = True
         return _q
 
 
