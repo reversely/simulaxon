@@ -153,8 +153,9 @@ export const ANGLES: Record<string, [number, number]> = { Left: [180, 8], Right:
 class BrainGL {
   gl: WebGL2RenderingContext; mesh: Mesh; val: WebGLBuffer; prog: WebGLProgram; hprog: WebGLProgram; vao: WebGLVertexArrayObject; hvao: WebGLVertexArrayObject
   hcount: number; ramps: Record<string, WebGLTexture>; values = new Float32Array(0); signed = false; has = 0
-  mix = 0.5; yaw = 150; pitch = 18; lastDrawMs = 0
-  constructor(public canvas: HTMLCanvasElement, mesh: Mesh) {
+  mix = 0.5; yaw = 150; pitch = 18; lastDrawMs = 0; canvas: HTMLCanvasElement
+  constructor(canvas: HTMLCanvasElement, mesh: Mesh) {
+    this.canvas = canvas
     const gl = canvas.getContext('webgl2', { antialias: true, alpha: true, premultipliedAlpha: false }); if (!gl) throw new Error('WebGL2 is off in this browser')
     this.gl = gl; this.mesh = mesh; this.values = new Float32Array(mesh.n)
     const sh = (t: number, s: string) => { const x = gl.createShader(t)!; gl.shaderSource(x, s); gl.compileShader(x); if (!gl.getShaderParameter(x, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(x) ?? 'shader'); return x }
