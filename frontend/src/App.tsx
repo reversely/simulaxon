@@ -13,6 +13,7 @@ import { ClipBrain, samplePreds } from './brain3d'
 import { GuidePanel, GUIDE } from './guide'
 import { Skeleton } from './wait'
 import { ExperimentalPage } from './experimental'
+import { ProjectsPage, Markers, ago } from './projects'
 import { SessionDock, Chat, type SessionInfo } from './agent'
 type Example = { id: string; title: string; what: string; source: string; doi: string | null; goal: string; media: string[]; project_id: string | null; here: string
   brain: { image: string; view: string; title: string } | null   // the predicted response beside the stimulus
@@ -23,8 +24,8 @@ const KINDS: [Example['kind'], string, IconName, string][] = [
   ['new', 'New questions', 'search', 'Studies no paper has run yet.']]
 import { ExperimentSetup, ExperimentRoom, ReportedCard, OriginChip, type Setup, type Reported } from './experiment'
 
-type View = 'room' | 'results' | 'datasets' | 'experimental' | 'samples' | 'brain' | 'search' | 'data' | 'findings' | 'sources' | 'agent'
-const WIDE: View[] = ['results', 'datasets', 'experimental', 'search', 'data', 'findings', 'sources', 'agent']
+type View = 'room' | 'results' | 'datasets' | 'projects' | 'experimental' | 'samples' | 'brain' | 'search' | 'data' | 'findings' | 'sources' | 'agent'
+const WIDE: View[] = ['results', 'datasets', 'projects', 'experimental', 'search', 'data', 'findings', 'sources', 'agent']
 type Unit = { key: string; label: string; variants: Row<Sample>[]; labels: string[] }
 const VIEW_ICON: Record<string, IconName> = { room: 'room', results: 'gauge', samples: 'samples', brain: 'brain', search: 'search', data: 'table', findings: 'findings', sources: 'book' }
 const PROJECT_VIEWS: View[] = ['room', 'results', 'samples', 'brain', 'search', 'data', 'findings', 'sources']   // views of the open project; Datasets, Experimental and the chat are not
@@ -282,12 +283,14 @@ export default function App() {
         <div className="switch">
           <button onClick={() => setSwitcher(s => !s)} aria-haspopup="menu" aria-expanded={switcher} aria-busy={opening}><span>{(projects.find(x => x.id === want)?.data ?? P).title}</span>{opening ? <span className="spin" aria-label="Opening the project" /> : <span aria-hidden>▾</span>}</button>
           {switcher && <div className="menu" role="menu" onMouseLeave={() => setSwitcher(false)}>
-            {projects.map(p => <button key={p.id} role="menuitem" className={p.id === want ? 'on' : ''} onClick={() => { setPid(p.id); setSwitcher(false) }}>
-              <span>{p.data.title}<div className="sub">{templates.find(t => t.id === p.data.template_id)?.title}</div></span>
-              <span className={`chip ${p.data.status === 'Running' ? 'flag' : ''}`}>{p.data.status}</span>
+            {projects.slice(0, 8).map(p => <button key={p.id} role="menuitem" className={p.id === want ? 'on' : ''} onClick={() => { setPid(p.id); setSwitcher(false) }}>
+              <span>{p.data.title}<div className="sub">{templates.find(t => t.id === p.data.template_id)?.title ?? PLAN_NAMES[p.data.plan]}</div></span>
+              <span className="marks"><Markers p={p.data as any} /><span className="ink2 num">{ago((p.data as any).updated_at)}</span></span>
             </button>)}
+            <button role="menuitem" className="allprojects" onClick={() => { setSwitcher(false); setView('projects') }}><span>All projects ({projects.length})</span><Icon name="open" size={15} /></button>
           </div>}
         </div>
+        <button className={`btn ${view === 'projects' ? 'on' : ''}`} aria-label="All projects" title="All projects" onClick={() => setView('projects')}><Icon name="samples" size={16} /></button>
         <button className={`btn ${view === 'datasets' ? 'on' : ''}`} onClick={() => setView('datasets')}><Icon name="table" size={16} />Datasets</button>
         <button className={`btn ${view === 'experimental' ? 'on' : ''}`} onClick={() => setView('experimental')}><Icon name="flask" size={16} />Experimental</button>
         <button className="btn" aria-haspopup="dialog" aria-expanded={hist} onClick={() => setHist(h => !h)}><Icon name="clock" size={16} />History</button>
@@ -317,7 +320,7 @@ export default function App() {
             <DemoBar state={demo.status === 'done' && (demo as any).show?.project !== pid ? { ...demo, status: 'idle' } : demo} onControl={a => call<DemoState>('demo_update', { action: a }).then(setDemo)} />
             <LiveWorkspace jobs={jobs} runs={runsNow} onOpen={id => { setPid(id); setView('room') }} />
           </div>}
-          {view === 'datasets' ? <DatasetsPage projects={projects} onOpenProject={id => { setPid(id); setView('room') }} show={dsShow} /> : view === 'experimental' ? <ExperimentalPage /> : view === 'agent' ? <div className="chatwide"><h1 className="q">{sessions.find(x => x.id === openSession)?.goal ?? 'New chat with the agent'}</h1>
+          {view === 'projects' ? <ProjectsPage projects={projects} current={pid} onOpen={id => { setPid(id); setView('room') }} /> : view === 'datasets' ? <DatasetsPage projects={projects} onOpenProject={id => { setPid(id); setView('room') }} show={dsShow} /> : view === 'experimental' ? <ExperimentalPage /> : view === 'agent' ? <div className="chatwide"><h1 className="q">{sessions.find(x => x.id === openSession)?.goal ?? 'New chat with the agent'}</h1>
             <Chat sid={openSession} live={sessionTick} onStarted={id => { setOpenSession(id); loadSessions() }} onOpenProject={id => { setPid(id); setView('room') }} /></div> : <>
           <div>
             <h1 className="q">{P.template_id && !(P as any).question_written ? P.title : P.question}</h1>

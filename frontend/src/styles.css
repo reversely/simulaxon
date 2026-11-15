@@ -575,6 +575,24 @@ table.data.compact td, table.data.compact th { padding: 3px 8px; font-size: 14px
 .dssearch { display: inline-flex; align-items: center; gap: 8px; background: var(--raise); border: 1px solid var(--rule-strong); border-radius: 8px; padding: 5px 10px; min-width: 220px; flex: 1; max-width: 420px; }
 .dssearch input { background: none; border: 0; color: var(--ink); width: 100%; }
 .dshead .btn.primary { margin-left: auto; }
+.menu .marks { display: inline-flex; align-items: center; gap: 8px; white-space: nowrap; }
+.menu .marks .num { font-size: 13px; }
+.menu button.allprojects { position: sticky; bottom: -6px; background: var(--raise); border-top: 1px solid var(--rule); border-radius: 0 0 6px 6px; margin-top: 4px; color: var(--ink-2); }   /* always in reach below the 8 latest */
+/* All projects (#32): cards with a fixed-ratio picture so nothing moves as images load (#30) */
+.pjfilters { flex-wrap: wrap; gap: 10px 16px; }
+.pjselect { display: inline-flex; align-items: center; gap: 8px; color: var(--ink-2); font-size: 14px; }
+.pjselect select { background: var(--raise); color: var(--ink); border: 1px solid var(--rule-strong); border-radius: 8px; padding: 5px 8px; font: inherit; }
+.pjgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(260px, 100%), 1fr)); gap: 16px; }
+.pjcard { display: flex; flex-direction: column; text-align: left; padding: 0; overflow: hidden; background: var(--panel); color: var(--ink); border: 1px solid var(--rule); border-radius: var(--radius); cursor: pointer; font: inherit; min-width: 0; }
+.pjcard:hover, .pjcard.on { border-color: var(--rule-strong); background: var(--raise); }
+.pjpic { aspect-ratio: 16 / 9; background: #0c0b0a; display: flex; align-items: center; justify-content: center; color: var(--ink-3); }
+.pjpic img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.pjbody { padding: 12px 14px 14px; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.pjbody h3 { margin: 0; font-size: 16px; font-weight: 600; }
+.pjmarks { display: flex; gap: 6px; min-height: 0; }
+.pjmarks:empty { display: none; }
+.pjq { margin: 0; font-size: 14px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.pjfacts { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 12px; font-size: 13px; }
 .dstable td b { font-weight: 600; }
 .dsnote { background: var(--raise); border: 1px solid var(--rule-strong); border-radius: 8px; padding: 8px 12px; display: flex; align-items: center; gap: 10px; color: var(--ink-2); }
 .dsbody { display: grid; grid-template-columns: 260px minmax(0, 1fr); gap: 16px; align-items: start; }
