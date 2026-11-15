@@ -187,9 +187,10 @@ export default function App() {
 
   const runsNow = projects.filter(p => p.data.status === 'Running').map(p => ({ id: p.id, title: p.data.title, done: runProg[p.id]?.done ?? 0, total: runProg[p.id]?.total ?? 0, stage: runProg[p.id]?.stage }))
 
+  const buildingChat = sessions.find(s => s.project_id === pid && (s.status === 'working' || s.status === 'waiting'))   // a chat at work on this project
   function chipsFor(): { label: string; run: () => void; icon?: IconName }[] {
     if (!P) return []
-    if (P.status === 'Running') return []
+    if (P.status === 'Running' || buildingChat) return []   // the agent is already at work on it: no button that asks it again
     if (P.status !== 'Done') return [P.plan === 'experiment' ? { label: 'Ask the agent to check it', run: () => send(`Check this experiment against its paper before it runs: ${P.question}`) }
       : { label: 'Ask the agent to build it', run: () => send(`Build and run this project: ${P.question}`) }]
     const out: { label: string; run: () => void; icon?: IconName }[] = []
@@ -271,7 +272,7 @@ export default function App() {
               running={P.status === 'Running'} progress={runProg[pid!]} onRun={() => call('project_run', { project_id: pid }).then(() => refreshProjects())} onAsk={text => send(text)} />
             : P.status !== 'Done' ? <>{(P as any).world && <WorldPanel pid={pid!} world={(P as any).world} script={(P as any).script} params={params} previews={previews} assets={assets}
               event={pev[pid!]} steps={steps} region={region} onChanged={reloadWorld} />}
-              <NotRun P={P} template={template} progress={runProg[pid!]} onAsk={() => send(`Build and run this project: ${P.question}`)} onRun={(P as any).pairs || (P as any).units ? () => call('project_run', { project_id: pid }).then(() => refreshProjects()) : undefined} /></> : <>
+              <NotRun P={P} template={template} progress={runProg[pid!]} building={!!buildingChat} onOpenChat={() => { if (buildingChat) { setOpenSession(buildingChat.id); setView('agent') } }} onAsk={() => send(`Build and run this project: ${P.question}`)} onRun={(P as any).pairs || (P as any).units ? () => call('project_run', { project_id: pid }).then(() => refreshProjects()) : undefined} /></> : <>
             {view === 'room' && P.plan === 'selection' && byKind('selection')?.result && <SelectionView result={byKind('selection')!.result!.data} regions={byKind('selection')!.analysis.data.regions} samples={samples} condition={showCond} />}
             {view === 'room' && (P as any).world && <WorldPanel pid={pid!} world={(P as any).world} script={(P as any).script} params={params} previews={previews} assets={assets}
               event={pev[pid!]} steps={steps} region={region} onChanged={reloadWorld} />}
@@ -347,7 +348,12 @@ function Pending({ view, P, onSetup }: { view: string; P: Project; onSetup: () =
   </div>
 }
 
-function NotRun({ P, template, onAsk, onRun, progress }: { P: Project; template?: Template; onAsk: () => void; onRun?: () => void; progress?: { done: number; total: number; stage?: string } }) {
+function NotRun({ P, template, onAsk, onRun, progress, building, onOpenChat }: { P: Project; template?: Template; onAsk: () => void; onRun?: () => void; progress?: { done: number; total: number; stage?: string }; building?: boolean; onOpenChat?: () => void }) {
+  if (building && P.status !== 'Running') return <div className="empty" style={{ textAlign: 'left' }} role="status">   {/* the loader where the work is: the agent is building this project (#15) */}
+    <div className="mid" style={{ marginBottom: 6, display: 'flex', alignItems: 'center', gap: 10 }}><span className="spin" />The agent is building this</div>
+    <p className="ink2" style={{ marginTop: 0 }}>It sets up the world and the pairs, then runs them. Follow it in the chat.</p>
+    <button className="btn" onClick={onOpenChat}><Icon name="chat" size={16} />Open the chat</button>
+  </div>
   return <div className="empty" style={{ textAlign: 'left' }}>
     <div className="mid" style={{ marginBottom: 6 }}>{P.status === 'Running' ? 'Running now' : 'Not run yet'}</div>
     <p className="ink2" style={{ marginTop: 0 }}>{P.status === 'Running' ? (progress?.stage === 'comparing' ? 'Every clip is through TRIBE. Comparing the cells and drawing the maps.' : progress ? `${progress.done} of ${progress.total} clips through Isaac and TRIBE. Results appear when all are done.` : 'Results appear here when every clip has been through TRIBE.') : `${PLAN_NAMES[P.plan] ?? P.plan} plan from the template ${template?.title}.`}</p>

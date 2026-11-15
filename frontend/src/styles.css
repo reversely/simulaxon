@@ -477,3 +477,8 @@ aside.left .convo { padding-bottom: 28px; }
   .sessionrow .num { display: none; }
   .sessionrow .bar { grid-column: 2 / 4; justify-content: flex-end; }
 }
+
+/* tabs with icons still fit beside the project switcher at 1394 px */
+.tabs { gap: 2px; }
+.tab { padding: 6px 9px; gap: 6px; }
+.switch > button { max-width: 360px; }
