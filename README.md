@@ -2,7 +2,7 @@
 
 <h1 align="center">Simulaxon</h1>
 
-<p align="center"><b>Neural experiments in hours.</b><br>
+<p align="center"><b>Prototype neural experiments in hours</b><br>
 AI agents test cognitive hypotheses by predicting fMRI responses to scenes they render in virtual worlds.</p>
 
 <p align="center"><img src="docs/demo/assets/grabs/grab-trial.gif" width="860" alt="A rendered trial and its predicted cortex playing on one clock"></p>

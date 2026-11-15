@@ -393,3 +393,18 @@ body.light .h-ico { color: var(--ink-2); }
 section.ciq { overflow-x: clip; }
 section.ciq * { min-width: 0; }
 section.ciq video, section.ciq img, section.ciq figure, section.ciq .grab { max-width: 100%; }
+
+/* The opening: the name larger, and the loop with what runs it under the tagline */
+.topnav .brand { font-size: clamp(24px, 2.6vw, 32px); color: var(--ink); gap: 14px; }
+.topnav .brand .logo { width: 56px; height: 56px; border-radius: 12px; }
+.hero .typed { min-height: 0; }
+.hero h1 { font-size: clamp(34px, min(5vw, 8vh), 72px); }
+.hero { min-height: 100vh; padding-top: 4vh; padding-bottom: 4vh; gap: clamp(16px, 3vh, 40px); }   /* the opening fits one screen down to 650 px tall */
+.hero .typed { font-size: clamp(18px, min(2.4vw, 3.3vh), 28px); }
+.hero .lines p.loopline { font-size: clamp(14px, min(1.3vw, 2.3vh), 18px); margin-top: clamp(10px, 2vh, 20px); }
+.hero .lines p.loopline.runs { margin-top: 4px; }
+@media (max-width: 820px) { .hero { min-height: 0; } }
+.lines p.loopline { font-family: var(--body); font-weight: 400; margin: 20px 0 0; font-size: clamp(16px, 1.3vw, 18px); line-height: 2; color: var(--ink-2); max-width: 54ch; }
+.loopline .tok { font-size: 0.86em; }
+.loopline .arr { color: var(--ink-3); margin: 0 0.15em; }
+.lines p.loopline.runs { margin-top: 8px; }
