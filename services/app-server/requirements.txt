@@ -8,6 +8,7 @@ usd-core==26.11
 requests==2.34.2
 pillow==11.3.0
 pandas==3.1.1
+pyarrow==26.0.1   # parquet catalogues: record_search, source_search
 scipy==1.18.1
 matplotlib==3.11.2
 nilearn==0.14.1
