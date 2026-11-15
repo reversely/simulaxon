@@ -416,8 +416,8 @@
   },
   {
    "type": "timeseries",
-   "title": "Memory per service, node 1 (SPARK25)",
-   "description": "Each service's container memory from its cgroup, stacked; the red line is the node's 128 GB. GB10 memory is shared by CPU and GPU, and nvidia-smi reports none for the GPU, so this is the container's whole share.",
+   "title": "Memory in use on each node",
+   "description": "Memory in use on each of the team's two GB10 nodes: total minus available, as the node reports it. GB10 memory is one pool for CPU and GPU, so this includes the planner's weights and KV cache and the renderers' GPU memory, which the containers' own counters miss. The red line is 128 GB.",
    "datasource": {
     "type": "prometheus",
     "uid": "prometheus"
@@ -434,8 +434,8 @@
       "type": "prometheus",
       "uid": "prometheus"
      },
-     "expr": "sum by (job) (simulaxon_job_memory_bytes{node=\"192.168.99.34\"})",
-     "legendFormat": "{{job}}",
+     "expr": "max by (node) (simulaxon_node_memory_total_bytes) - max by (node) (simulaxon_node_memory_available_bytes)",
+     "legendFormat": "{{node}}",
      "refId": "A"
     }
    ],
@@ -443,11 +443,8 @@
     "defaults": {
      "unit": "bytes",
      "custom": {
-      "stacking": {
-       "mode": "normal"
-      },
-      "fillOpacity": 60,
-      "lineWidth": 1,
+      "fillOpacity": 25,
+      "lineWidth": 2,
       "thresholdsStyle": {
        "mode": "line"
       }
@@ -473,8 +470,8 @@
   },
   {
    "type": "timeseries",
-   "title": "Memory per service, node 2 (SPARK26)",
-   "description": "As node 1. The planner runs at 0.75 of GPU memory, after 0.85 died during FlashInfer autotuning (docs/onboarding.md § 4).",
+   "title": "Container memory per service",
+   "description": "Each service's container memory from its cgroup, stacked: the CPU side only, since nvidia-smi on GB10 reports no GPU memory.",
    "datasource": {
     "type": "prometheus",
     "uid": "prometheus"
@@ -491,7 +488,7 @@
       "type": "prometheus",
       "uid": "prometheus"
      },
-     "expr": "sum by (job) (simulaxon_job_memory_bytes{node=\"192.168.99.35\"})",
+     "expr": "sum by (job) (simulaxon_job_memory_bytes)",
      "legendFormat": "{{job}}",
      "refId": "A"
     }
@@ -504,25 +501,8 @@
        "mode": "normal"
       },
       "fillOpacity": 60,
-      "lineWidth": 1,
-      "thresholdsStyle": {
-       "mode": "line"
-      }
-     },
-     "thresholds": {
-      "mode": "absolute",
-      "steps": [
-       {
-        "color": "transparent",
-        "value": null
-       },
-       {
-        "color": "red",
-        "value": 128000000000.0
-       }
-      ]
-     },
-     "max": 128000000000.0
+      "lineWidth": 1
+     }
     },
     "overrides": []
    },

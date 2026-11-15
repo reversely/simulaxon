@@ -4,5 +4,6 @@ providers:
     folder: Simulaxon
     type: file
     allowUiUpdates: false
+    updateIntervalSeconds: 10   # pick up a dashboard streamed onto the volume without a restart
     options:
       path: /data/src/simulaxon/services/observability/grafana/dashboards
