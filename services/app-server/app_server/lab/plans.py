@@ -201,7 +201,9 @@ def _vjepa_random_map(preds: dict) -> dict | None:
     from pathlib import Path
     from ..home import HOME; fe = HOME / 'feasibility'
     sys.path.insert(0, str(fe / 'egobody')); sys.path.insert(0, str(fe / 'tribev2-src'))
-    from donoso_signals import vjepa_index
+    sys.path.insert(0, str(Path(__file__).resolve().parents[4] / 'studies' / 'observer'))   # the repo's copy, on the cluster
+    try: from donoso_signals import vjepa_index
+    except ImportError: return None   # no V-JEPA 2 index here: the features-only baseline is reported missing, the run goes on
     vidx = vjepa_index(); feats = {}
     for c, ps in preds.items():
         rows = []
