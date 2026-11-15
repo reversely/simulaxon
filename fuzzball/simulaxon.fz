@@ -40,7 +40,7 @@ services:
     persist: true
     resource:
       cpu:
-        cores: 16
+        cores: 8   # the team's second node has 10 free cores beside the app server
       memory:
         size: 100GiB
       devices:
