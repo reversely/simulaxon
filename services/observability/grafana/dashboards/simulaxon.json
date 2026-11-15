@@ -99,7 +99,23 @@
    ],
    "fieldConfig": {
     "defaults": {
-     "unit": "percent"
+     "unit": "percent",
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "orange",
+        "value": null
+       },
+       {
+        "color": "green",
+        "value": 50
+       }
+      ]
+     },
+     "color": {
+      "mode": "thresholds"
+     }
     },
     "overrides": []
    },
@@ -189,7 +205,27 @@
    ],
    "fieldConfig": {
     "defaults": {
-     "unit": "percent"
+     "unit": "percent",
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "red",
+        "value": null
+       },
+       {
+        "color": "orange",
+        "value": 80
+       },
+       {
+        "color": "green",
+        "value": 95
+       }
+      ]
+     },
+     "color": {
+      "mode": "thresholds"
+     }
     },
     "overrides": []
    },
@@ -355,7 +391,9 @@
     "showValue": "never",
     "rowHeight": 0.8
    },
-   "id": 35
+   "id": 35,
+   "maxDataPoints": 120,
+   "interval": "1m"
   },
   {
    "type": "bargauge",
@@ -523,8 +561,8 @@
   },
   {
    "type": "timeseries",
-   "title": "Planner tokens per GPU-second",
-   "description": "Generated tokens per second of busy planner GPU time.",
+   "title": "Planner tokens per second",
+   "description": "Nemotron 3 Super generation and prompt tokens per second, 1-minute rate. Generation runs with MTP speculative decoding (#2).",
    "datasource": {
     "type": "prometheus",
     "uid": "prometheus"
@@ -541,9 +579,18 @@
       "type": "prometheus",
       "uid": "prometheus"
      },
-     "expr": "sum(rate(vllm:generation_tokens_total[1m])) / clamp_min(sum(simulaxon_gpu_utilization_percent{job=\"planner\"}) / 100, 0.01)",
-     "legendFormat": "tokens per busy GPU-second",
+     "expr": "sum(rate(vllm:generation_tokens_total[1m]))",
+     "legendFormat": "generated",
      "refId": "A"
+    },
+    {
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus"
+     },
+     "expr": "sum(rate(vllm:prompt_tokens_total[1m]))",
+     "legendFormat": "prompt",
+     "refId": "B"
     }
    ],
    "fieldConfig": {
@@ -638,7 +685,27 @@
    ],
    "fieldConfig": {
     "defaults": {
-     "unit": "percent"
+     "unit": "percent",
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "red",
+        "value": null
+       },
+       {
+        "color": "orange",
+        "value": 80
+       },
+       {
+        "color": "green",
+        "value": 95
+       }
+      ]
+     },
+     "color": {
+      "mode": "thresholds"
+     }
     },
     "overrides": []
    },
