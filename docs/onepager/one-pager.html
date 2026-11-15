@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Simulaxon</title>
+<!-- One page, in the order of the demo page (docs/demo/index.html). Print with Chrome to one-pager.pdf. -->
+<style>
+@font-face { font-family: "Inter"; src: url("../demo/assets/fonts/inter-v20-latin.woff2") format("woff2"); font-weight: 100 900; }
+@font-face { font-family: "Inter Tight"; src: url("../demo/assets/fonts/InterTight-VF.ttf") format("truetype"); font-weight: 100 900; }
+@page { size: letter; margin: 0; }
+:root { --paper: #ffffff; --ink: #111111; --ink-2: #3d3a36; --ink-3: #7a756d; --rule: #d9d4cc; --sel: #d6a24a; --a: #7fa01c; --grey: #8a847b; --ground: #121110; }
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--paper); }
+body { width: 8.5in; height: 11in; padding: 0.3in 0.5in 0.24in; color: var(--ink); font: 400 7.3pt/1.38 Inter, system-ui, sans-serif; hyphens: auto;
+  -webkit-print-color-adjust: exact; print-color-adjust: exact; font-variant-numeric: tabular-nums; display: flex; flex-direction: column; gap: 7pt; overflow: hidden; }
+h1, h2 { font-family: "Inter Tight", Inter, sans-serif; margin: 0; letter-spacing: -0.01em; }
+h1 { font-weight: 600; font-size: 19pt; line-height: 1.02; letter-spacing: -0.025em; }
+h2 { font-weight: 700; font-size: 8.6pt; line-height: 1.2; margin: 0 0 2.5pt; display: flex; gap: 5pt; align-items: baseline; }
+h2 .n { font: 500 7pt Inter, sans-serif; color: var(--ink-3); width: 9pt; flex: none; }
+p { margin: 0 0 3pt; }
+.head { display: grid; grid-template-columns: 1fr auto; gap: 12pt; align-items: end; padding-bottom: 2pt; }
+.lede { font: 400 9pt/1.38 Inter, sans-serif; color: var(--ink-2); margin-top: 5pt; max-width: 5.3in; }
+.meta { font-size: 6.8pt; color: var(--ink-3); text-align: right; line-height: 1.5; text-transform: uppercase; letter-spacing: 0.06em; }
+.tok { font-weight: 600; white-space: nowrap; }   /* model and configuration names, set bold as a journal sets them */
+figure { margin: 0; }
+figcaption { font-size: 6.6pt; line-height: 1.36; color: var(--ink); margin-top: 3pt; text-align: justify; }
+figcaption b:first-child { font-weight: 700; }
+.pl { font: 700 8pt Inter, sans-serif; color: var(--ink); margin-right: 3pt; }
+.topbar { display: flex; justify-content: space-between; align-items: baseline; border-bottom: 0.6pt solid var(--ink); padding-bottom: 3pt; margin-bottom: -3pt; }
+.topbar b { font: 700 11pt Inter, sans-serif; }
+.topbar span { font-size: 7pt; color: #1b6fa8; }
+p { text-align: justify; }
+figcaption b { color: var(--ink); font-weight: 600; }
+.fig1 { display: grid; grid-template-columns: 1fr 1fr 1.15fr; gap: 4pt; }
+.fig1 img { width: 100%; height: 0.94in; object-fit: cover; border-radius: 3pt; display: block; background: var(--ground); }
+.fig1 .brain { object-fit: contain; background: var(--ground); }
+.cols { display: grid; grid-template-columns: 1fr 1.06fr; gap: 15pt; flex: 1; min-height: 0; }
+.col { display: flex; flex-direction: column; gap: 6pt; min-width: 0; }
+section { padding-top: 1pt; }
+ol.steps { margin: 2pt 0 0; padding-left: 11pt; } ol.steps li { margin: 0 0 1.5pt; padding-left: 1pt; } ol.steps li::marker { color: var(--ink-3); font-size: 6.8pt; }
+.fig2 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4pt; margin-top: 3pt; }
+.fig2 .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5pt; border-radius: 3pt; overflow: hidden; background: var(--ground); }
+.fig2 img { width: 100%; height: 0.8in; object-fit: cover; display: block; }
+.fig2 .lab { font-size: 6.4pt; color: var(--ink-2); margin-top: 2pt; line-height: 1.3; }
+.fig2 .lab b { color: var(--ink); }
+.fig3 { display: grid; grid-template-columns: 1.4in 1fr; gap: 7pt; align-items: center; margin-top: 3pt; }
+.fig3 .map { width: 100%; height: 1.3in; object-fit: cover; object-position: 50% 58%; display: block; }
+.bars { display: grid; gap: 3.5pt; }
+.bar { display: grid; grid-template-columns: 0.98in 1fr 0.34in; gap: 5pt; align-items: center; font-size: 6.8pt; }
+.lane { position: relative; height: 4.5pt; background: #e7e1d6; border-radius: 2pt; }
+.lane i { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 2pt; }
+.lane .ceil { position: absolute; top: -2pt; bottom: -2pt; width: 0.8pt; background: var(--ink); left: 85%; }
+.bar .v { text-align: right; font-weight: 500; }
+.fig4 img { width: 100%; display: block; border-radius: 4pt; }
+.route { columns: 2; column-gap: 10pt; margin: 3pt 0 0; padding-left: 10pt; font-size: 6.6pt; line-height: 1.32; }
+.route li { break-inside: avoid; margin-bottom: 1pt; } .route li::marker { color: var(--sel); font-weight: 600; font-size: 6.6pt; }
+.route b { font-weight: 600; }
+table { width: 100%; border-collapse: collapse; font-size: 6.6pt; line-height: 1.3; margin-top: 1pt; }
+td { padding: 1.8pt 0; border-bottom: 0.4pt solid var(--rule); vertical-align: top; }
+td.num { font: 600 8.4pt/1.2 "Inter Tight", Inter, sans-serif; width: 0.78in; white-space: nowrap; }
+td.k { font-weight: 600; width: 0.82in; padding-right: 5pt; }
+.refs { font-size: 6.2pt; color: var(--ink-2); line-height: 1.4; margin-top: auto; border-top: 0.4pt solid var(--rule); padding-top: 4pt; }
+.refs ol { margin: 0; padding-left: 10pt; columns: 2; column-gap: 12pt; }
+sup { font-size: 0.7em; color: var(--ink-3); }
+</style>
+</head>
+<body>
+
+<div class="topbar"><b>Simulaxon</b><span>Demo brief · 15 November 2026</span></div>
+<header class="head">
+  <div>
+    <h1>Prototype neuroscience experiments in hours.</h1>
+    <p class="lede">Simulaxon's AI agents turn a hypothesis into scenes they can generate, predict how the brain would respond, and use those predictions to decide what to test next.</p>
+  </div>
+  <div class="meta">CIQ Fuzzball · NVIDIA GB10</div>
+</header>
+
+<figure>
+  <div class="fig1">
+    <img src="hero-isaac.jpg" alt="Isaac Sim render of a G1 humanoid in a scanned room">
+    <img src="hero-cosmos.jpg" alt="Cosmos 3 Nano restyle of the same moment">
+    <img class="brain" src="../demo/assets/brain-humanoid.png" alt="TRIBE v2's predicted cortical response">
+  </div>
+  <figcaption><b>Fig. 1 | A trial rendered, restyled and read.</b> A run in the app: a G1 humanoid in a scanned room, rendered in <span class="tok">Isaac Sim</span> (left), the same moment restyled to photoreal by <span class="tok">Cosmos 3 Nano</span> (centre), and <span class="tok">TRIBE v2</span>'s predicted response on the cortex (right).</figcaption>
+</figure>
+
+<div class="cols">
+  <div class="col">
+    <section>
+      <h2><span class="n">1</span>Every comparison costs scanner hours</h2>
+      <p>To find out what drives a response, researchers need to vary what people see, hear, or know going into a scene. Testing those comparisons with people gets expensive fast, at tens of thousands of dollars per study.</p>
+    </section>
+
+    <section>
+      <h2><span class="n">2</span>Develop the experiment before the first scan</h2>
+      <p>Simulaxon gives researchers a way to develop the experiment before they bring in participants.</p>
+      <ol class="steps">
+        <li>The agent decides what to vary and what to hold fixed.</li>
+        <li>It generates the clips and compares the predicted brain responses.</li>
+        <li>It can then run a follow-up to see whether a pattern persists when another detail changes.</li>
+      </ol>
+    </section>
+
+    <section>
+      <h2><span class="n">3</span>Predictions come from Meta's TRIBE v2</h2>
+      <p><span class="tok">TRIBE v2</span><sup>1</sup> trained on fMRI recordings of people watching films, television, and short videos of everyday events. In separate evaluations, it recovered known patterns of brain activity for seeing faces versus places and hearing descriptions of emotional versus physical pain.</p>
+      <figure>
+        <div class="fig2">
+          <div><div class="pair"><img src="../demo/assets/stim-falls.png" alt=""><img src="../demo/assets/brain-falls.png" alt=""></div><div class="lab"><span class="pl">a</span></div></div>
+          <div><div class="pair"><img src="../demo/assets/stim-food.png" alt=""><img src="../demo/assets/brain-food.png" alt=""></div><div class="lab"><span class="pl">b</span></div></div>
+          <div><div class="pair"><img src="../demo/assets/stim-humanoid.png" alt=""><img src="../demo/assets/brain-humanoid.png" alt=""></div><div class="lab"><span class="pl">c</span></div></div>
+        </div>
+        <figcaption><b>Fig. 2 | Experiments run in the app.</b> Each stimulus beside its predicted contrast on the cortex. <b>a</b>, Objects that stop in mid-air against objects that land (Isaac Sim, 16 clips). <b>b</b>, Food against colour-matched objects (Isaac Sim, 40 clips). <b>c</b>, A humanoid, rendered and restyled (Isaac Sim and Cosmos 3 Nano, 2 clips).</figcaption>
+      </figure>
+    </section>
+
+    <section>
+      <h2><span class="n">4</span>An adapter fits TRIBE v2 to real people</h2>
+      <p>TRIBE v2 predicts an average viewer it has never met. Given people's measured fMRI, one click fits an adapter: a map from TRIBE v2's prediction for each brain area to the responses those people had.</p>
+      <figure>
+        <div class="fig3">
+          <div style="position:relative"><span class="pl" style="position:absolute;left:0;top:0">a</span><img class="map" src="cortex-map.png" alt="Adapter r against measured fMRI per brain area"></div>
+          <div class="bars"><span class="pl">b</span>
+            <div class="bar"><span>TRIBE v2 as released</span><span class="lane"><i style="width:32.1%;background:var(--grey)"></i><span class="ceil"></span></span><span class="v">0.257</span></div>
+            <div class="bar"><span><b>Adapter</b></span><span class="lane"><i style="width:50.9%;background:var(--a)"></i><span class="ceil"></span></span><span class="v">0.407</span></div>
+            <div class="bar"><span>Labels shuffled</span><span class="lane"><i style="width:0.6%;background:var(--grey)"></i><span class="ceil"></span></span><span class="v">−0.011</span></div>
+            <div class="bar"><span>Noise ceiling</span><span class="lane"><i style="width:84.4%;background:#cfc7ba"></i></span><span class="v">0.675</span></div>
+          </div>
+        </div>
+        <figcaption><b>Fig. 3 | An adapter fitted on measured fMRI.</b> <b>a</b>, Adapter r per brain area. <b>b</b>, Benchmark on the <span class="tok">Human Action Dataset</span><sup>2</sup> (30 people, action video clips): median r with measured fMRI over 212 reliable brain areas, on action categories the fit never saw (ridge regression, 10 folds over categories). The adapter raises TRIBE v2's correlation by 58% and is higher in 179 of 212 areas. The line on each bar is the noise ceiling.</figcaption>
+      </figure>
+    </section>
+  </div>
+
+  <div class="col">
+    <section>
+      <h2><span class="n">5</span>One round runs on two CIQ workstations</h2>
+      <p>The app and the video pipeline together need an estimated 150 GB of memory, so Fuzzball starts them on separate 128 GB workstations and gives both access to the same VAST storage.</p>
+      <figure class="fig4">
+        <img src="architecture.png" alt="Fuzzball 4.3 starts workstation 1 (app server, Nemotron 3 Super 120B, build-ui, observability) and workstation 2 (render-score: Isaac Sim 6.2, Cosmos 3 Nano, TRIBE v2, V-JEPA 2) over one VAST volume">
+        <figcaption><b>Fig. 4 | One round on two CIQ workstations.</b> As the Fuzzfiles define it. Workstation 1: the planner (<span class="tok">vLLM 0.27.1</span>, 8 cores, 100 GiB, 1 GPU, NVFP4, MTP decoding) and the app server (4 cores, 8 GiB). Workstation 2: render-score (<span class="tok">Isaac Sim 6.2</span> image, 16 cores, 96 GiB, 1 GPU). Every container mounts the VAST volume at /data.</figcaption>
+      </figure>
+      <ol class="route">
+        <li><b>Planner on workstation 1.</b> When you submit a hypothesis, Nemotron Super 120B plans the experiment on the first workstation.</li>
+        <li><b>Hand-off to workstation 2.</b> The app sends the scene specifications to the second workstation.</li>
+        <li><b>Isaac Sim render.</b> Isaac Sim 6.2 renders a reference video.</li>
+        <li><b>Cosmos restyle.</b> NVIDIA Cosmos 3 Nano uses it to generate realistic footage (181 s for the vase clip).</li>
+        <li><b>TRIBE v2 prediction.</b> TRIBE v2 predicts the fMRI response to each clip (11 s).</li>
+        <li><b>Back to the planner.</b> The app sends the predictions back to Nemotron to compare conditions.</li>
+        <li><b>Follow-up on Fuzzball.</b> If the agent chooses a follow-up, the app submits it to Fuzzball.</li>
+        <li><b>Every round on VAST.</b> Each round adds its clips, predictions, and log to the same VAST volume, so you can trace each result back to what the agent changed.</li>
+      </ol>
+    </section>
+
+    <section>
+      <h2><span class="n">6</span>The cluster matches the desk and fits in memory</h2>
+      <table>
+        <tr><td class="num">0.9991</td><td class="k">Cluster against desk</td><td>Median per-clip correlation between the cluster's and the DGX Spark's predictions for the same clips.</td></tr>
+        <tr><td class="num">21.5 tok/s</td><td class="k">Planner reply speed</td><td>Nemotron Super 120B with speculative decoding, up from 11 to 16 tokens/s without it.</td></tr>
+        <tr><td class="num">112 / 119 GiB</td><td class="k">Peak memory</td><td>Highest use on either 128 GB workstation while the planner, Isaac Sim, Cosmos and TRIBE v2 ran.</td></tr>
+      </table>
+    </section>
+
+    <section>
+      <h2><span class="n">7</span>Five steps in the app</h2>
+      <ol class="steps">
+        <li>Ask the agent to design an experiment around your hypothesis.</li>
+        <li>Upload footage or describe the scenes you want to test.</li>
+        <li>Review the generated scenes and predicted responses alongside the agent's follow-up experiments.</li>
+        <li>If you have access to some fMRI recordings that you want to extrapolate on, these can be fine-tuned to customize simulation results.</li>
+        <li>Run robotics experiments that use predicted human brain responses to test whether a robot can better anticipate what someone is about to do from the way they move.</li>
+      </ol>
+    </section>
+
+    <div class="refs">
+      <ol>
+        <li>d'Ascoli S. et al. A foundation model of vision, audition, and language for in-silico neuroscience. arXiv:2605.04326, 2026.</li>
+        <li>A large-scale fMRI dataset for human action recognition. OpenNeuro ds004488.</li>
+      </ol>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>
