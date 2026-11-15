@@ -68,7 +68,7 @@ p { margin: 0; }
 .stations .station.on { opacity: 1; }
 .stations .station p { font-family: var(--display); font-weight: 300; font-size: clamp(21px, 2.3vw, 27px); line-height: 1.42; max-width: 30ch; }
 .stations .pin { position: sticky; top: 14vh; height: 72vh; display: grid; align-items: center; }
-.stations .frames { position: relative; width: 100%; aspect-ratio: 16 / 10; }
+.stations .frames { position: relative; width: 100%; height: calc(72vh - 40px); }   /* the pin's height less the ticks, so a tall grab stays readable */
 .stations .frames > * { position: absolute; inset: 0; opacity: 0; }
 .stations .frames > :first-child { opacity: 1; }
 .stations .frames .slot { aspect-ratio: auto; height: 100%; }
@@ -88,7 +88,7 @@ p { margin: 0; }
 .excard .body { padding: 14px 16px 16px; display: grid; gap: 4px; }
 .excard h3 { font-size: 18px; font-weight: 500; font-family: var(--body); letter-spacing: -0.01em; }
 .excard .src { font-size: 14px; color: var(--ink-3); }
-.paper { margin: 0; display: grid; gap: 10px; }
+.paper { margin: 0; display: grid; gap: 10px; width: 100%; max-width: 400px; justify-self: center; }
 .paper img { border-radius: 6px; background: #fff; box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45); transform: rotate(-1.5deg); }
 .paper figcaption { font-size: 15px; color: var(--ink-3); }
 
@@ -214,10 +214,12 @@ body.light .live { border-color: #cfc7ba; }
 
 /* Grabs from the real interface */
 .grab { margin: 0; display: grid; gap: 10px; min-width: 0; }
+.grab video { width: 100%; height: auto; border-radius: 12px; border: 1px solid var(--rule); }
 .grab img { width: 100%; height: auto; border-radius: 12px; border: 1px solid var(--rule); box-shadow: 0 30px 80px rgba(0, 0, 0, 0.35); }
 .grab figcaption { font-size: 15px; color: var(--ink-3); }
-.stations .frames .grab { height: 100%; align-content: center; }
-.stations .frames .grab img { max-height: 100%; object-fit: contain; width: auto; margin: 0 auto; }
+.stations .frames .grab { height: 100%; grid-template-rows: minmax(0, 1fr) auto; justify-items: center; }   /* the picture shrinks to leave the caption room inside the frame */
+.stations .frames .grab img { height: 100%; width: auto; max-width: 100%; min-height: 0; object-fit: contain; }
+.stations .frames .grab figcaption { text-align: center; }
 
 /* The adapter's map, large: the result the fitting chapter is about */
 .mapview { margin: 0; display: grid; gap: 14px; }
