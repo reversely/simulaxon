@@ -7,15 +7,10 @@
   if (hasGsap) gsap.registerPlugin(ScrollTrigger);
 
   // Chapters' tints, all from the film's palette: warm charcoal, with one hue each at low strength.
-  const BIOMES = {
-    home: { top: '#191714', bottom: '#0f0e0d', glow: 'rgba(181, 222, 43, 0.10)' },     // the accent
-    cost: { top: '#1a1816', bottom: '#100f0d', glow: 'rgba(243, 240, 234, 0.07)' },    // ivory
-    develop: { top: '#141719', bottom: '#0d0e0f', glow: 'rgba(46, 140, 176, 0.14)' },  // series two
-    model: { top: '#1a1413', bottom: '#0f0d0c', glow: 'rgba(179, 38, 30, 0.14)' },     // the brain's ramp
-    paper: { top: '#f3f0ea', bottom: '#e9e3d8', glow: 'rgba(127, 160, 28, 0.10)', light: true },   // the one ivory chapter
-    ciq: { top: '#151813', bottom: '#0d0e0c', glow: 'rgba(127, 160, 28, 0.13)' },      // series one
-    compute: { top: '#14161a', bottom: '#0d0e10', glow: 'rgba(46, 140, 176, 0.11)' },
-  };
+  const DARK = { top: '#171614', bottom: '#100f0e', glow: 'rgba(243, 240, 234, 0.035)' };
+  const BIOMES = { home: DARK, cost: DARK, develop: DARK, model: DARK, ciq: DARK, compute: DARK,
+    paper: { top: '#f3f0ea', bottom: '#eeeae2', glow: 'rgba(255, 255, 255, 0)', light: true } };   // the one contrast block
+
   const layers = [document.getElementById('backdrop-a'), document.getElementById('backdrop-b')];
   let front = 0, current = '';
   const paint = (el, b) => { el.style.setProperty('--l-top', b.top); el.style.setProperty('--l-bottom', b.bottom); el.style.setProperty('--l-glow', b.glow); };
@@ -29,15 +24,14 @@
   document.querySelectorAll('[data-biome]').forEach(s => bo.observe(s));
 
   // Brain areas drifting round the title, as on the film's title card. Seeded, so the layout is the same each load.
-  const AREAS = ['V1', 'V2', 'V3', 'V4', 'MT', 'MST', 'FFC', 'PH', 'PHA1', 'VVC', 'STSv', 'PGi', 'TE1a', 'A5', '45', 'V4t', 'IPS1', 'LO1', 'LO2', 'V3A', 'V6', 'PIT', 'RSC', 'TPOJ1'];
-  const HOT = new Set(['FFC', 'PH', 'MT']);
-  const host = document.querySelector('[data-glyphs]');
+  const AREAS = ['V1', 'MT', 'FFC', 'PH', 'STSv', 'V4', 'PGi', 'LO1', 'TE1a', 'V3A', 'RSC', 'PIT'];
+    const host = document.querySelector('[data-glyphs]');
   if (host) {
     let seed = 7; const rnd = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
     AREAS.forEach((name, i) => {
-      const s = document.createElement('span'); s.className = 'glyph' + (HOT.has(name) ? ' hot' : ''); s.textContent = name;
+      const s = document.createElement('span'); s.className = 'glyph'; s.textContent = name;
       const top = i % 2 ? 2 + rnd() * 12 : 84 + rnd() * 12;   // bands above and below the text, never across it
-      s.style.left = (3 + Math.floor(i / 2) / 12 * 92 + rnd() * 3) + '%';   // evenly across each band, so no two names land together s.style.top = top + '%'; host.appendChild(s);
+      s.style.left = (3 + Math.floor(i / 2) / 6 * 92 + rnd() * 3) + '%';   // evenly across each band, so no two names land together s.style.top = top + '%'; host.appendChild(s);
       if (hasGsap && !reduced) {
         gsap.fromTo(s, { opacity: 0, y: 24 }, { opacity: 1, y: 0, duration: 1.4, ease: 'power3.out', delay: 0.1 + i * 0.05 });
         gsap.to(s, { x: (rnd() - 0.5) * 80, y: (rnd() - 0.5) * 16, duration: 9 + rnd() * 6, ease: 'sine.inOut', yoyo: true, repeat: -1, delay: 1.5 });

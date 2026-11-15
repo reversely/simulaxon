@@ -78,7 +78,7 @@ p { margin: 0; }
 
 /* Stimulus beside its predicted brain */
 .examples { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; margin-top: 48px; }
-.excard { background: var(--paper); color: var(--paper-ink); border-radius: 14px; overflow: hidden; min-width: 0; }
+.excard { background: var(--panel); color: var(--ink); border: 1px solid var(--rule); border-radius: 14px; overflow: hidden; min-width: 0; }
 .excard .pics { display: grid; grid-template-columns: 1fr 1fr; background: #0c0b0a; height: 180px; }
 .excard .pics img { width: 100%; height: 180px; }
 .excard .stim { object-fit: cover; }
@@ -87,7 +87,7 @@ p { margin: 0; }
 .excard figcaption { position: absolute; left: 8px; right: 8px; bottom: 6px; font-size: 12px; color: var(--ink-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .excard .body { padding: 14px 16px 16px; display: grid; gap: 4px; }
 .excard h3 { font-size: 18px; font-weight: 500; font-family: var(--body); letter-spacing: -0.01em; }
-.excard .src { font-size: 14px; color: var(--paper-ink-2); }
+.excard .src { font-size: 14px; color: var(--ink-3); }
 .paper { margin: 0; display: grid; gap: 10px; }
 .paper img { border-radius: 6px; background: #fff; box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45); transform: rotate(-1.5deg); }
 .paper figcaption { font-size: 15px; color: var(--ink-3); }
@@ -167,7 +167,7 @@ p { margin: 0; }
 .backdrop { position: fixed; inset: 0; z-index: -2; opacity: 0; transition: opacity 900ms cubic-bezier(0.22, 1, 0.36, 1);
   background: radial-gradient(120% 70% at 50% 18%, var(--l-glow, transparent), transparent 62%), linear-gradient(180deg, var(--l-top, #191714), var(--l-bottom, #0f0e0d)); }
 .backdrop.active { opacity: 1; }
-.grain { position: fixed; inset: 0; z-index: -1; pointer-events: none; opacity: 0.07; mix-blend-mode: overlay;
+.grain { display: none;
   background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/></filter><rect width='160' height='160' filter='url(%23n)'/></svg>"); }
 /* The ivory chapter: the ink flips to dark on paper, riding the backdrop's crossfade */
 body.light { --ink: #171513; --ink-2: #57524b; --ink-3: #6f695f; --rule: #ddd6cb; --rule-strong: #cfc7ba; --panel: #ebe5da; }
@@ -177,8 +177,7 @@ body.light .live { border-color: #cfc7ba; }
 .hero { position: relative; }
 .atmos { position: absolute; inset: 0; pointer-events: none; overflow: hidden; z-index: 0; }
 .hero > :not(.atmos) { position: relative; z-index: 1; }
-.glyph { position: absolute; font-family: var(--display); font-size: 15px; color: var(--ink-3); opacity: 0.55; letter-spacing: 0.02em; }
-.glyph.hot { color: var(--accent); opacity: 0.85; }
+.glyph { position: absolute; font-family: var(--display); font-size: 14px; color: var(--ink-3); opacity: 0.35; letter-spacing: 0.02em; }
 
 /* The film's cards, live */
 .fcard { position: relative; width: 100%; max-width: 640px; margin: 0 auto; padding-top: 24px; }
@@ -222,7 +221,24 @@ body.light .live { border-color: #cfc7ba; }
 
 /* The adapter's map, large: the result the fitting chapter is about */
 .mapview { margin: 0; display: grid; gap: 14px; }
-.mapview canvas { width: 100%; height: min(62vh, 640px); display: block; border-radius: 16px; background: radial-gradient(70% 70% at 50% 45%, #1e1c19, #0c0b0a); }
+.mapview canvas { width: 100%; height: min(62vh, 640px); display: block; }   /* on the ivory itself: no second contrast block */
 .mapview figcaption { display: flex; justify-content: space-between; align-items: center; gap: 14px; flex-wrap: wrap; font-size: 15px; color: var(--ink-2); }
 body.light .choose button { color: var(--ink-2); } body.light .choose button.on { background: #e2dbcf; color: var(--ink); }
 .mapview.nogl canvas { display: none; }
+
+/* The film's cards as dark panels on the dark ground; inside the ivory chapter they take its light surface */
+.fc-sheet.s1 { background: #2c2925; } .fc-sheet.s2 { background: #221f1c; }
+.fc-card { background: var(--panel); color: var(--ink); border: 1px solid var(--rule-strong); }
+.fc-head { color: var(--ink-3); border-bottom-color: var(--rule-strong); }
+.fc-muted { color: var(--ink-3); }
+.fc-track { background: var(--rule-strong); }
+.fc-fill, .fc-knob { background: var(--ink); }
+.fc-btn { background: var(--ink); color: var(--ground); }
+.fc-lane { background: var(--rule); }
+.fc-ceil { background: var(--ink); }
+.block .fc-sheet.s1 { background: #e6e0d5; } .block .fc-sheet.s2 { background: #dbd4c8; }
+.block .fc-card { background: #fbfaf7; color: var(--paper-ink); border-color: var(--paper-rule); }
+.block .fc-head { color: var(--paper-ink-2); border-bottom-color: var(--paper-rule); }
+.block .fc-muted { color: var(--paper-ink-2); }
+.block .fc-btn { background: var(--paper-ink); color: var(--paper); }
+.block .fc-lane { background: #e4ddd1; } .block .fc-ceil { background: var(--paper-ink); }
