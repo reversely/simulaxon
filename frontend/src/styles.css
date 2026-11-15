@@ -586,3 +586,10 @@ table.data.compact td, table.data.compact th { padding: 3px 8px; font-size: 14px
 .dspick { display: flex; flex-direction: column; gap: 2px; max-height: 160px; overflow: auto; border: 1px solid var(--rule); border-radius: 8px; padding: 6px; }
 .btn.on { border-color: var(--sel); }
 @media (max-width: 760px) { .dsbody, .dssamplebody { grid-template-columns: 1fr; } .dsfields { max-height: none; } }
+
+/* the chat's Upload: pick the dataset first (#22) */
+.uppick { position: relative; }
+.uppop { position: absolute; bottom: calc(100% + 6px); left: 0; z-index: 45; width: 280px; max-height: 320px; overflow: auto; background: var(--raise); border: 1px solid var(--rule-strong); border-radius: var(--radius); padding: 8px; display: flex; flex-direction: column; gap: 2px; box-shadow: 0 12px 30px rgba(0, 0, 0, 0.45); }
+.uppop > button { background: none; border: 0; color: var(--ink); text-align: left; padding: 6px 8px; border-radius: 6px; }
+.uppop > button:hover { background: var(--panel); }
+.uppop input { flex: 1; min-width: 0; background: var(--panel); border: 1px solid var(--rule-strong); border-radius: 6px; color: var(--ink); padding: 5px 8px; }

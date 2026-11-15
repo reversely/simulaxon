@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
-import { upload as sendFile, toolName } from './api'
+import { call, upload as sendFile, toolName } from './api'
 import { Icon, type IconName } from './icons'
 
 export type ToolCall = { tool: string; arguments: Record<string, unknown>; at: number; result?: string; error?: boolean; internal?: boolean; project_id?: string }
@@ -69,12 +69,23 @@ export function Chat({ sid, projectId, live, compact, header, footer, chips, onS
     } catch (e) { setErr(String((e as Error).message)); setSent(null) }
     setBusy(false)
   }
+  // files go into a dataset the person picks, or a new one they name, never a dataset of their own (#22)
+  const [pickDs, setPickDs] = useState(false); const [dsList, setDsList] = useState<{ id: string; title?: string }[] | null>(null)
+  const [target, setTarget] = useState<string | null>(null); const [newTitle, setNewTitle] = useState('')
+  useEffect(() => { if (pickDs && !dsList) call<{ id: string; title?: string }[]>('dataset_list').then(setDsList).catch(() => setDsList([])) }, [pickDs])
+  const chooseDs = (id: string) => { setTarget(id); setPickDs(false); setTimeout(() => fileIn.current?.click(), 0) }
+  async function newDs() {
+    try { const r = await call<{ dataset_id: string }>('dataset_create', { title: newTitle.trim() }); setNewTitle(''); setDsList(null); chooseDs(r.dataset_id) }
+    catch (e: any) { setErr(String(e?.message ?? e)) }
+  }
   async function upload(list: FileList | null) {
-    if (!list) return
+    if (!list || !target) return
+    let sent = 0
     for (const f of Array.from(list)) {
-      const r = await sendFile(`/datasets/upload?name=${encodeURIComponent(f.name)}${files[0] ? `&dataset_id=${files[0].dataset_id}` : ''}`, f)
-      if (r.ok) { const j = await r.json(); setFiles(fs => [...fs, j]) } else setErr(`${f.name} was not uploaded`)
+      const r = await sendFile(`/datasets/upload?name=${encodeURIComponent(f.name)}&dataset_id=${encodeURIComponent(target)}`, f)
+      if (r.ok) { const j = await r.json(); setFiles(fs => [...fs, j]); sent++ } else setErr(`${f.name} was not uploaded`)
     }
+    if (sent) call('item_create', { dataset_id: target }).catch(() => {})
   }
 
   return <>
@@ -114,7 +125,15 @@ export function Chat({ sid, projectId, live, compact, header, footer, chips, onS
         onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send('discuss') } }} />
       <div className="bar">
         <input ref={fileIn} type="file" multiple hidden onChange={e => { upload(e.target.files); e.target.value = '' }} aria-label="Files to upload" />
-        <button type="button" className="btn" onClick={() => fileIn.current?.click()}><Icon name="upload" size={16} />Upload</button>
+        <span className="uppick">
+          <button type="button" className="btn" aria-haspopup="menu" aria-expanded={pickDs} onClick={() => setPickDs(p => !p)}><Icon name="upload" size={16} />Upload</button>
+          {pickDs && <div className="uppop" role="menu" aria-label="Upload into">
+            <div className="ink2 small">Upload into</div>
+            {dsList === null ? <span className="ink2">Reading the datasets</span> : dsList.map(d => <button key={d.id} type="button" role="menuitem" onClick={() => chooseDs(d.id)}>{d.title || d.id}</button>)}
+            <div className="bar"><input aria-label="New dataset name" placeholder="New dataset name" value={newTitle} onChange={e => setNewTitle(e.target.value)} />
+              <button type="button" className="btn" disabled={!newTitle.trim()} onClick={newDs}>Create</button></div>
+          </div>}
+        </span>
         {running && sid && <button type="button" className="btn" onClick={() => fetch(`/agent/sessions/${sid}/stop`, { method: 'POST' })}><Icon name="stop" size={16} />Stop</button>}
         {err && <span className="flag">{err}</span>}
         <span className="bar" style={{ marginLeft: 'auto' }}>
