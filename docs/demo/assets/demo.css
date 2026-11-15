@@ -196,6 +196,8 @@ body.light .live { border-color: #cfc7ba; }
 .try-btn { display: inline-block; font-size: 17px; font-weight: 500; padding: 11px 20px; border-radius: 8px; background: var(--paper); color: var(--paper-ink); text-decoration: none; }
 .try-btn:hover { background: #e9e4da; }
 
+.src-note { max-width: 640px; margin: 16px auto 0; font-size: 13px; }   /* the scan-time card's source */
+
 /* Grabs from the real interface */
 .grab { margin: 0; display: grid; gap: 10px; min-width: 0; }
 .grab video { width: 100%; height: auto; border-radius: 12px; border: 1px solid var(--rule); }

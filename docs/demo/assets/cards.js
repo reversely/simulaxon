@@ -11,14 +11,14 @@
     tl.fromTo(root.querySelectorAll('.fc-sheet'), { y: 60, opacity: 0 }, { y: 0, opacity: 1, duration: 0.6, ease: 'power3.out', stagger: -0.05 }, t + 0.05);
   };
 
-  // Scan time: the cursor drags participants from 1 to 20; the scanner hours roll with it (one hour each).
+  // Scan time: the cursor drags participants from 1 to 20; the scanner hours and their cost at $710 an hour roll with it.
   function cost(root) {
     const tl = gsap.timeline({ paused: true }), cursor = root.querySelector('.fc-cursor');
     const track = root.querySelector('.fc-track'), knob = root.querySelector('.fc-knob'), fill = root.querySelector('.fc-fill');
-    const nEl = root.querySelector('[data-n]'), totalEl = root.querySelector('[data-total]');
+    const nEl = root.querySelector('[data-n]'), totalEl = root.querySelector('[data-total]'), costEl = root.querySelector('[data-cost]');
     const n = { v: 1 };
     const paint = () => { const W = track.getBoundingClientRect().width, p = (n.v - 1) / 19, people = Math.round(n.v);
-      nEl.textContent = people; totalEl.textContent = people + ' h'; gsap.set(fill, { scaleX: p }); gsap.set(knob, { x: p * W }); };
+      nEl.textContent = people; totalEl.textContent = people + ' h'; if (costEl) costEl.textContent = '$' + (people * 710).toLocaleString('en-US'); gsap.set(fill, { scaleX: p }); gsap.set(knob, { x: p * W }); };
     rise(tl, root, 0);
     tl.call(() => { n.v = 1; paint(); }, null, 0);
     tl.add(() => {}, 0.6);
