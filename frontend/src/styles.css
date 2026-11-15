@@ -598,3 +598,19 @@ table.data.compact td, table.data.compact th { padding: 3px 8px; font-size: 14px
 .dscap { display: flex; align-items: center; gap: 6px; }
 .dscap span:first-of-type { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .dsviewbar input { background: var(--raise); border: 1px solid var(--rule-strong); border-radius: 6px; color: var(--ink); padding: 4px 8px; width: 120px; }
+
+/* The brain drawn in the browser and the clip player (#27, brain3d.tsx) */
+.brain3d { display: flex; flex-direction: column; gap: 8px; }
+.brain3dcanvas { position: relative; }
+.brain3dcanvas canvas { display: block; width: 100%; aspect-ratio: 4 / 3; touch-action: pan-y; cursor: grab; }
+.brain3dcanvas canvas:active { cursor: grabbing; }
+.brain3dwait { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; gap: 8px; color: var(--ink-2); font-size: 14px; text-align: center; padding: 12px; }
+.clipbrain { display: flex; flex-direction: column; gap: 10px; }
+.clipbrain .twoup { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+.brain3d .bar { gap: 8px; }
+.player input[type=range] { flex: 1; min-width: 140px; accent-color: var(--a); }
+.player .num { min-width: 92px; }
+@media (max-width: 760px) { .clipbrain .twoup { grid-template-columns: minmax(0, 1fr); } }
+.brainfigs { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 460px)); gap: 12px; }
+.tablescroll { overflow-x: auto; }
+.brainfigs .mid { margin-bottom: 6px; }

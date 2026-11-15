@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { call, fmt, regionLabel, type Row, type Sample } from './api'
 import { Icon } from './icons'
+import { ClipBrain } from './brain3d'
 
 export type Origin = { kind: 'dataset' | 'isaac' | 'file' | 'generated' | 'cosmos'; label: string; title?: string; ref?: string; licence?: string | null; dataset_id?: string; from?: Origin; prompt?: string; seeds?: number[] }
 export type Setup = {
@@ -145,19 +146,17 @@ export function ReadoutTable({ title, readout, named, focus, bare }: { title: st
   const rows = [...named.filter(r => r in readout), ...Object.keys(readout).filter(r => !named.includes(r))]
   const table = <table className="data compact"><thead><tr><th>Region</th><th className="num">TRIBE value</th></tr></thead>
     <tbody>{rows.map(r => <tr key={r} className={r === focus ? 'on' : ''}><td title={r}>{regionLabel(r)}{named.includes(r) && <span className="chip tiny">Named</span>}</td><td className="num">{fmt(readout[r])}</td></tr>)}</tbody></table>
-  return bare ? <div className="readouts"><div className="ink2">{title}</div>{table}</div> : <div className="card"><h3>{title}</h3>{table}</div>
+  return bare ? <div className="readouts"><div className="ink2">{title}</div><div className="tablescroll">{table}</div></div> : <div className="card"><h3>{title}</h3><div className="tablewrap">{table}</div></div>
 }
 
 export function ExperimentRoom({ pid, samples, idx, setIdx, region, onS, named = [], tag = '' }: { pid: string; samples: Row<Sample & { origin?: Origin; items?: string[] }>[]; idx: number; setIdx: (i: number) => void; region: string; onS?: number; named?: string[]; tag?: string }) {
-  const s = samples[Math.min(idx, samples.length - 1)]?.data
+  const row = samples[Math.min(idx, samples.length - 1)]; const s = row?.data
   if (!s) return null
   const conds = [...new Set(samples.map(x => x.data.condition))]
   const vals = samples.map(x => x.data.readout[region] ?? 0); const lo = Math.min(...vals), hi = Math.max(...vals); const x = (v: number) => hi > lo ? 100 * (v - lo) / (hi - lo) : 50
   return <>
-    <div className="stage runstage square">
-      {s.clip ? <video key={s.clip} src={s.clip} autoPlay loop muted playsInline /> : s.image && <img src={s.image} alt={s.label} />}
-      <span className="stageorigin"><OriginChip o={s.origin} long /></span>
-    </div>
+    {s.clip ? <ClipBrain key={row.id} clip={s.clip} sampleId={row.id} square><span className="stageorigin"><OriginChip o={s.origin} long /></span></ClipBrain>
+      : <div className="stage runstage square">{s.image && <img src={s.image} alt={s.label} />}<span className="stageorigin"><OriginChip o={s.origin} long /></span></div>}
     <div className="bar">
       <span className="mid">{s.label}</span>
       <span style={{ marginLeft: 'auto' }} className="bar">

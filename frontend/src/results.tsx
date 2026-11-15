@@ -8,6 +8,7 @@ import { call, fmt, regionLabel } from './api'
 import { Icon } from './icons'
 import { MiniInterval } from './charts'
 import { ConditionCourse } from './experiment'
+import { ContrastBrain } from './brain3d'
 
 type Contrast = {
   contrast: string; region: string; named_by?: string | null; value: number; ci_low: number | null; ci_high: number | null; n: number | null
@@ -153,10 +154,9 @@ export function ResultsView({ pid, status, progress, live, focus, agentName, onP
         : <p className="ink2">No region was named for this project. Pick one in Table 1 to plot it here.</p>}
     </figure>
 
-    {rec.figures.some(f => Object.keys(f.views).length) && <figure className="card fig">
-      <figcaption><b>Fig. 2.</b> Each contrast over the whole cortex, unthresholded, from TRIBE v2's plotter. Read over seconds {window ? `${window[0]} to ${window[1]}` : 'on screen'}.</figcaption>
-      {rec.figures.map(f => <div key={f.title} className="mapsrow"><div className="mid">{f.title}</div>
-        <div className="maps">{Object.entries(f.views).map(([v, u]) => <div key={v}><img src={u} alt={`${f.title}, ${VIEW_NAMES[v] ?? v}`} /><span className="ink2 small">{VIEW_NAMES[v] ?? v}</span></div>)}</div></div>)}
+    {rec.figures.length > 0 && <figure className="card fig">
+      <figcaption><b>Fig. 2.</b> Each contrast over the whole cortex, unthresholded. Read over seconds {window ? `${window[0]} to ${window[1]}` : 'on screen'}. Drag a brain to turn it; Download has the same maps drawn by TRIBE v2's plotter.</figcaption>
+      <div className="brainfigs">{rec.figures.map((f, i) => <div key={f.title}><div className="mid">{f.title}</div><ContrastBrain projectId={pid} index={i} title={f.title} /></div>)}</div>
     </figure>}
 
     {rec.figures.length > 0 && <figure className="card fig">

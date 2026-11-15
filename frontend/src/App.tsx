@@ -9,6 +9,7 @@ import { DemoBar, NarrationMsg, type DemoInfo, type DemoState, type Narration } 
 import { SelectionView } from './selection'
 import { ResultsView, type LiveTrial } from './results'
 import { DatasetsPage } from './datasets'
+import { ClipBrain } from './brain3d'
 import { SessionDock, Chat, type SessionInfo } from './agent'
 type Example = { id: string; title: string; what: string; source: string; doi: string | null; goal: string; media: string[]; project_id: string | null; here: string }
 import { ExperimentSetup, ExperimentRoom, ReportedCard, OriginChip, type Setup, type Reported } from './experiment'
@@ -377,19 +378,19 @@ function RoomView({ P, template, unit, units, unitIdx, setUnitIdx, variant, setV
 }) {
   const isLoo = P.plan === 'leave_one_out'; const [mode, setMode] = useState<'frame' | 'clip'>(template?.stimulus === 'motion' ? 'clip' : 'frame')
   const [boxes, setBoxes] = useState(true); const [hoverBox, setHoverBox] = useState<string | null>(null)
-  const s = unit.variants[Math.min(variant, unit.variants.length - 1)].data
+  const row = unit.variants[Math.min(variant, unit.variants.length - 1)]; const s = row.data
   const noun = template?.unit_noun ?? 'unit'; const unitWord = noun[0].toUpperCase() + noun.slice(1)
   const showBoxes = isLoo && boxes && variant === 0
   return <>
-    <div className="stage runstage">
-      {mode === 'clip' && s.clip ? <video key={s.clip} src={s.clip} autoPlay loop muted playsInline /> : s.image ? <img src={s.image} alt={s.label} /> : <div className="empty">No frame</div>}
+    {mode === 'clip' && s.clip ? <ClipBrain key={row.id} clip={s.clip} sampleId={row.id}><span className="stageorigin"><OriginChip o={(s as any).origin ?? { kind: 'isaac', label: 'Rendered in Isaac Sim' }} /></span></ClipBrain> : <div className="stage runstage">
+      {s.image ? <img src={s.image} alt={s.label} /> : <div className="empty">No frame</div>}
       <span className="stageorigin"><OriginChip o={(s as any).origin ?? { kind: 'isaac', label: 'Rendered in Isaac Sim' }} /></span>
       {showBoxes && <svg viewBox="0 0 832 480" preserveAspectRatio="none">
         {objects.map(o => { const [x0, y0, x1, y1] = o.bbox_px; return <rect key={o.object} className={`box ${o.object === unit.key ? 'sel' : ''}`} x={x0} y={y0} width={x1 - x0} height={y1 - y0} rx={4}
           onMouseEnter={() => setHoverBox(o.object)} onMouseLeave={() => setHoverBox(null)} onClick={() => onPickObject(o.object)} /> })}
       </svg>}
       {showBoxes && objects.filter(o => o.object === hoverBox || o.object === unit.key).map(o => <div key={o.object} className="boxlabel" style={{ left: `${(o.bbox_px[0] + o.bbox_px[2]) / 2 / 8.32}%`, top: `${o.bbox_px[1] / 4.8}%` }}>{o.label} <span className="num">{fmt(o.regions[region])}</span></div>)}
-    </div>
+    </div>}
     <div className="bar">
       <div className="seg" role="group" aria-label="Variant">{unit.labels.map((l, i) => <button key={i} className={variant === i ? 'on' : ''} onClick={() => setVariant(i)}>{l}</button>)}</div>
       {unit.variants.some(v => v.data.clip) && <div className="seg" role="group" aria-label="Frame or clip"><button className={mode === 'frame' ? 'on' : ''} onClick={() => setMode('frame')}>Frame</button><button className={mode === 'clip' ? 'on' : ''} onClick={() => setMode('clip')}>Clip</button></div>}
@@ -442,10 +443,12 @@ function BrainView({ P, unit, variant, objects, analyses, course, region }: { P:
   const [which, setWhich] = useState<'project' | 'unit'>('project')
   const [map, setMap] = useState<MapRow | null>(null); const [busy, setBusy] = useState(false)
   const sample = unit?.variants[Math.min(variant, (unit?.variants.length ?? 1) - 1)]
+  const playable = which === 'unit' && !isLoo && !!sample?.data.clip
   useEffect(() => {
-    let live = true; setBusy(true)
+    let live = true; setBusy(!playable)
     const go = async () => {
       let row: Row<MapRow> | null = null
+      if (playable) { setMap(null); return }
       if (which === 'project' && contrastId) row = await call('neural_map_get', { map_id: contrastId })
       else if (which === 'unit' && isLoo && objMapId) row = await call('neural_map_get', { map_id: objMapId })
       else if (which === 'unit' && sample) row = await call('neural_map_create', { sample_id: sample.id })
@@ -463,7 +466,7 @@ function BrainView({ P, unit, variant, objects, analyses, course, region }: { P:
       </div>
       {busy && <span className="ink2"><span className="spin" /> Drawing the map</span>}
     </div>
-    {map && <>
+    {playable && sample?.data.clip ? <ClipBrain key={sample.id} clip={sample.data.clip} sampleId={sample.id} /> : map && <>
       <div className="headline"><span className="mid">{map.title}</span><span className="legend">{map.kind === 'contrast' ? <>Lower <span className="ramp" /> Higher</> : <>Low <span className="ramp single" /> High</>}</span></div>
       <div className="brains">{Object.entries(map.views).map(([v, url]) => <figure key={v}><img src={`/files/${url}`} alt={`${map.title}, ${VIEW_NAMES[v] ?? v}`} /><figcaption>{VIEW_NAMES[v] ?? v}</figcaption></figure>)}</div>
       <div className="ink2">TRIBE v2 prediction for an average viewer, over the seconds the stimulus is on screen.</div>

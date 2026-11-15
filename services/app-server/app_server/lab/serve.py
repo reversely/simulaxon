@@ -187,6 +187,37 @@ def make(db: str, port: int = 8790):
             dst.parent.mkdir(parents=True, exist_ok=True); im = Image.open(src).convert('RGB'); im.thumbnail((480, 480)); im.save(dst, quality=82)
         return FileResponse(dst, media_type='image/jpeg', headers={'Cache-Control': 'max-age=86400'})
 
+    @app.get('/api/brain/mesh')
+    def brain_mesh():
+        """The fsaverage5 cortex the page draws brains on (#27): lab/brainmesh.py, built once."""
+        from fastapi.responses import FileResponse
+        from . import brainmesh
+        return FileResponse(brainmesh.path(FILES), media_type='application/octet-stream', headers={'Cache-Control': 'max-age=31536000, immutable'})
+
+    @app.get('/api/brain/preds/{sample_id}')
+    def brain_preds(sample_id: str):
+        """A sample's TRIBE v2 predictions as stored (.npy, seconds by 20,484 fsaverage5 vertices), for the brain player (#27)."""
+        from fastapi import HTTPException
+        from fastapi.responses import FileResponse
+        row = app.state.tools.store.get('sample', sample_id)
+        p = Path(row.data['preds']) if row is not None and row.data.get('preds') else None
+        if p is None or not p.is_file(): raise HTTPException(404, f'no predictions for {sample_id}')
+        return FileResponse(p, media_type='application/octet-stream', headers={'Cache-Control': 'max-age=86400'})
+
+    @app.get('/api/brain/contrast/{project_id}/{index}')
+    def brain_contrast(project_id: str, index: int):
+        """Fig. 2's contrast number `index` (from 0, run_get's order) as per-vertex values (.npy, float32), from export.contrast_maps (#27)."""
+        import io
+        import numpy as np
+        from fastapi import HTTPException
+        from fastapi.responses import Response
+        from . import export
+        if app.state.tools.store.get('project', project_id) is None: raise HTTPException(404, f'no project {project_id}')
+        ms = export.contrast_maps(app.state.tools.store, project_id)
+        if not 0 <= index < len(ms): raise HTTPException(404, f'no contrast {index} for {project_id}')
+        buf = io.BytesIO(); np.save(buf, np.asarray(ms[index]['map'], np.float32))
+        return Response(buf.getvalue(), media_type='application/octet-stream', headers={'Cache-Control': 'no-cache'})
+
     @app.get('/api/results/{project_id}/download/{name}')
     def results_download(project_id: str, name: str):
         """One file of a finished run's results, or all.zip with every one (#20): built from the store, as run_get lists them."""
