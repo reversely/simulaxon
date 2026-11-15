@@ -38,14 +38,28 @@ HCP = {   # HCP-MMP1 areas, both hemispheres, as TRIBE v2 reports them (tribev2.
 
 
 @lru_cache(None)
+def _hcp(hemi: str) -> dict:
+    """TRIBE v2's HCP-MMP1 labels on fsaverage5 for one hemisphere. Read from the copy saved beside TRIBE's source where
+    there is one, so the app needs no torch (the cluster's app container has none); else from TRIBE v2 itself."""
+    import json, sys
+    from ..home import HOME
+    src = HOME / 'feasibility' / 'tribev2-src'; saved = src / 'hcp_labels_fsaverage5.json'
+    if saved.exists(): return json.loads(saved.read_text())[hemi]
+    sys.path.insert(0, str(src)); from tribev2.utils import get_hcp_labels
+    return get_hcp_labels(mesh='fsaverage5', hemi=hemi)
+
+
+def get_hcp_labels(mesh: str = 'fsaverage5', hemi: str = 'left') -> dict:
+    return _hcp(hemi)
+
+
+@lru_cache(None)
 def masks() -> dict[str, np.ndarray]:
     from nilearn import datasets
     a = datasets.fetch_atlas_surf_destrieux(); lab = np.concatenate([a['map_left'], a['map_right']]); names = [str(x) for x in a['labels']]
     out = {r: np.isin(lab, [names.index(n) for n in parts]) for r, (parts, _) in REGIONS.items()}
     import sys
     from pathlib import Path
-    from ..home import HOME; sys.path.insert(0, str(HOME / 'feasibility' / 'tribev2-src'))
-    from tribev2.utils import get_hcp_labels
     hcp = {**{f'L_{k}': np.asarray(v) for k, v in get_hcp_labels(mesh='fsaverage5', hemi='left').items()},
            **{f'R_{k}': np.asarray(v) for k, v in get_hcp_labels(mesh='fsaverage5', hemi='right').items()}}
     for r, (parts, _) in HCP.items():
@@ -74,8 +88,6 @@ def table() -> list[dict]:
 def hcp_names() -> tuple[str, ...]:
     """The 360 HCP-MMP1 areas' names in hcp_areas() order: L_ then R_ and the area's code, as TRIBE v2 labels them."""
     import sys
-    from ..home import HOME; sys.path.insert(0, str(HOME / 'feasibility' / 'tribev2-src'))
-    from tribev2.utils import get_hcp_labels
     return tuple(f"{h}_{k}" for h, hemi in (('L', 'left'), ('R', 'right')) for k in get_hcp_labels(mesh='fsaverage5', hemi=hemi) if k != '?')
 
 
@@ -84,8 +96,6 @@ def hcp_areas() -> list[np.ndarray]:
     """The 360 HCP-MMP1 areas TRIBE v2 reports, as vertex masks: the cortex any region is ranked against."""
     import sys
     from pathlib import Path
-    from ..home import HOME; sys.path.insert(0, str(HOME / 'feasibility' / 'tribev2-src'))
-    from tribev2.utils import get_hcp_labels
     out = []
     for h in ('left', 'right'):   # indices are already over both hemispheres, as regions.masks uses them
         for k, v in get_hcp_labels(mesh='fsaverage5', hemi=h).items():
@@ -101,8 +111,6 @@ def atlas() -> dict[str, tuple[np.ndarray, str]]:
     from pathlib import Path
     from nilearn import datasets
     out = {r: (m, 'named group') for r, m in masks().items()}
-    from ..home import HOME; sys.path.insert(0, str(HOME / 'feasibility' / 'tribev2-src'))
-    from tribev2.utils import get_hcp_labels
     for h, hemi in (('L', 'left'), ('R', 'right')):   # indices already run over both hemispheres
         for k, v in get_hcp_labels(mesh='fsaverage5', hemi=hemi).items():
             if k == '?': continue
