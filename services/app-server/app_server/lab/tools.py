@@ -190,19 +190,26 @@ def register(tools, broadcast=lambda m: None):
 
     @tools.tool('project', 'update')
     def project_update(step, actor, project_id, expect_version, title=None, bindings: dict | None = None, status=None, counts=None,
-                       run_values=None, pairs=None, labels=None, run_info=None, controls: list[str] | None = None):
+                       run_values=None, pairs=None, labels=None, run_info=None, controls: list[str] | None = None, datasets: list[str] | None = None,
+                       question: str | None = None):
         """Change a project's title or blanks, or its run bookkeeping: status, counts, pairs to run, condition labels and
         run_info (how the run was made, which the run itself writes). controls: the checks that would challenge this
         project's result, each a short name a fork can carry ("Houses and faces matched in brightness"), written for
-        this project's own stimuli and regions, never a stock list. Only a change to the blanks marks results out of date;
+        this project's own stimuli and regions, never a stock list. question: the project's question, written to the
+        question guidelines; it replaces a template's fill and stays when the blanks change. datasets: the dataset IDs the project draws its stimuli
+        from, as the person picked them; its conditions come from these. Only a change to the blanks marks results out of date;
         the rest is metadata."""
         cur = s.get('project', project_id); d = {}
-        for k, v in (('title', title), ('status', status), ('counts', counts), ('run_values', run_values), ('pairs', pairs), ('labels', labels), ('run_info', run_info), ('controls', controls)):
+        for k, v in (('title', title), ('status', status), ('counts', counts), ('run_values', run_values), ('pairs', pairs), ('labels', labels), ('run_info', run_info), ('controls', controls), ('datasets', datasets)):
             if v is not None: d[k] = v
         if status is not None and status not in ('Draft', 'Running', 'Done'): raise ValueError('status must be Draft, Running or Done')
+        if question is not None:
+            q = ' '.join(question.split())
+            if not q.endswith('?') or len(q) > 200: raise ValueError('a question is one sentence ending in a question mark, at most 200 characters')
+            d.update(question=q, question_written=True)
         if bindings is not None:
             t = templates.get(cur.data['template_id']); b = {**cur.data['bindings'], **bindings}
-            d.update({'bindings': b, 'question': templates.fill(t['question'], b),
+            d.update({'bindings': b, **({} if cur.data.get('question_written') or question is not None else {'question': templates.fill(t['question'], b)}),
                       'parameters': [{**x, 'value': templates.fill(x['value'], b)} for x in t['parameters']]})
         return s.update(step, 'project', project_id, d, expect_version, mark_stale=bindings is not None)
 
@@ -384,8 +391,23 @@ def register(tools, broadcast=lambda m: None):
 
     @tools.tool('dataset', 'list', writes_project=False)
     def dataset_list(actor):
-        """Datasets on this machine, and fetches under way: source, licence, files and size."""
-        return dsets.here()
+        """Datasets on this machine, and fetches under way: source, licence, files and size; once indexed (item_create), how
+        many samples and fields each has and its media types; and the projects that use it (#22)."""
+        from . import curation
+        by: dict = {}
+        for r in s.list('item'): by.setdefault(r.data.get('dataset_id'), []).append(r.data)
+        uses: dict = {}
+        for p in s.list('project'):
+            d = p.data; ids = set(d.get('datasets') or [])
+            ids |= {c.get('dataset_id') for c in ((d.get('experiment') or {}).get('conditions') or []) if isinstance(c, dict) and c.get('dataset_id')}
+            for i in ids: uses.setdefault(i, []).append(p.id)
+        out = []
+        for d in dsets.here():
+            items = by.get(d.get('id'), []); media: dict = {}
+            for x in items: media[x.get('media_type')] = media.get(x.get('media_type'), 0) + 1
+            out.append({**d, 'samples': len(items), 'fields': len(curation.schema([{'fields': x.get('fields') or {}, 'tags': x.get('tags')} for x in items])) if items else 0,
+                        'media': media, 'indexed': bool(items), 'projects': uses.get(d.get('id'), [])})
+        return out
 
     @tools.tool('file', 'list', writes_project=False)
     def file_list(actor, dataset_id, pattern: str = '*'):
@@ -417,7 +439,9 @@ def register(tools, broadcast=lambda m: None):
           One clip per trial; every trial has the same length.
         reported: the paper's result to compare against: [{contrast, region, direction: higher or lower, where: "Figure 2", quote}];
           region is a name from regions, including a group defined there, or an atlas name.
+        A condition may instead be {name, view_id}: a saved view of a dataset (view_create); its items are the condition's files.
         Run it with project_run; progress is broadcast; results come back as analyses with baselines and match or no match."""
+        conditions = [_from_view(c) if isinstance(c, dict) and c.get('view_id') else c for c in conditions]   # curated stimuli (#22)
         regs = regions   # the argument, not the module: this function never needs the module
         spec = {'conditions': conditions, 'regions': regs, 'contrasts': contrasts, 'trial': trial, 'reported': reported, 'paper_id': paper_id}
         P = experiment.plan(spec)
@@ -441,6 +465,110 @@ def register(tools, broadcast=lambda m: None):
                 'contrasts': P['contrasts'], 'regions': regs, 'reported': P['reported'], 'example_trial': P['trials'][0]['items'][:4]}
 
     def _name(r): return r if isinstance(r, str) else r['name']
+
+    # ---- dataset curation (#22): items with fields and tags, views of them, saved views as conditions
+    def _items(dataset_id):
+        out = sorted(({'id': r.id, **r.data} for r in s.list('item') if r.data.get('dataset_id') == dataset_id), key=lambda x: x.get('ord', 0))
+        return out
+
+    def _from_view(c):
+        import glob as _glob
+        from . import curation
+        from ..store import Missing
+        v = s.get('view', c['view_id'])
+        if not v: raise Missing(f"no view {c['view_id']}")
+        items, _ = curation.apply(_items(v.data['dataset_id']), v.data['stages'])
+        if not items: raise ValueError(f"view {v.data['name']} has no items")
+        return {**{k: x for k, x in c.items() if k != 'view_id'}, 'dataset_id': v.data['dataset_id'], 'files': [_glob.escape(x['path']) for x in items],
+                'view': {'id': v.id, 'name': v.data['name'], 'items': len(items)}}
+
+    @tools.tool('dataset', 'create', writes_project=False)
+    def dataset_create(actor, title):
+        """A new, empty dataset with this title, for files a person adds (upload to /datasets/upload?dataset_id=...).
+        Returns {dataset_id, title}."""
+        import json as _json, re as _re, time as _time
+        slug = _re.sub(r'[^A-Za-z0-9]+', '_', title).strip('_').lower()[:60] or 'dataset'; did, n = slug, 2
+        while dsets.dataset_dir(did).exists(): did = f'{slug}_{n}'; n += 1
+        root = dsets.dataset_dir(did); root.mkdir(parents=True)
+        (root / '_dataset.json').write_text(_json.dumps({'id': did, 'ref': 'upload', 'repository': 'upload', 'key': did, 'title': title, 'licence': None,
+                                                         'fetched_at': _time.strftime('%Y-%m-%d %H:%M'), 'files': []}, indent=1))
+        return {'dataset_id': did, 'title': title}
+
+    @tools.tool('item', 'create', writes_project=False)
+    def item_create(actor, dataset_id):
+        """Make an item for every image, video and audio file of a dataset on this machine, with fields read off each file:
+        file, folder, category (the folder it is in), media_type, size_mb, width, height; for images luminance and contrast;
+        for video duration_s, fps and frames; sha and duplicates; and the columns of any CSV beside the files that names them.
+        Runs in the background (progress on the live feed) and writes every item in one step, so undo removes the index;
+        indexing again updates the fields and keeps the tags. Returns at once."""
+        import threading as _th
+        from . import curation
+        if not dsets.dataset_dir(dataset_id).exists(): raise ValueError(f'no dataset {dataset_id} on this machine; dataset_list shows them')
+        def go():
+            try:
+                rows = curation.index(dataset_id, on_event=broadcast)
+                with tools.lock:
+                    step = s.begin(actor, 'item_create', {'dataset_id': dataset_id})
+                    have = {r.id: r for r in s.list('item') if r.data.get('dataset_id') == dataset_id}
+                    for x in rows:
+                        data = {k: x[k] for k in ('dataset_id', 'path', 'media_type', 'fields', 'sources', 'ord')}
+                        if x['id'] in have: s.update(step, 'item', x['id'], data, have[x['id']].version, mark_stale=False)
+                        else: s.create(step, 'item', {**data, 'tags': []}, id=x['id'])
+                broadcast({'dataset': dataset_id, 'indexed': len(rows), 'total': len(rows), 'done': True})
+            except Exception as e:
+                import traceback; traceback.print_exc(); broadcast({'dataset': dataset_id, 'error': str(e)[-300:]})
+        _th.Thread(target=go, daemon=True).start()
+        return {'queued': True, 'dataset_id': dataset_id}
+
+    @tools.tool('item', 'query', writes_project=False)
+    def item_query(actor, dataset_id, stages: list | None = None, view_id: str | None = None, limit: int = 60, offset: int = 0, facets: bool = True):
+        """A dataset's items through a view: a saved view's stages (view_id), then any further stages. Returns {total, items
+        (this page, each with media, thumb, fields, tags and the source of each field), trail (the count after each stage),
+        schema (every field with its type and count), facets (per field over the whole view: a histogram or value counts),
+        indexed}. Stages, applied in order:
+          {stage: match, path, op, value}  ops == != < <= > >= in between contains; path is a field, or tags
+          {stage: exists, path, present}   {stage: tagged, tag, present}   {stage: sort_by, path, reverse}
+          {stage: group_by, path}          {stage: take, n, seed}          {stage: exclude, ids}   {stage: select, ids}"""
+        from . import curation
+        st = (s.get('view', view_id).data['stages'] if view_id else []) + list(stages or [])
+        items = _items(dataset_id)
+        if not items: return {'total': 0, 'items': [], 'trail': [], 'schema': [], 'facets': {}, 'indexed': False}
+        out, trail = curation.apply(items, st); sch = curation.schema(items)
+        return {'total': len(out), 'items': [curation.public(x) for x in out[offset:offset + limit]], 'trail': trail, 'schema': sch,
+                'facets': curation.facets(out, sch) if facets else {}, 'indexed': True}
+
+    @tools.tool('item', 'update')
+    def item_update(step, actor, item_ids: list[str], add_tags: list[str] | None = None, remove_tags: list[str] | None = None):
+        """Tag items, or untag them, in one step."""
+        from ..store import Missing
+        n = 0
+        for i in item_ids:
+            r = s.get('item', i)
+            if not r: raise Missing(f'no item {i}')
+            old = r.data.get('tags') or []; tags = [t for t in old if t not in (remove_tags or [])]
+            tags += [t for t in (add_tags or []) if t not in tags]
+            if tags != old: s.update(step, 'item', i, {'tags': tags}, r.version, mark_stale=False); n += 1
+        return {'changed': n}
+
+    @tools.tool('view', 'create')
+    def view_create(step, actor, dataset_id, title, stages: list):
+        """Save a view of a dataset under a title: its stages, as item_query takes them. An experiment condition can name it
+        ({name, view_id}). Returns the view with how many items it holds now."""
+        from . import curation
+        items, trail = curation.apply(_items(dataset_id), stages)
+        r = s.create(step, 'view', {'dataset_id': dataset_id, 'name': title, 'stages': stages, 'trail': [t['text'] for t in trail[1:]]})
+        return {'view_id': r.id, 'name': title, 'items': len(items)}
+
+    @tools.tool('view', 'list', writes_project=False)
+    def view_list(actor, dataset_id: str | None = None):
+        """Saved views, of one dataset or all, with what each keeps and how many items it holds now."""
+        from . import curation
+        out = []
+        for r in s.list('view'):
+            if dataset_id and r.data.get('dataset_id') != dataset_id: continue
+            items, _ = curation.apply(_items(r.data['dataset_id']), r.data['stages'])
+            out.append({'view_id': r.id, **r.data, 'items': len(items)})
+        return out
 
     @tools.tool('experiment', 'get', writes_project=False)
     def experiment_get(actor, project_id):
@@ -552,3 +680,5 @@ def register(tools, broadcast=lambda m: None):
 
     for fn in (project_create_from, project_update, experiment_create):   # the title argument says how to title (#11)
         fn.__doc__ = (fn.__doc__ or '').rstrip() + f'\n        title: {titles.ARG}.'
+    project_update.__doc__ = (project_update.__doc__ or '').rstrip() + f'\n        question: {titles.QARG}.'
+    experiment_create.__doc__ = (experiment_create.__doc__ or '').rstrip() + f'\n        question: {titles.QARG}.'

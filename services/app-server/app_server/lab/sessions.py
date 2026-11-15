@@ -286,7 +286,9 @@ def upload_file(name: str, src: Path, dataset_id: str | None = None) -> dict:
     import shutil
     did = dataset_id or 'upload_' + uuid.uuid4().hex[:8]
     root = datasets.dataset_dir(did); root.mkdir(parents=True, exist_ok=True)   # refuses an ID such as ../ that leaves the datasets
-    safe = Path(name).name; shutil.move(str(src), root / safe); size = (root / safe).stat().st_size
+    parts = [p for p in Path(name).parts if p not in ('', '.', '..', '/') and not p.startswith('.')]   # a folder import keeps its subfolders (#22)
+    if not parts: raise ValueError(f'not a file name: {name!r}')
+    safe = Path(*parts).as_posix(); (root / safe).parent.mkdir(parents=True, exist_ok=True); shutil.move(str(src), root / safe); size = (root / safe).stat().st_size
     if datasets.kind_of(safe) == 'archive':
         try: datasets._unpack(root / safe)
         except ValueError: (root / safe).unlink(); raise   # refused as too large to unpack: nothing of it stays

@@ -19,7 +19,20 @@ GUIDE = """Titles. Every project and experiment you create gets a title in the f
 - Sentence case, at most 90 characters. The project's question carries the plain-language question; the title is its
   academic name.
 - Conditions and comparisons are named in plain words, as a figure legend would: "Bodies", "Objects", "Bodies against
-  objects". Never identifiers such as bodies_vs_objects."""
+  objects". Never identifiers such as bodies_vs_objects.
+
+Questions. Every project's question (the heading of its page) is one grammatical sentence a paper's introduction could
+end with (#24):
+- State the comparison and the measure: the conditions as categories in the plural ("faces", "height-matched vases"),
+  the region by its field name ("the fusiform face area", "MT", "face-selective cortex"), and that the response is
+  TRIBE v2's prediction when the contrast is the point. "Do face-selective regions show a larger predicted response to
+  faces than to height-matched vases?"
+- A replication names its source: "... as Epstein and Kanwisher (1998) reported?"
+- No first or second person, no colloquial phrasing ("what you see", "follow"), no template fill ("Does a face raise the
+  face regions ..."), no identifiers. At most 160 characters; one question mark."""
+
+QARG = ("one grammatical sentence a paper's introduction could end with, as the question guidelines in your instructions say: "
+        "the conditions as plural categories, the region by its field name, the measure; a replication's source; at most 160 characters")
 
 ARG = ("the academic name, as the title guidelines in your instructions say: the paradigm, then the contrast and the "
        "measure, a replication's source in author-year form, at most 90 characters; never a question or a finding")

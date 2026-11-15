@@ -8,12 +8,13 @@ import { LiveWorkspace, type Job } from './live'
 import { DemoBar, NarrationMsg, type DemoInfo, type DemoState, type Narration } from './demo'
 import { SelectionView } from './selection'
 import { ResultsView, type LiveTrial } from './results'
+import { DatasetsPage } from './datasets'
 import { SessionDock, Chat, type SessionInfo } from './agent'
 type Example = { id: string; title: string; what: string; source: string; doi: string | null; goal: string; media: string[]; project_id: string | null; here: string }
 import { ExperimentSetup, ExperimentRoom, ReportedCard, OriginChip, type Setup, type Reported } from './experiment'
 
-type View = 'room' | 'results' | 'samples' | 'brain' | 'search' | 'data' | 'findings' | 'sources' | 'agent'
-const WIDE: View[] = ['results', 'search', 'data', 'findings', 'sources', 'agent']
+type View = 'room' | 'results' | 'datasets' | 'samples' | 'brain' | 'search' | 'data' | 'findings' | 'sources' | 'agent'
+const WIDE: View[] = ['results', 'datasets', 'search', 'data', 'findings', 'sources', 'agent']
 type Unit = { key: string; label: string; variants: Row<Sample>[]; labels: string[] }
 const VIEW_ICON: Record<string, IconName> = { room: 'room', results: 'gauge', samples: 'samples', brain: 'brain', search: 'search', data: 'table', findings: 'findings', sources: 'book' }
 const VIEWS: [View, string][] = [['room', 'Room'], ['results', 'Results'], ['samples', 'Samples'], ['brain', 'Brain'], ['search', 'Search'], ['data', 'Data'], ['findings', 'Findings'], ['sources', 'Sources']]
@@ -77,7 +78,7 @@ export default function App() {
   const lastCentre = useRef<View>('room')
   useEffect(() => { const go = () => call('machine_get').then(setMachine).catch(() => {}); go(); const t = setInterval(go, 8000); return () => clearInterval(t) }, [])
   useEffect(() => { if (!WIDE.includes(view)) lastCentre.current = view }, [view])
-  useEffect(() => { const k = (e: KeyboardEvent) => { if (e.key === 'Escape' && WIDE.includes(view)) setView(lastCentre.current) }; addEventListener('keydown', k); return () => removeEventListener('keydown', k) }, [view])
+  useEffect(() => { const k = (e: KeyboardEvent) => { if (e.key === 'Escape' && WIDE.includes(view) && !document.querySelector('.overlay, .histpop, .dlmenu')) setView(lastCentre.current) }; addEventListener('keydown', k); return () => removeEventListener('keydown', k) }, [view])
 
   const refreshProjects = useCallback(async () => {
     const [t, p] = await Promise.all([call<Template[]>('template_list'), call<Row<Project>[]>('project_list')])
@@ -114,6 +115,7 @@ export default function App() {
     const onMsg = (m: MessageEvent) => {
       const { pid, refreshProjects, loadProject } = live.current
       let msg: any = {}; try { msg = JSON.parse(m.data) } catch { /* plain event */ }
+      if (msg.dataset) { window.dispatchEvent(new CustomEvent('lab-dataset', { detail: msg })); return }   // indexing progress for the Datasets page (#22)
       if (msg.session) { setSessionTick(k => k + 1); loadSessions(); if (msg.stage === 'project' || msg.stage === 'turn_done' || msg.stage === 'ended') refreshProjects(); return }   // the agent's long run: its own view updates
       if (msg.fetch) { loadSessions(); return }
       if (msg.job) { const j = { ...msg.job, t: Date.now() }; setJobs(js => [j, ...js.filter(x => x.key !== j.key)].slice(0, 40)); return }
@@ -188,8 +190,12 @@ export default function App() {
     loadSessions()
   }
 
-  async function createFromTemplate(t: Template, title: string, bindings: Record<string, string>, from?: string) {
+  async function createFromTemplate(t: Template, title: string, bindings: Record<string, string>, from?: string, datasets?: string[]) {
     const row = await call<Row<Project>>('project_create', { template_id: t.id, title, bindings, from_project_id: from ?? null })
+    if (datasets?.length) await call('project_update', { project_id: row.id, expect_version: (row as any).version ?? 1, datasets })   // the datasets it draws its stimuli from (#22)
+    // the template's pattern is only the form's preview: the agent writes the real question to the guidelines (#24)
+    fetch('/agent/sessions', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ mode: 'discuss', project_id: row.id, max_turns: 4,
+      text: "Write this project's question to the question guidelines and save it with project_update(question=...). Read the project first; change nothing else." }) }).then(loadSessions).catch(() => {})
     await refreshProjects(); setSheet(null); setPid(row.id); setView('room')
   }
 
@@ -241,6 +247,7 @@ export default function App() {
             </button>)}
           </div>}
         </div>
+        <button className={`btn ${view === 'datasets' ? 'on' : ''}`} onClick={() => setView('datasets')}><Icon name="table" size={16} />Datasets</button>
         <button className="btn" aria-haspopup="dialog" aria-expanded={hist} onClick={() => setHist(h => !h)}><Icon name="clock" size={16} />History</button>
         {hist && <History pid={pid!} agent={machine?.agent ?? 'The agent'} tick={steps.length ? steps[steps.length - 1].step_id : ''} onClose={() => setHist(false)}
           onUndo={async id => { await call('step_undo', { step_id: id }); refreshProjects(); loadProject(pid!) }} />}
@@ -268,7 +275,7 @@ export default function App() {
             <DemoBar state={demo.status === 'done' && (demo as any).show?.project !== pid ? { ...demo, status: 'idle' } : demo} onControl={a => call<DemoState>('demo_update', { action: a }).then(setDemo)} />
             <LiveWorkspace jobs={jobs} runs={runsNow} onOpen={id => { setPid(id); setView('room') }} />
           </div>}
-          {view === 'agent' ? <div className="chatwide"><h1 className="q">{sessions.find(x => x.id === openSession)?.goal ?? 'New chat with the agent'}</h1>
+          {view === 'datasets' ? <DatasetsPage projects={projects} onOpenProject={id => { setPid(id); setView('room') }} /> : view === 'agent' ? <div className="chatwide"><h1 className="q">{sessions.find(x => x.id === openSession)?.goal ?? 'New chat with the agent'}</h1>
             <Chat sid={openSession} live={sessionTick} onStarted={id => { setOpenSession(id); loadSessions() }} onOpenProject={id => { setPid(id); setView('room') }} /></div> : <>
           <div>
             <h1 className="q">{P.question}</h1>
@@ -564,10 +571,12 @@ function Inspector({ P, pid, template, projects, paired, needed, objects, perObj
   </>
 }
 
-function TemplateSheet({ examples, onOpenProject, onGoal, onChat, templates, demos, writeErr, onWrite, onClose, onCreate, onPlay }: { examples: Example[]; onOpenProject: (id: string) => void; onGoal: (goal: string) => void; onChat: () => void; templates: Template[]; demos: DemoInfo[]; writeErr: Record<string, string>; onWrite: (id: string) => void; onClose: () => void; onCreate: (t: Template, title: string, b: Record<string, string>) => void; onPlay: (id: string) => void }) {
+function TemplateSheet({ examples, onOpenProject, onGoal, onChat, templates, demos, writeErr, onWrite, onClose, onCreate, onPlay }: { examples: Example[]; onOpenProject: (id: string) => void; onGoal: (goal: string) => void; onChat: () => void; templates: Template[]; demos: DemoInfo[]; writeErr: Record<string, string>; onWrite: (id: string) => void; onClose: () => void; onCreate: (t: Template, title: string, b: Record<string, string>, from?: string, datasets?: string[]) => void; onPlay: (id: string) => void }) {
   const [pick, setPick] = useState<Template | null>(null); const [vals, setVals] = useState<Record<string, string>>({}); const [title, setTitle] = useState('')
   const blanks = pick ? [...new Set([...pick.question.matchAll(/\{(\w+)\}/g)].map(m => m[1]))] : []
   const [atlas, setAtlas] = useState<any>(null)
+  const [dsets, setDsets] = useState<{ id: string; title?: string; samples: number; files_here?: number }[] | null>(null); const [chosen, setChosen] = useState<string[]>([])
+  useEffect(() => { if (pick && !dsets) call<any[]>('dataset_list').then(setDsets).catch(() => setDsets([])) }, [pick])
   useEffect(() => { if (blanks.includes('region') && !atlas) call<any>('region_search', { query: '' }).then(setAtlas).catch(() => {}) }, [pick])
   return <div className="overlay" onClick={onClose}>
     <div className="sheet" onClick={e => e.stopPropagation()} role="dialog" aria-label="New project">
@@ -622,7 +631,12 @@ function TemplateSheet({ examples, onOpenProject, onGoal, onChat, templates, dem
           {atlas?.named_groups?.length > 0 && <optgroup label="Region groups">{atlas.named_groups.map((x: any) => <option key={x.region} value={x.region}>{x.region} ({x.known_for})</option>)}</optgroup>}
           {atlas?.hcp_codes?.length > 0 && <optgroup label="HCP areas">{atlas.hcp_codes.map((c: string) => <option key={c} value={c}>{regionLabel(c) !== c ? `${regionLabel(c)} (${c})` : c}</option>)}</optgroup>}
         </select> : <input value={vals[b] ?? ''} onChange={e => setVals(v => ({ ...v, [b]: e.target.value }))} />}</label>)}
-        <div className="bar"><button className="btn" onClick={() => setPick(null)}><Icon name="back" size={16} />Back</button><button className="btn primary" disabled={!title.trim() || blanks.some(b => !vals[b]?.trim())} onClick={() => onCreate(pick, title.trim(), vals)}>Create project</button></div>
+        <div className="field"><span>Datasets</span>
+          <div className="dspick">{dsets === null ? <span className="ink2">Reading the datasets</span> : dsets.length === 0 ? <span className="ink2">No datasets yet; import one under Datasets.</span>
+            : dsets.map(d => <label key={d.id} className="dsval"><input type="checkbox" checked={chosen.includes(d.id)} onChange={e => setChosen(c => e.target.checked ? [...c, d.id] : c.filter(x => x !== d.id))} />
+              <span>{d.title || d.id}</span><span className="ink2 num">{d.samples ? `${d.samples.toLocaleString()} samples` : `${(d.files_here ?? 0).toLocaleString()} files`}</span></label>)}</div>
+        </div>
+        <div className="bar"><button className="btn" onClick={() => setPick(null)}><Icon name="back" size={16} />Back</button><button className="btn primary" disabled={!title.trim() || blanks.some(b => !vals[b]?.trim())} onClick={() => onCreate(pick, title.trim(), vals, undefined, chosen)}>Create project</button></div>
       </div>}
     </div>
   </div>
@@ -650,7 +664,7 @@ function History({ pid, agent, tick, onUndo, onClose }: { pid: string; agent: st
   useEffect(() => { load() }, [pid, tick])
   useEffect(() => {
     const off = (e: MouseEvent) => { if (!ref.current?.contains(e.target as Node) && !(e.target as HTMLElement).closest('[aria-haspopup="dialog"]')) onClose() }
-    const esc = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
+    const esc = (e: KeyboardEvent) => { if (e.key === 'Escape') { e.stopPropagation(); onClose() } }
     document.addEventListener('mousedown', off); document.addEventListener('keydown', esc)
     return () => { document.removeEventListener('mousedown', off); document.removeEventListener('keydown', esc) }
   }, [onClose])

@@ -153,6 +153,26 @@ def make(db: str, port: int = 8790):
         up = DATA / 'uploads'; await receive(request, up / safe)   # streamed, and unpacked if sent gzipped
         return {'file_path': str(up / safe)}
 
+    @app.get('/datasets/thumb/{path:path}')
+    def dataset_thumb(path: str):
+        """A 320 px JPEG of a dataset's image, or of a video's frame at 0.5 s, made once and cached (#22)."""
+        import hashlib, subprocess
+        from fastapi import HTTPException
+        from fastapi.responses import FileResponse
+        from PIL import Image
+        from .datasets import HERE as FETCHED, kind_of
+        src = (FETCHED / path).resolve()
+        if not src.is_relative_to(FETCHED.resolve()) or not src.is_file(): raise HTTPException(404, 'no such file')
+        dst = FILES / 'thumbs' / ('d_' + hashlib.sha1(f'{path}:{src.stat().st_mtime_ns}'.encode()).hexdigest()[:16] + '.jpg')
+        if not dst.exists():
+            dst.parent.mkdir(parents=True, exist_ok=True)
+            if kind_of(src.name) == 'video':
+                subprocess.run(['ffmpeg', '-loglevel', 'error', '-y', '-ss', '0.5', '-i', str(src), '-frames:v', '1', '-vf', 'scale=320:-2', str(dst)], timeout=60)
+                if not dst.exists(): raise HTTPException(404, 'no frame in this video')
+            else:
+                im = Image.open(src).convert('RGB'); im.thumbnail((320, 320)); im.save(dst, quality=80)
+        return FileResponse(dst, media_type='image/jpeg', headers={'Cache-Control': 'max-age=86400'})
+
     @app.get('/thumb/{path:path}')
     def thumb(path: str):
         """A 480 px wide JPEG of an image under /files, made once and cached: sample tiles load in a fraction of the time."""
@@ -228,6 +248,9 @@ def make(db: str, port: int = 8790):
     app.mount('/out', StaticFiles(directory=OUT), name='out')
     app.mount('/index', StaticFiles(directory=OUT.parent / 'indexes'), name='index')
     app.mount('/files', StaticFiles(directory=FILES), name='files')
+    from .datasets import HERE as FETCHED
+    FETCHED.mkdir(parents=True, exist_ok=True)
+    app.mount('/datasets/media', StaticFiles(directory=FETCHED), name='dataset_media')   # a dataset's own files, for curation (#22)
     if UI.exists(): app.mount('/', StaticFiles(directory=UI, html=True), name='ui')
     return app
 

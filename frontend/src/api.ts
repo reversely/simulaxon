@@ -59,6 +59,16 @@ export const ROLE_NAMES: Record<string, string> = { manipulated: 'Manipulated', 
  * server unpacks as it streams to disk, so more fits under its 2 GB upload limit. Files already compressed (video,
  * images, archives) go as they are. */
 const PACKED = /\.(zip|gz|tgz|bz2|xz|7z|zst|mp4|mov|mkv|webm|avi|jpe?g|png|webp|gif|npz|parquet)$/i
+/** Sends one file with its progress, for the import page (#22): files go as they are, one request each. */
+export function uploadWithProgress(url: string, f: Blob, onProgress: (sent: number, total: number) => void): Promise<any> {
+  return new Promise((ok, fail) => {
+    const x = new XMLHttpRequest(); x.open('POST', url)
+    x.upload.onprogress = e => onProgress(e.loaded, e.total || f.size)
+    x.onload = () => x.status < 300 ? ok(JSON.parse(x.responseText || '{}')) : fail(new Error(x.responseText || `status ${x.status}`))
+    x.onerror = () => fail(new Error('the upload did not reach the lab server'))
+    x.send(f)
+  })
+}
 export async function upload(url: string, f: File): Promise<Response> {
   if (f.size > 32e6 && !PACKED.test(f.name) && typeof CompressionStream !== 'undefined') {
     const gz = await new Response(f.stream().pipeThrough(new CompressionStream('gzip'))).blob()
@@ -70,7 +80,8 @@ export async function upload(url: string, f: File): Promise<Response> {
 /** Every tool a step or a chat can record, in plain words (#21). One table for the History menu and the chat's steps; a
  * tool missing here fails services/app-server/tests/test_tool_names.py rather than showing its code name. */
 export const TOOL_NAMES: Record<string, string> = {
-  analysis_create: 'Added an analysis', analysis_list: 'Read the analyses', analysis_run: 'Ran an analysis', asset_create: 'Added an asset', asset_list: 'Listed the assets',
+  analysis_create: 'Added an analysis', dataset_create: 'Made a dataset', item_create: 'Indexed a dataset', item_query: 'Looked through a dataset',
+  item_update: 'Tagged samples', view_create: 'Saved a view', view_list: 'Listed the saved views', analysis_list: 'Read the analyses', analysis_run: 'Ran an analysis', asset_create: 'Added an asset', asset_list: 'Listed the assets',
   assumption_list: 'Read the assumptions', course_get: 'Read a time course', dataset_fetch: 'Fetched data', dataset_get: 'Looked at a dataset', dataset_list: 'Checked the data here',
   demo_create: 'Wrote a demo', demo_get: 'Read a demo', demo_list: 'Listed the demos', demo_run: 'Played a demo', demo_update: 'Changed a demo', display_get: 'Read the display',
   display_update: 'Changed the display', example_list: 'Listed the examples', experiment_create: 'Set up the experiment', experiment_get: 'Read the results', file_list: 'Listed files',
