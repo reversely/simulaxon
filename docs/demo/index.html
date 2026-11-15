@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Simulaxon Demo</title>
 <!-- A plain scroll page: open index.html, or serve this folder. Copy follows docs/pitch.md; facts are checked in
-     docs/research/pitch-claims.md and docs/film.md. Dashed frames are places for recordings still to be taken.
+     docs/research/pitch-claims.md and docs/script.md. The three dashed frames are the agent-chat recordings still to be taken.
      Motion is GSAP, as in the HyperFrames film; the backdrop and scroll pacing follow the Provinans case study. -->
 <link rel="stylesheet" href="./assets/demo.css">
 <script defer src="https://cdn.jsdelivr.net/npm/gsap@3.15.0/dist/gsap.min.js"></script>
@@ -16,148 +16,6 @@
 <script defer src="./assets/cards.js"></script>
 </head>
 <body>
-<div class="backdrop" id="backdrop-a" aria-hidden="true"></div>
-<div class="backdrop" id="backdrop-b" aria-hidden="true"></div>
-
-<!-- Hero: a real trial beside its predicted brain -->
-<header class="section hero" data-biome="home">
-  <div class="atmos" data-glyphs aria-hidden="true"></div>
-  <span class="brand">Simulaxon</span>
-  <div class="two">
-    <div class="lines">
-      <h1>Prototype neuroscience experiments in hours.</h1>
-      <p class="typed"><span data-typed="Simulaxon's AI agents turn a hypothesis into scenes they can generate, predict how the brain would respond, and use those predictions to decide what to test next."></span><span class="caret" aria-hidden="true"></span></p>
-    </div>
-    <figure class="player" data-brain>
-      <div class="pair">
-        <video muted loop playsinline autoplay aria-label="The trial's clip"></video>
-        <canvas aria-label="TRIBE v2's predicted response on the cortex, second by second"></canvas>
-      </div>
-      <figcaption>
-        <span class="choose"><button data-trial="isaac" class="on">Isaac Sim render</button><button data-trial="cosmos">Cosmos 3 Nano</button></span>
-        <span class="clock"><span data-phase>Render on screen</span> · <span data-clock class="num">0.0 s</span></span>
-      </figcaption>
-      <p class="note">A run in the app: a G1 humanoid in a scanned room, rendered in Isaac Sim, then the same moment restyled to photoreal by Cosmos 3 Nano. Each plays for 4 s, then 6 s of grey, beside TRIBE v2's predicted response on the cortex at each moment.</p>
-    </figure>
-  </div>
-  <p class="scroll-cue">Scroll</p>
-</header>
-
-<!-- Cost -->
-<section class="section" data-biome="cost">
-  <div class="two">
-    <div class="lines reveal">
-      <p class="cut">How does the brain make sense of an event as it unfolds?</p>
-      <p>To find out what drives a response, researchers need to vary what people see, hear, or know going into a scene.</p>
-      <p>Testing those comparisons with people gets expensive fast. A 20-person fMRI study with one hour per participant can cost nearly $14,000 in scan time alone.</p>
-    </div>
-    <div>
-      <div class="fcard" data-card="cost">
-        <div class="fc-sheet s2"></div><div class="fc-sheet s1"></div>
-        <div class="fc-card">
-          <div class="fc-head"><span>fMRI scan time</span><span>1 h per participant</span></div>
-          <div class="fc-row"><span>Participants</span><span class="num" data-n>1</span></div>
-          <div class="fc-track"><div class="fc-fill"></div><div class="fc-knob"></div></div>
-          <div class="fc-row"><span class="fc-muted">$710 per hour</span><span class="fc-big" data-total>$710</span></div>
-        </div>
-        <svg class="fc-cursor" viewBox="0 0 26 26" aria-hidden="true"><path d="M3 2 L3 21 L8.5 16 L12 24 L15.5 22.5 L12 15 L19 15 Z" fill="#f2efe8" stroke="#121110" stroke-width="1.6" stroke-linejoin="round"/></svg>
-      </div>
-    </div>
-  </div>
-</section>
-
-<!-- Develop the experiment first: the picture follows the text -->
-<section class="section" data-biome="develop">
-  <div class="stations">
-    <div class="text">
-      <div class="station"><p>Simulaxon gives researchers a way to develop the experiment before they bring in participants.</p></div>
-      <div class="station"><p>The agent decides what to vary and what to hold fixed, generates the clips, and compares the predicted brain responses.</p></div>
-      <div class="station"><p>It can then run a follow-up to see whether a pattern persists when another detail changes.</p></div>
-    </div>
-    <div class="pin">
-      <div>
-        <div class="frames">
-          <div class="slot"><b>A hypothesis typed to the agent becomes a project</b><span>Recording to come: Nemotron plans what to vary and what to hold fixed</span></div>
-          <figure class="grab"><img src="assets/grabs/grab-trial.gif" alt="An Isaac Sim render of a G1 humanoid playing in the app beside its predicted brain"><figcaption>An Isaac Sim render in the app, beside TRIBE v2's prediction on one clock.</figcaption></figure>
-          <figure class="grab"><img src="assets/grabs/grab-chat.gif" alt="The agent's reply laying out which control to run next and what each outcome would mean"><figcaption>The agent proposing the next control, with what each outcome would mean.</figcaption></figure>
-        </div>
-        <div class="ticks" aria-hidden="true"></div>
-      </div>
-    </div>
-  </div>
-</section>
-
-<!-- The model -->
-<section class="section" data-biome="model">
-  <div class="two flip top">
-    <figure class="paper reveal"><img src="assets/papers/tribev2.png" alt="First page of the TRIBE v2 paper"><figcaption>d'Ascoli and others, A foundation model of vision, audition, and language for in-silico neuroscience, arXiv:2605.04326, 2026.</figcaption></figure>
-    <div class="lines reveal">
-      <p>The predictions come from Meta's TRIBE v2, which trained on fMRI recordings of people watching films, television, and short videos of everyday events.</p>
-      <p>In separate evaluations, it recovered known patterns of brain activity for seeing faces versus places and hearing descriptions of emotional versus physical pain.</p>
-    </div>
-  </div>
-  <div class="examples">
-    <article class="excard reveal">
-      <div class="pics"><img class="stim" src="assets/stim-falls.png" alt="An Isaac Sim render of a falling object that stops in mid-air"><figure><img class="brain" src="assets/brain-falls.png" alt="Predicted response, stops in mid-air minus lands, from the left"><figcaption>Stops in mid-air minus lands</figcaption></figure></div>
-      <div class="body"><h3>Objects that stop in mid-air against objects that land</h3><span class="src">Isaac Sim · 16 clips run</span></div>
-    </article>
-    <article class="excard reveal">
-      <div class="pics"><img class="stim" src="assets/stim-food.png" alt="An Isaac Sim render of a food item on a counter"><figure><img class="brain" src="assets/brain-food.png" alt="Predicted response, food minus colour-matched object, from below"><figcaption>Food minus colour-matched object</figcaption></figure></div>
-      <div class="body"><h3>Food against colour-matched objects</h3><span class="src">Isaac Sim · 40 clips run</span></div>
-    </article>
-    <article class="excard reveal">
-      <div class="pics"><img class="stim" src="assets/stim-humanoid.png" alt="A Cosmos 3 Nano restyle of a G1 humanoid in a scanned room"><figure><img class="brain" src="assets/brain-humanoid.png" alt="Predicted response, Cosmos against Isaac Sim, from the left"><figcaption>Cosmos against Isaac Sim</figcaption></figure></div>
-      <div class="body"><h3>A humanoid, rendered and restyled</h3><span class="src">Isaac Sim and Cosmos 3 Nano · 2 clips run</span></div>
-    </article>
-  </div>
-</section>
-
-<!-- Fitting to measured fMRI: the ivory chapter, the benchmark set apart from live use -->
-<section class="block" data-biome="paper">
-  <div class="inner">
-    <div class="two">
-      <div class="lines reveal">
-        <h2>Fitting TRIBE v2 to measured fMRI</h2>
-        <p>TRIBE v2 predicts an average viewer it has never met. Given people's measured fMRI, one click fits an adapter: a map from TRIBE v2's prediction for each brain area to the responses those people had.</p>
-      </div>
-      <div class="fcard" data-card="adapter">
-        <div class="fc-sheet s2"></div><div class="fc-sheet s1"></div>
-        <div class="fc-card">
-          <div class="fc-head"><span>Adapters · Human Action Dataset</span><span>30 people</span></div>
-          <div class="fc-row"><span>Median r, held-out categories</span><span class="fc-btn"><span>Fit an adapter</span><span>Fitting</span><span>Fitted</span></span></div>
-          <div class="fc-bars">
-            <div class="fc-bar"><span>TRIBE v2 as released</span><span class="fc-lane"><i data-tribe style="background:#8a847b"></i><span class="fc-ceil"></span></span><span class="num">0.257</span></div>
-            <div class="fc-bar"><span><b>Adapter</b></span><span class="fc-lane"><i data-fit style="background:#7fa01c"></i><span class="fc-ceil"></span></span><span class="num" data-fit-n>0.000</span></div>
-          </div>
-          <div class="fc-row" style="font-size:14px"><span class="fc-muted">Line on each bar: noise ceiling 0.675</span><span class="fc-chip">+0.150 over TRIBE v2</span></div>
-        </div>
-        <svg class="fc-cursor" viewBox="0 0 26 26" aria-hidden="true"><path d="M3 2 L3 21 L8.5 16 L12 24 L15.5 22.5 L12 15 L19 15 Z" fill="#f2efe8" stroke="#121110" stroke-width="1.6" stroke-linejoin="round"/></svg>
-      </div>
-    </div>
-    <figure class="mapview" data-brain-map>
-      <canvas aria-label="Where on the cortex each model predicts measured fMRI, per brain area"></canvas>
-      <figcaption>
-        <span class="choose"><button data-map="adapter_r" class="on">Adapter</button><button data-map="tribe_v2_r">TRIBE v2 as released</button><button data-map="gain">Adapter minus TRIBE v2</button></span>
-        <span data-legend></span>
-      </figcaption>
-    </figure>
-    <div class="two top">
-      <div class="lines reveal">
-        <h3>Benchmark</h3>
-        <p class="note">Median r over 212 reliable brain areas, on action categories the fit never saw. The line on each bar is the noise ceiling, 0.675. The adapter reaches 60% of the ceiling, up from 38%, and scores higher in 179 of the 212 areas.</p>
-      </div>
-      <div class="bars" role="img" aria-label="Median r: TRIBE v2 as released 0.257, adapter 0.407, labels shuffled −0.011, noise ceiling 0.675">
-        <div class="bar"><span>TRIBE v2 as released</span><span class="lane"><i data-w="36.7%" style="background:var(--grey)"></i><span class="ceil"></span></span><span class="big num">0.257</span></div>
-        <div class="bar"><span><b>Adapter</b></span><span class="lane"><i data-w="58.1%" style="background:var(--a)"></i><span class="ceil"></span></span><span class="big num"><b>0.407</b></span></div>
-        <div class="bar"><span>Labels shuffled</span><span class="lane"><i data-w="0%"></i><span class="ceil"></span></span><span class="big num">−0.011</span></div>
-      </div>
-    </div>
-  </div>
-</section>
-
-<!-- Runs on CIQ: one round's route through the cluster. The steps scroll on the left; the deployment, read from
-     fuzzball/simulaxon.fz, render-score.fz and observability.fz, stays pinned on the right and lights each step's hop. -->
-<section class="section ciq" data-biome="ciq">
   <svg class="sprite" aria-hidden="true" focusable="false">
     <symbol id="i-node" viewBox="0 0 24 24"><rect x="3.5" y="4" width="17" height="7" rx="1.5"/><rect x="3.5" y="13" width="17" height="7" rx="1.5"/><path d="M7 7.5h.01M7 16.5h.01M11 7.5h6M11 16.5h6"/></symbol>
     <symbol id="i-gpu" viewBox="0 0 24 24"><rect x="2.5" y="6.5" width="19" height="11" rx="1.5"/><circle cx="8.5" cy="12" r="3"/><path d="M14.5 10h4M14.5 14h4M5 17.5v2M19 17.5v2"/></symbol>
@@ -183,7 +41,160 @@
     <symbol id="i-chart" viewBox="0 0 24 24"><path d="M4 4v16h16M8 15l3.5-4.5 3 3L19 7"/></symbol>
     <symbol id="i-compare" viewBox="0 0 24 24"><path d="M6 20V10M12 20V4M18 20v-7M3.5 20h17"/></symbol>
     <symbol id="i-send" viewBox="0 0 24 24"><path d="M4 12h14M13 6l6 6-6 6"/></symbol>
+    <symbol id="i-scan" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4"/><path d="M3 21h18"/></symbol>
+    <symbol id="i-people" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><path d="M3.5 19a5.5 5.5 0 0 1 11 0M16 5.5a3 3 0 0 1 0 5.5M17.5 14a5 5 0 0 1 3 5"/></symbol>
+    <symbol id="i-cost" viewBox="0 0 24 24"><path d="M12 3v18M16.5 7.5c-.6-1.5-2.3-2.5-4.5-2.5-2.5 0-4.5 1.3-4.5 3.3S9.5 11 12 11.8s4.5 1.5 4.5 3.7-2 3.5-4.5 3.5c-2.3 0-4-1-4.6-2.6"/></symbol>
+    <symbol id="i-target" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4.5"/><circle cx="12" cy="12" r="0.8"/></symbol>
+    <symbol id="i-paper" viewBox="0 0 24 24"><path d="M6 3h8.5L19 7.5V21H6zM14 3v5h5M9 12h7M9 15.5h7M9 9h3"/></symbol>
+    <symbol id="i-upload" viewBox="0 0 24 24"><path d="M12 15V4M7.5 8.5L12 4l4.5 4.5M4 15v4.5h16V15"/></symbol>
+    <symbol id="i-robot" viewBox="0 0 24 24"><path d="M5 21h8M9 21v-4l-3-5 6-5 4 3M16 10l3.5-1.5M16 10l2.5 3"/><circle cx="6" cy="12" r="1.3"/><circle cx="12" cy="7" r="1.3"/></symbol>
+    <symbol id="i-film" viewBox="0 0 24 24"><rect x="3.5" y="4" width="17" height="16" rx="1.5"/><path d="M7.5 4v16M16.5 4v16M3.5 8h4M3.5 12h4M3.5 16h4M16.5 8h4M16.5 12h4M16.5 16h4"/></symbol>
   </svg>
+<div class="backdrop" id="backdrop-a" aria-hidden="true"></div>
+<div class="backdrop" id="backdrop-b" aria-hidden="true"></div>
+
+<!-- Hero: a real trial beside its predicted brain -->
+<header class="section hero" data-biome="home">
+  <div class="atmos" data-glyphs aria-hidden="true"></div>
+  <span class="brand"><span class="h-ico" aria-hidden="true"><svg><use href="#i-brain"/></svg></span>Simulaxon</span>
+  <div class="two">
+    <div class="lines">
+      <h1>Prototype neuroscience experiments in hours.</h1>
+      <p class="typed"><span data-typed="Simulaxon's AI agents turn a hypothesis into scenes they can generate, predict how the brain would respond, and use those predictions to decide what to test next."></span><span class="caret" aria-hidden="true"></span></p>
+    </div>
+    <figure class="player" data-brain>
+      <div class="pair">
+        <video muted loop playsinline autoplay aria-label="The trial's clip"></video>
+        <canvas aria-label="TRIBE v2's predicted response on the cortex, second by second"></canvas>
+      </div>
+      <figcaption>
+        <span class="choose"><button data-trial="isaac" class="on">Isaac Sim render</button><button data-trial="cosmos">Cosmos 3 Nano</button></span>
+        <span class="clock"><span data-phase>Render on screen</span> · <span data-clock class="num">0.0 s</span></span>
+      </figcaption>
+      <p class="note">A run in the app: a <span class="tok"><svg><use href="#i-robot"/></svg>G1 humanoid</span> in a scanned room, rendered in <span class="tok"><svg><use href="#i-render"/></svg>Isaac Sim</span>, then the same moment restyled to photoreal by <span class="tok"><svg><use href="#i-restyle"/></svg>Cosmos 3 Nano</span>. Each plays for 4 s, then 6 s of grey, beside <span class="tok"><svg><use href="#i-brain"/></svg>TRIBE v2</span>'s predicted response on the cortex at each moment.</p>
+    </figure>
+  </div>
+  <p class="scroll-cue">Scroll</p>
+</header>
+
+<!-- Cost -->
+<section class="section" data-biome="cost">
+  <div class="two">
+    <div class="lines reveal">
+      <span class="h-ico" aria-hidden="true"><svg><use href="#i-scan"/></svg></span>
+      <p class="cut">How does the brain make sense of an event as it unfolds?</p>
+      <p>To find out what drives a response, researchers need to vary what people see, hear, or know going into a scene.</p>
+      <p>Testing those comparisons with people gets expensive fast. A <span class="tok"><svg><use href="#i-people"/></svg>20-person</span> fMRI study with <span class="tok"><svg><use href="#i-clock"/></svg>one hour per participant</span> can cost nearly <span class="tok"><svg><use href="#i-cost"/></svg>$14,000</span> in scan time alone.</p>
+    </div>
+    <div>
+      <div class="fcard" data-card="cost">
+        <div class="fc-sheet s2"></div><div class="fc-sheet s1"></div>
+        <div class="fc-card">
+          <div class="fc-head"><span>fMRI scan time</span><span>1 h per participant</span></div>
+          <div class="fc-row"><span>Participants</span><span class="num" data-n>1</span></div>
+          <div class="fc-track"><div class="fc-fill"></div><div class="fc-knob"></div></div>
+          <div class="fc-row"><span class="fc-muted">$710 per hour</span><span class="fc-big" data-total>$710</span></div>
+        </div>
+        <svg class="fc-cursor" viewBox="0 0 26 26" aria-hidden="true"><path d="M3 2 L3 21 L8.5 16 L12 24 L15.5 22.5 L12 15 L19 15 Z" fill="#f2efe8" stroke="#121110" stroke-width="1.6" stroke-linejoin="round"/></svg>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Develop the experiment first: the picture follows the text -->
+<section class="section" data-biome="develop">
+  <div class="stations">
+    <div class="text">
+      <div class="station"><span class="h-ico" aria-hidden="true"><svg><use href="#i-target"/></svg></span><p>Simulaxon gives researchers a way to develop the experiment before they bring in participants.</p></div>
+      <div class="station"><span class="h-ico" aria-hidden="true"><svg><use href="#i-llm"/></svg></span><p>The agent decides what to vary and what to hold fixed, generates the clips, and compares the predicted brain responses.</p></div>
+      <div class="station"><span class="h-ico" aria-hidden="true"><svg><use href="#i-flow"/></svg></span><p>It can then run a follow-up to see whether a pattern persists when another detail changes.</p></div>
+    </div>
+    <div class="pin">
+      <div>
+        <div class="frames">
+          <div class="slot"><b>A hypothesis typed to the agent becomes a project</b><span>Recording to come: Nemotron plans what to vary and what to hold fixed</span></div>
+          <figure class="grab"><img src="assets/grabs/grab-trial.gif" alt="An Isaac Sim render of a G1 humanoid playing in the app beside its predicted brain"><figcaption>An Isaac Sim render in the app, beside TRIBE v2's prediction on one clock.</figcaption></figure>
+          <figure class="grab"><img src="assets/grabs/grab-chat.gif" alt="The agent's reply laying out which control to run next and what each outcome would mean"><figcaption>The agent proposing the next control, with what each outcome would mean.</figcaption></figure>
+        </div>
+        <div class="ticks" aria-hidden="true"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- The model -->
+<section class="section" data-biome="model">
+  <div class="two flip top">
+    <figure class="paper reveal"><img src="assets/papers/tribev2.png" alt="First page of the TRIBE v2 paper"><figcaption>d'Ascoli and others, A foundation model of vision, audition, and language for in-silico neuroscience, arXiv:2605.04326, 2026.</figcaption></figure>
+    <div class="lines reveal">
+      <span class="h-ico" aria-hidden="true"><svg><use href="#i-paper"/></svg></span>
+      <p>The predictions come from Meta's <span class="tok"><svg><use href="#i-brain"/></svg>TRIBE v2</span>, which trained on fMRI recordings of people watching films, television, and short videos of everyday events.</p>
+      <p>In separate evaluations, it recovered known patterns of brain activity for seeing faces versus places and hearing descriptions of emotional versus physical pain.</p>
+    </div>
+  </div>
+  <div class="examples">
+    <article class="excard reveal">
+      <div class="pics"><img class="stim" src="assets/stim-falls.png" alt="An Isaac Sim render of a falling object that stops in mid-air"><figure><img class="brain" src="assets/brain-falls.png" alt="Predicted response, stops in mid-air minus lands, from the left"><figcaption>Stops in mid-air minus lands</figcaption></figure></div>
+      <div class="body"><h3>Objects that stop in mid-air against objects that land</h3><span class="src"><span class="tok"><svg><use href="#i-render"/></svg>Isaac Sim</span><span class="tok"><svg><use href="#i-film"/></svg>16 clips run</span></span></div>
+    </article>
+    <article class="excard reveal">
+      <div class="pics"><img class="stim" src="assets/stim-food.png" alt="An Isaac Sim render of a food item on a counter"><figure><img class="brain" src="assets/brain-food.png" alt="Predicted response, food minus colour-matched object, from below"><figcaption>Food minus colour-matched object</figcaption></figure></div>
+      <div class="body"><h3>Food against colour-matched objects</h3><span class="src"><span class="tok"><svg><use href="#i-render"/></svg>Isaac Sim</span><span class="tok"><svg><use href="#i-film"/></svg>40 clips run</span></span></div>
+    </article>
+    <article class="excard reveal">
+      <div class="pics"><img class="stim" src="assets/stim-humanoid.png" alt="A Cosmos 3 Nano restyle of a G1 humanoid in a scanned room"><figure><img class="brain" src="assets/brain-humanoid.png" alt="Predicted response, Cosmos against Isaac Sim, from the left"><figcaption>Cosmos against Isaac Sim</figcaption></figure></div>
+      <div class="body"><h3>A humanoid, rendered and restyled</h3><span class="src"><span class="tok"><svg><use href="#i-render"/></svg>Isaac Sim</span><span class="tok"><svg><use href="#i-restyle"/></svg>Cosmos 3 Nano</span><span class="tok"><svg><use href="#i-film"/></svg>2 clips run</span></span></div>
+    </article>
+  </div>
+</section>
+
+<!-- Fitting to measured fMRI: the ivory chapter, the benchmark set apart from live use -->
+<section class="block" data-biome="paper">
+  <div class="inner">
+    <div class="two">
+      <div class="lines reveal">
+        <div class="hd"><span class="h-ico" aria-hidden="true"><svg><use href="#i-layers"/></svg></span><h2>Fitting TRIBE v2 to measured fMRI</h2></div>
+        <p><span class="tok"><svg><use href="#i-brain"/></svg>TRIBE v2</span> predicts an average viewer it has never met. Given people's measured fMRI, one click fits an adapter: a map from <span class="tok"><svg><use href="#i-brain"/></svg>TRIBE v2</span>'s prediction for each brain area to the responses those people had.</p>
+      </div>
+      <div class="fcard" data-card="adapter">
+        <div class="fc-sheet s2"></div><div class="fc-sheet s1"></div>
+        <div class="fc-card">
+          <div class="fc-head"><span>Adapters · Human Action Dataset</span><span>30 people</span></div>
+          <div class="fc-row"><span>Median r, held-out categories</span><span class="fc-btn"><span>Fit an adapter</span><span>Fitting</span><span>Fitted</span></span></div>
+          <div class="fc-bars">
+            <div class="fc-bar"><span>TRIBE v2 as released</span><span class="fc-lane"><i data-tribe style="background:#8a847b"></i><span class="fc-ceil"></span></span><span class="num">0.257</span></div>
+            <div class="fc-bar"><span><b>Adapter</b></span><span class="fc-lane"><i data-fit style="background:#7fa01c"></i><span class="fc-ceil"></span></span><span class="num" data-fit-n>0.000</span></div>
+          </div>
+          <div class="fc-row" style="font-size:14px"><span class="fc-muted">Line on each bar: noise ceiling 0.675</span><span class="fc-chip">+0.150 over TRIBE v2</span></div>
+        </div>
+        <svg class="fc-cursor" viewBox="0 0 26 26" aria-hidden="true"><path d="M3 2 L3 21 L8.5 16 L12 24 L15.5 22.5 L12 15 L19 15 Z" fill="#f2efe8" stroke="#121110" stroke-width="1.6" stroke-linejoin="round"/></svg>
+      </div>
+    </div>
+    <figure class="mapview" data-brain-map>
+      <canvas aria-label="Where on the cortex each model predicts measured fMRI, per brain area"></canvas>
+      <figcaption>
+        <span class="choose"><button data-map="adapter_r" class="on">Adapter</button><button data-map="tribe_v2_r">TRIBE v2 as released</button><button data-map="gain">Adapter minus TRIBE v2</button></span>
+        <span data-legend></span>
+      </figcaption>
+    </figure>
+    <div class="two top">
+      <div class="lines reveal">
+        <div class="hd"><span class="h-ico" aria-hidden="true"><svg><use href="#i-chart"/></svg></span><h3>Benchmark</h3></div>
+        <p class="note">Median r over <span class="tok"><svg><use href="#i-mesh"/></svg>212 reliable brain areas</span> of the <span class="tok"><svg><use href="#i-folder"/></svg>Human Action Dataset</span>, on action categories the fit never saw. The line on each bar is the noise ceiling, 0.675. The adapter reaches 60% of the ceiling, up from 38%, and scores higher in <span class="tok"><svg><use href="#i-compare"/></svg>179 of the 212 areas</span>. The bracket on each bar is its 95% interval.</p>
+      </div>
+      <div class="bars" role="img" aria-label="Median r: TRIBE v2 as released 0.257 (95% interval 0.171 to 0.325), adapter 0.407 (0.364 to 0.461), labels shuffled −0.011, noise ceiling 0.675 (0.629 to 0.725)">
+        <div class="bar"><span>TRIBE v2 as released</span><span class="lane"><i data-w="36.7%" style="background:var(--grey)"></i><span class="ci" style="left:24.4%;width:22%"></span><span class="ceil"></span></span><span class="big num">0.257</span></div>
+        <div class="bar"><span><b>Adapter</b></span><span class="lane"><i data-w="58.1%" style="background:var(--a)"></i><span class="ci" style="left:52%;width:13.9%"></span><span class="ceil"></span></span><span class="big num"><b>0.407</b></span></div>
+        <div class="bar"><span>Labels shuffled</span><span class="lane"><i data-w="0%"></i><span class="ceil"></span></span><span class="big num">−0.011</span></div>
+        <div class="bar"><span>Noise ceiling</span><span class="lane"><i data-w="96.4%" style="background:var(--rule-strong)"></i><span class="ci" style="left:89.9%;width:13.7%"></span></span><span class="big num">0.675</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Runs on CIQ: one round's route through the cluster. The steps scroll on the left; the deployment, read from
+     fuzzball/simulaxon.fz, render-score.fz and observability.fz, stays pinned on the right and lights each step's hop. -->
+<section class="section ciq" data-biome="ciq">
 
   <div class="ciq-head">
     <h2>Runs on CIQ</h2>
@@ -291,15 +302,15 @@
 
   <div class="two top ciq-desk">
     <div class="lines">
-      <h3>Desk and production</h3>
+      <div class="hd"><span class="h-ico" aria-hidden="true"><svg><use href="#i-node"/></svg></span><h3>Desk and production</h3></div>
       <p class="note">The same study code runs on both.</p>
     </div>
     <div class="tablescroll">
       <table class="machines">
         <thead><tr><th>Machine</th><th>Role</th><th>Runs on</th></tr></thead>
         <tbody>
-          <tr><td>DGX Spark</td><td>The desk: the lab app, interactive previews, the agent while a study is designed</td><td>The same repository</td></tr>
-          <tr><td>Fuzzball cluster, GB10 nodes</td><td>Production: the planner as a service, study runs as workflows and task arrays, Prometheus and Grafana</td><td>Rocky Linux; study steps in <code>rockylinux/rockylinux:10</code></td></tr>
+          <tr><td><span class="tok"><svg><use href="#i-node"/></svg>DGX Spark</span></td><td>Desk: lab app, interactive previews, the agent while a study is designed</td><td>Same repository</td></tr>
+          <tr><td><span class="tok"><svg><use href="#i-flow"/></svg>Fuzzball cluster</span> <span class="tok"><svg><use href="#i-gpu"/></svg>GB10 nodes</span></td><td>Production: planner service, study runs as workflows and task arrays, Prometheus and Grafana</td><td>Rocky Linux, study steps in <span class="tok"><svg><use href="#i-box"/></svg>rockylinux/rockylinux:10</span></td></tr>
         </tbody>
       </table>
     </div>
@@ -308,23 +319,23 @@
 
 <!-- Measured on the cluster: three numbers -->
 <section class="section" data-biome="compute">
-  <h2 class="reveal">Measured on the cluster</h2>
+  <div class="hd reveal"><span class="h-ico" aria-hidden="true"><svg><use href="#i-gauge"/></svg></span><h2>Measured on the cluster</h2></div>
   <div class="figures">
-    <div class="figure reveal"><span class="big num">0.9991</span><b>Cluster against desk</b><p>Median per-clip correlation between the cluster's and the DGX Spark's predictions for the same clips.</p></div>
-    <div class="figure reveal"><span class="big num">21.5 tokens/s</span><b>Planner reply speed</b><p>Nemotron Super 120B with speculative decoding, up from 11 to 16 tokens/s without it.</p></div>
-    <div class="figure reveal"><span class="big num">112 of 119 GiB</span><b>Peak memory</b><p>Highest use on either 128 GB workstation while the planner, Isaac Sim, Cosmos and TRIBE v2 ran.</p></div>
+    <div class="figure reveal"><span class="h-ico sm" aria-hidden="true"><svg><use href="#i-compare"/></svg></span><span class="big num">0.9991</span><span class="meter" aria-hidden="true"><i style="width:99.91%"></i></span><b>Cluster against desk</b><p>Median per-clip correlation between the cluster's and the <span class="tok"><svg><use href="#i-node"/></svg>DGX Spark</span>'s predictions for the same clips.</p></div>
+    <div class="figure reveal"><span class="h-ico sm" aria-hidden="true"><svg><use href="#i-bolt"/></svg></span><span class="big num">21.5 tokens/s</span><span class="meter" aria-hidden="true"><i class="was" style="left:44%;width:20%"></i><i style="left:85%;width:2%"></i></span><b>Planner reply speed</b><p><span class="tok"><svg><use href="#i-llm"/></svg>Nemotron Super 120B</span> with <span class="tok"><svg><use href="#i-bolt"/></svg>speculative decoding</span>, up from 11 to 16 tokens/s without it.</p></div>
+    <div class="figure reveal"><span class="h-ico sm" aria-hidden="true"><svg><use href="#i-mem"/></svg></span><span class="big num">112 of 119 GiB</span><span class="meter" aria-hidden="true"><i style="width:94.1%"></i></span><b>Peak memory</b><p>Highest use on either <span class="tok"><svg><use href="#i-gpu"/></svg>128 GB</span> workstation while the planner, <span class="tok"><svg><use href="#i-render"/></svg>Isaac Sim</span>, <span class="tok"><svg><use href="#i-restyle"/></svg>Cosmos</span> and <span class="tok"><svg><use href="#i-brain"/></svg>TRIBE v2</span> ran.</p></div>
   </div>
 </section>
 
 <!-- Workflow -->
 <section class="section" data-biome="home">
-  <h2 class="reveal">Workflow</h2>
+  <div class="hd reveal"><span class="h-ico" aria-hidden="true"><svg><use href="#i-flow"/></svg></span><h2>Workflow</h2></div>
   <div class="steps">
-    <div class="step reveal"><div><span class="n">1</span><p>Ask the agent to design an experiment around your hypothesis.</p></div><div class="slot"><b>The agent's chat</b><span>Recording to come: the hypothesis, its plan, the project it sets up</span></div></div>
-    <div class="step reveal"><div><span class="n">2</span><p>Upload footage or describe the scenes you want to test.</p></div><figure class="grab"><video src="assets/grabs/grab-upload.mp4" muted loop playsinline autoplay aria-label="Uploading a clip from the chat into a new dataset"></video><figcaption>Upload from the chat: the file goes into a dataset you name, and the agent sees it with your next message.</figcaption></figure></div>
-    <div class="step reveal"><div><span class="n">3</span><p>Review the generated scenes and predicted responses alongside the agent's follow-up experiments.</p></div><figure class="grab"><img src="assets/grabs/grab-results.gif" alt="The Results tab of the free-fall project: the brain map, then the regions table"><figcaption>Results for 20 Isaac Sim busts against 20 height-matched vases: every brain area ranked, then each region with its interval.</figcaption></figure></div>
-    <div class="step reveal"><div><span class="n">4</span><p>Provide a participant's fMRI recordings and the videos they watched. Fine-tune the model in one click to predict how that person would respond to new footage.</p></div><figure class="grab"><img src="assets/grabs/grab-adapter.gif" alt="The adapter card in the app: scores against measured fMRI and the map of where it improves"><figcaption>The Adapters tab: the benchmark table, and the cortex map switching between adapter, TRIBE v2 and their difference.</figcaption></figure></div>
-    <div class="step reveal"><div><span class="n">5</span><p>Run robotics experiments that use predicted human brain responses to test whether a robot can better anticipate what someone is about to do from the way they move.</p></div><figure class="grab"><video src="assets/grabs/grab-experimental.mp4" muted loop playsinline autoplay aria-label="A simulated SO-101 grasp recording playing in the Experimental section"></video><figcaption>Experimental, on the cluster: a simulated SO-101 grasp in Isaac Sim, with its joints and phases, from the robotic empathy study.</figcaption></figure></div>
+    <div class="step reveal"><div><div class="hd"><span class="h-ico" aria-hidden="true"><svg><use href="#i-llm"/></svg></span><span class="n">1</span></div><p>Ask the agent to design an experiment around your hypothesis.</p></div><div class="slot"><b>The agent's chat</b><span>Recording to come: the hypothesis, its plan, the project it sets up</span></div></div>
+    <div class="step reveal"><div><div class="hd"><span class="h-ico" aria-hidden="true"><svg><use href="#i-upload"/></svg></span><span class="n">2</span></div><p>Upload footage or describe the scenes you want to test.</p></div><figure class="grab"><video src="assets/grabs/grab-upload.mp4" muted loop playsinline autoplay aria-label="Uploading a clip from the chat into a new dataset"></video><figcaption>Upload from the chat: the file goes into a dataset you name, and the agent sees it with your next message.</figcaption></figure></div>
+    <div class="step reveal"><div><div class="hd"><span class="h-ico" aria-hidden="true"><svg><use href="#i-chart"/></svg></span><span class="n">3</span></div><p>Review the generated scenes and predicted responses alongside the agent's follow-up experiments.</p></div><figure class="grab"><img src="assets/grabs/grab-results.gif" alt="The Results tab of the free-fall project: the brain map, then the regions table"><figcaption>Results for <span class="tok"><svg><use href="#i-render"/></svg>20 Isaac Sim busts</span> against <span class="tok"><svg><use href="#i-render"/></svg>20 height-matched vases</span>: every brain area ranked, then each region with its interval.</figcaption></figure></div>
+    <div class="step reveal"><div><div class="hd"><span class="h-ico" aria-hidden="true"><svg><use href="#i-layers"/></svg></span><span class="n">4</span></div><p>Provide a participant's fMRI recordings and the videos they watched. Fine-tune the model in one click to predict how that person would respond to new footage.</p></div><figure class="grab"><img src="assets/grabs/grab-adapter.gif" alt="The adapter card in the app: scores against measured fMRI and the map of where it improves"><figcaption>The Adapters tab: the benchmark table, and the cortex map switching between adapter, <span class="tok"><svg><use href="#i-brain"/></svg>TRIBE v2</span> and their difference.</figcaption></figure></div>
+    <div class="step reveal"><div><div class="hd"><span class="h-ico" aria-hidden="true"><svg><use href="#i-robot"/></svg></span><span class="n">5</span></div><p>Run robotics experiments that use predicted human brain responses to test whether a robot can better anticipate what someone is about to do from the way they move.</p></div><figure class="grab"><video src="assets/grabs/grab-experimental.mp4" muted loop playsinline autoplay aria-label="A simulated SO-101 grasp recording playing in the Experimental section"></video><figcaption>Experimental, on the cluster: a simulated <span class="tok"><svg><use href="#i-robot"/></svg>SO-101</span> grasp in <span class="tok"><svg><use href="#i-render"/></svg>Isaac Sim</span>, with its joints and phases, from the robotic empathy study.</figcaption></figure></div>
   </div>
 </section>
 

@@ -316,3 +316,23 @@ body.light .choose button { color: var(--ink-2); } body.light .choose button.on 
 @media (prefers-reduced-motion: reduce) {
   .rs-ico, .deploy [data-at], .deploy .ic { transition: none; }
 }
+
+/* Icons, chips and headings across every chapter */
+.tok svg, .h-ico svg { fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+.h-ico { display: inline-grid; place-items: center; width: 40px; height: 40px; flex: none; border: 1px solid var(--rule-strong); border-radius: 10px; background: var(--panel); color: var(--accent); }
+.h-ico svg { width: 22px; height: 22px; }
+.h-ico.sm { width: 34px; height: 34px; border-radius: 9px; } .h-ico.sm svg { width: 18px; height: 18px; }
+.hd { display: flex; align-items: center; gap: 14px; }
+.brand { display: inline-flex; align-items: center; gap: 12px; }
+.lines > .h-ico, .stations .station > .h-ico { justify-self: start; }
+.stations .station:not(.on) .h-ico { color: var(--ink-3); }
+.player .note .tok, figcaption .tok, .src .tok, td .tok { font-size: 0.86em; vertical-align: 0.05em; }
+.excard .src { display: flex; flex-wrap: wrap; gap: 6px; }
+.step .hd { gap: 16px; }
+body.light .tok { background: var(--panel); }
+body.light .h-ico { background: #fbfaf7; color: var(--a); }
+.figure .meter { position: relative; display: block; height: 6px; border-radius: 3px; background: var(--rule); }
+.figure .meter i { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 3px; background: var(--accent); }
+.figure .meter i.was { background: var(--grey); }
+.lane .ci { position: absolute; top: -5px; bottom: -5px; border: 1.5px solid var(--paper-ink); border-top: 0; border-bottom: 0; }
+.lane .ci::after { content: ""; position: absolute; left: 0; right: 0; top: 50%; border-top: 1.5px solid var(--paper-ink); }
