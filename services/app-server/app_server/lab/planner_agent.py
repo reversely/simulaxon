@@ -63,11 +63,36 @@ def chat(messages: list[dict], tool_list: list[dict]) -> dict:
         raise RuntimeError(f'the planner is unreachable at {PLANNER_URL}: {e}') from e
 
 
-def _trim(history: list[dict], keep: int = 80) -> list[dict]:
-    """The latest messages, starting at a person's message so no tool result is cut off from the call that asked for it."""
-    h = history[-keep:]
-    while h and h[0].get('role') != 'user': h = h[1:]
-    return h
+HISTORY_CHARS = 140_000   # history sent per request. vLLM serves 65,536 tokens (fuzzball/simulaxon.fz); the system prompt and
+                          # 59 tool definitions take about 21,000 characters (about 5,300 tokens, measured 2026-11-14). At a
+                          # cautious 3 characters per token for JSON, this is about 47,000 tokens, which leaves room to answer.
+
+
+def _trim(history: list[dict], keep: int = 80, budget: int = HISTORY_CHARS) -> list[dict]:
+    """The messages the model sees: always the person's latest message, then as much of the newest context as fits in
+    keep messages and budget characters. Every tool result stays with the assistant message that called it.
+
+    Within the current turn: the person's message, then its newest rounds. Before it: earlier turns, whole from a
+    person's message on, while they fit."""
+    size = lambda m: len(json.dumps(m, default=str))
+    last = max((i for i, m in enumerate(history) if m.get('role') == 'user'), default=None)
+    if last is None: return []
+    prompt, turn = history[last], history[last + 1:]
+    room_n, room_c = keep - 1, budget - size(prompt)
+    kept: list[dict] = []
+    for m in reversed(turn):   # the current turn's newest messages first
+        if len(kept) >= room_n or size(m) > room_c: break
+        kept.insert(0, m); room_n -= 1; room_c -= size(m)
+    if len(kept) < len(turn):   # the turn was cut: start at an assistant message, so no tool result lacks its call
+        while kept and kept[0].get('role') != 'assistant': kept.pop(0)
+        if not kept and turn: kept = turn[-1:] if turn[-1].get('role') == 'assistant' else []   # never lose the latest round entirely
+        return [prompt] + kept
+    earlier, before = history[:last], []
+    for m in reversed(earlier):   # earlier turns, newest first, while they fit
+        if room_n <= 0 or size(m) > room_c: break
+        before.insert(0, m); room_n -= 1; room_c -= size(m)
+    while before and before[0].get('role') != 'user': before.pop(0)
+    return before + [prompt] + kept
 
 
 def turn(system: str, history: list[dict], prompt: str, base: str, on_tool=None, on_result=None, on_text=None, stop=None) -> str:
