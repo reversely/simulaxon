@@ -110,13 +110,13 @@ def fit(dataset_id: str, cache: Path, held_out: list[str] | None = None, on_even
 
     def summary(v):
         g = v[good]; b = np.median(g[rng.integers(0, len(g), (4000, len(g)))], 1)
-        return {'median': round(float(np.median(g)), 4), 'interval_95': [round(float(x), 4) for x in np.percentile(b, [2.5, 97.5])]}
+        return {'median': round(float(np.median(g)), 6), 'interval_95': [round(float(x), 6) for x in np.percentile(b, [2.5, 97.5])]}   # 6 places: the page rounds to 3, and 4 here made 0.40655 show as 0.406
     return {'source': src['title'], 'people': src['people'], 'categories': len(cats), 'clips': int(n.sum()), 'split': split,
             'input': f'TRIBE v2, mean of seconds {ON_S[0]} to {ON_S[1]} in each of the 360 HCP-MMP1 areas, averaged over each category\'s clips',
             'target': f"measured response, mean of {src['people']} people, 360 HCP-MMP1 areas", 'reliable_areas': int(good.sum()),
             'summary': {'adapter': summary(a), 'tribe_v2': summary(r), 'shuffled': summary(s), 'ceiling': summary(src['ceiling'])},
-            'areas': [{'area': src['areas'][i], 'adapter_r': round(float(a[i]), 4), 'tribe_v2_r': round(float(r[i]), 4), 'shuffled_r': round(float(s[i]), 4),
-                       'ceiling': round(float(src['ceiling'][i]), 4), 'reliable': bool(good[i])} for i in range(len(src['areas']))],
+            'areas': [{'area': src['areas'][i], 'adapter_r': round(float(a[i]), 6), 'tribe_v2_r': round(float(r[i]), 6), 'shuffled_r': round(float(s[i]), 6),
+                       'ceiling': round(float(src['ceiling'][i]), 6), 'reliable': bool(good[i])} for i in range(len(src['areas']))],
             'weights': {'mu': mu, 'sd': sd, 'coef': m.coef_, 'intercept': m.intercept_, 'alpha': np.asarray(m.alpha_)}}
 
 
