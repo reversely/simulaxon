@@ -302,7 +302,11 @@ def run(tools, broadcast, project_id: str, actor: str) -> dict:
                                             'baselines_note': 'Each region also carries its rank among the 360 HCP areas TRIBE reports, the same contrast with condition labels shuffled, and V-JEPA 2 features through a fixed random cortex map'},
                            depends_on=[('analysis', an.id)])
             with tools.lock:
-                step = s.begin(actor, 'project_run', {'project_id': project_id}); rec.apply(s, step)
+                step = s.begin(actor, 'project_run', {'project_id': project_id})
+                for kind in ('result', 'analysis', 'neural_map', 'sample'):   # a run replaces the project's earlier results, in the same step, so undo brings them back (#12)
+                    for row in s.list(kind):
+                        if row.data.get('project_id') == project_id: s.delete(step, kind, row.id, row.version)
+                rec.apply(s, step)
             cur = s.get('project', project_id)
             tools.call('project_update', actor, project_id=project_id, expect_version=cur.version, status='Done', counts={'units': total, 'clips': total})
             ev(stage='done')
