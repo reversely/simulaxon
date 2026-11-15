@@ -59,8 +59,24 @@ def chat(messages: list[dict], tool_list: list[dict]) -> dict:
     req = urllib.request.Request(PLANNER_URL + '/chat/completions', data=json.dumps(body).encode(), headers={'Content-Type': 'application/json'})
     try:
         with urllib.request.urlopen(req, timeout=600) as r: return json.loads(r.read())['choices'][0]['message']
+    except urllib.error.HTTPError as e:   # the planner answered but refused, such as a prompt past its context: say what it said (#8)
+        raise RuntimeError(f'the planner refused the request ({e.code}): {_said(e)}') from e
     except OSError as e:
         raise RuntimeError(f'the planner is unreachable at {PLANNER_URL}: {e}') from e
+
+
+def _said(e: urllib.error.HTTPError) -> str:
+    """The planner's own message from an error answer: vLLM's {"message"} or OpenAI's {"error": {"message"}}, else the
+    start of the body."""
+    try: body = e.read().decode('utf-8', 'replace')
+    except Exception: body = ''
+    try: d = json.loads(body)
+    except ValueError: d = None
+    if isinstance(d, dict):
+        err = d.get('error')
+        m = d.get('message') or (err.get('message') if isinstance(err, dict) else err)
+        if m: return str(m)[:500]
+    return (body.strip() or str(e.reason))[:500]
 
 
 HISTORY_CHARS = 140_000   # history sent per request. vLLM serves 65,536 tokens (fuzzball/simulaxon.fz); the system prompt and
