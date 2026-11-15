@@ -17,6 +17,21 @@ REGIONS = {
     'Intraparietal sulcus': (['S_intrapariet_and_P_trans'], 'Space, motion, physical events'),
     'Superior parietal': (['G_parietal_sup'], 'Spatial attention'),
 }
+ALIASES = {   # the field's names for areas, resolved to the HCP-MMP1 areas this lab uses for them (FFC for the face area in
+              # gates 1 and 2, PHA1 to PHA3 for the place area). Only names with a clear HCP counterpart are listed.
+    'FFA': (['FFC'], 'Fusiform face area: HCP area FFC, the fusiform face complex'),
+    'PPA': (['PHA1', 'PHA2', 'PHA3'], 'Parahippocampal place area: HCP areas PHA1, PHA2 and PHA3'),
+    'V5': (['MT'], 'Motion area V5: HCP area MT'),
+}
+ALIAS_NAMES = {'fusiform face area': 'FFA', 'parahippocampal place area': 'PPA', 'place area': 'PPA', 'face area': 'FFA', 'motion area': 'V5'}
+
+
+def alias(name: str) -> str | None:
+    """The alias a name stands for, such as PPA for "ppa" or "parahippocampal place area", or None."""
+    n = name.strip()
+    return n.upper() if n.upper() in ALIASES else ALIAS_NAMES.get(n.lower())
+
+
 HCP = {   # HCP-MMP1 areas, both hemispheres, as TRIBE v2 reports them (tribev2.utils.get_hcp_labels)
     'Anterior intraparietal area': (['AIP'], 'Grasping and watching actions'),
 }
@@ -96,6 +111,9 @@ def mask_for(name: str | list[str]) -> np.ndarray:
     """One region by name, or the union of several. Raises with near names when one is unknown."""
     A = atlas(); names = [name] if isinstance(name, str) else list(name); m = np.zeros(20484, bool)
     for n in names:
+        if n not in A and alias(n):   # FFA, PPA, V5 and their spelled-out names
+            for a in ALIASES[alias(n)][0]: m |= A[a][0]
+            continue
         if n not in A:
             near = [k for k in A if n.lower() in k.lower()][:12]
             raise ValueError(f'no region named {n!r}' + (f'; near: {near}' if near else '; use region_search'))
@@ -111,4 +129,9 @@ def search(query: str = '', limit: int = 60) -> dict:
                 'hcp_codes': sorted(k for k, (_, d) in A.items() if d == 'HCP-MMP1 area, both hemispheres'),
                 'note': 'HCP-MMP1 (Glasser 2016) codes as TRIBE v2 reports them; Destrieux labels by search. L_ or R_ for one hemisphere.'}
     hits = [k for k in A if all(w in k.lower() for w in q)]
-    return {'query': query, 'matching': len(hits), 'regions': [{'region': k, 'what': A[k][1], 'vertices': int(A[k][0].sum())} for k in hits[:limit]]}
+    named = [k for k, (_, what) in ALIASES.items() if all(w in (k + ' ' + what).lower() for w in q)]
+    out = [{'region': k, 'what': ALIASES[k][1], 'areas': ALIASES[k][0], 'vertices': int(mask_for(k).sum()), 'use_as': k} for k in named]
+    out += [{'region': k, 'what': A[k][1], 'vertices': int(A[k][0].sum())} for k in hits[:limit]]
+    return {'query': query, 'matching': len(out), 'regions': out,
+            **({} if out else {'note': 'Areas are named by HCP-MMP1 code or anatomy. The field names FFA, PPA and V5 work too; for other functional areas, '
+                                       'such as the extrastriate body area, choose HCP areas from a paper and pass them as a group: {name, areas: [...]}.'})}

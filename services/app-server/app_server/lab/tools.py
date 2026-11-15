@@ -328,6 +328,15 @@ def register(tools, broadcast=lambda m: None):
         from . import examples
         return examples.listing(s)
 
+    @tools.tool('run', 'stop', writes_project=False)
+    def run_stop(actor, project_id):
+        """Stop an experiment's run after the clip under way. Clips already read stay cached, so running it again picks up
+        where it stopped. The project goes back to Draft."""
+        from . import runner
+        P = s.get('project', project_id).data
+        if P.get('status') != 'Running': return {'stopped': False, 'why': f"the project is {P.get('status')}, not running"}
+        runner.STOP.add(project_id); return {'stopped': True, 'note': 'it stops after the clip under way'}
+
     @tools.tool('run', 'list', writes_project=False)
     def run_list(actor):
         """Runs under way, by project: clips done, total and stage."""
@@ -425,7 +434,7 @@ def register(tools, broadcast=lambda m: None):
     def experiment_get(actor, project_id):
         """An experiment's set-up, status and, when done, every contrast with its baselines and match or no match."""
         P = s.get('project', project_id).data
-        res = [{'contrast': a['analysis'].data['title'], 'regions': a['result'].data['regions'], 'baselines': a['result'].data['baselines'],
+        res = [{'contrast': a['analysis'].data.get('title'), 'regions': a['result'].data.get('regions'), 'baselines': a['result'].data.get('baselines'),
                 'reported': a['result'].data.get('reported'), 'note': a['result'].data.get('vjepa_note')}
                for a in analysis_list(actor, project_id) if a['result']]
         return {'title': P.get('title'), 'question': P.get('question'), 'status': P.get('status'), 'experiment': P.get('experiment'), 'results': res}

@@ -11,7 +11,7 @@ from typing import Callable
 from .store import Store
 from .script import parse, ScriptError
 
-VERBS = {'list', 'get', 'search', 'create', 'update', 'delete', 'run', 'cancel', 'undo', 'query', 'post', 'fetch', 'read'}
+VERBS = {'list', 'get', 'search', 'create', 'update', 'delete', 'run', 'cancel', 'undo', 'query', 'post', 'fetch', 'read', 'stop'}
 PAGES = {'scene', 'samples', 'neural', 'search', 'data', 'findings', 'sources'}
 VIEWS = {'lateral', 'ventral', 'medial', 'posterior'}
 LAYERS = {'full', 'background', 'object', 'mask', 'depth'}

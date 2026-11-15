@@ -28,7 +28,7 @@ You work through the lab's tools only. The usual path for a replication:
 Measured here about TRIBE: its output has the blood-flow lag removed, so a stimulus's response is read over the seconds it is on screen (the default). One image held 4 s gives faces above objects in FFC (+0.052, above 93% of the 360 areas); eight images flashed 0.5 s each in a 4 s block give nothing or the reverse in those seconds. So hold each image about 1 s or longer, and say so when the paper's timing was faster.
 Cosmos (a condition's cosmos option) restyles stimuli toward photoreal video. Measured here: Cosmos over an Isaac render moved the fusiform by +0.085, and one Cosmos seed moves it by 0.026, the size of the effects studied. So give every Cosmos condition at least two seeds, and run the same stimuli without Cosmos as their own condition, so the difference Cosmos makes is measured beside the result. Cosmos takes about 4 min per 4 s clip.
 When paper_fetch finds only the abstract (the full text is not openly licensed), say so, work from what the abstract states, mark every design choice the abstract does not give as your assumption, and say that a person can add the PDF for the full methods.
-Rules: every number you give comes from a tool result. TRIBE reads video only, cannot tell left from right in the visual field, and has no attention or eye-specific input: when a paper's effect depends on those, say what the closest stimulus-driven version is and run that. No verdict words such as supported, confirmed or refuted. Short plain sentences."""
+Rules: every number you give comes from a tool result. TRIBE reads video only, cannot tell left from right in the visual field, and has no attention or eye-specific input: when a paper's effect depends on those, say what the closest stimulus-driven version is and run that. No verdict words such as supported, confirmed or refuted. Short plain sentences. Size a first run to finish in about 10 minutes, by experiment_create's minutes_estimate (TRIBE takes about 30 s a clip); run more trials only when the person asks or a first run is too noisy to read. A run you no longer need can be stopped with run_stop."""
 SYSTEM += '\n\n' + titles.GUIDE   # how to title projects and experiments (#11)
 MODES = {
     'discuss': "This message is for discussion. Answer it, propose, and look things up as needed. Set up an experiment with experiment_create only when the person asks for it or agrees to your proposal, so they can see it; do not start a run (project_run) or a large fetch until they ask. End your turn when you have answered.",
@@ -39,6 +39,11 @@ MODES = {
 def _mcp_config(base_url: str) -> str:
     cfg = {'mcpServers': {'vcl': {'command': sys.executable, 'args': ['-m', 'app_server.lab.mcp_proxy', base_url], 'cwd': str(ROOT)}}}
     f = tempfile.NamedTemporaryFile('w', suffix='.json', delete=False); json.dump(cfg, f); f.close(); return f.name
+
+
+def _refused(res) -> bool:
+    """A tool result the page marks refused: an error with a value. A success may carry "error": null, such as a fetch's status."""
+    return isinstance(res, dict) and bool(res.get('error'))
 
 
 def _unwrap(body: str):
@@ -62,10 +67,23 @@ class Session:
     def emit(self, **k):
         self.broadcast({'session': self.d['id'], **k})
 
+    def mine(self) -> tuple[set, set]:
+        """The projects and datasets this chat started work on, from its own tool calls, so it never waits on another chat's run."""
+        projects, fetches = {self.d.get('project_id')} - {None}, set()
+        for t in self.d.get('turns', []):
+            for c in t.get('tool_calls', []):
+                a = c.get('arguments') or {}
+                if c['tool'] in ('project_run', 'experiment_create') and a.get('project_id'): projects.add(a['project_id'])
+                if c['tool'] == 'dataset_fetch':
+                    try: fetches.add(_unwrap(c.get('result') or '{}').get('dataset_id'))
+                    except Exception: pass
+        return projects, fetches - {None}
+
     def pending(self) -> list[str]:
-        """Background work the agent is waiting on: fetches under way and projects running."""
-        out = [f"fetch of {did}" for did, st in datasets._fetches.items() if st['status'] == 'fetching']
-        out += [f"run of project {p.id}" for p in self.tools.store.list('project') if p.data.get('status') == 'Running']
+        """Background work this chat is waiting on: its own fetches under way and its own projects running."""
+        projects, fetches = self.mine()
+        out = [f"fetch of {did}" for did, st in datasets._fetches.items() if st['status'] == 'fetching' and did in fetches]
+        out += [f"run of project {p.id}" for p in self.tools.store.list('project') if p.data.get('status') == 'Running' and p.id in projects]
         return out
 
     def snapshot(self) -> dict:
@@ -94,7 +112,7 @@ class Session:
             rec['tool_calls'].append(call); self.emit(stage='tool', n=n, **call); self.save()
         def on_result(name, args, res):
             call = rec['tool_calls'][-1]; body = json.dumps(res, default=str)
-            call['result'] = body[:600]; call['error'] = isinstance(res, dict) and ('error' in res or 'detail' in res)
+            call['result'] = body[:600]; call['error'] = _refused(res)
             self._linked(call, res.get('result') if isinstance(res, dict) else None); self.save()
         def on_text(text):
             rec['text'].append(text); self.emit(stage='text', n=n, text=text)
@@ -127,7 +145,7 @@ class Session:
                 if ev.get('type') == 'assistant':
                     for c in ev.get('message', {}).get('content', []):
                         if c.get('type') == 'tool_use':
-                            call = {'tool': c['name'].replace('mcp__vcl__', ''), 'arguments': (c.get('input') or {}).get('arguments', c.get('input') or {}), 'at': round(time.time() - t0, 1)}
+                            call = {'tool': c['name'].replace('mcp__vcl__', ''), 'arguments': (c.get('input') or {}).get('arguments', c.get('input') or {}), 'at': round(time.time() - t0, 1), 'id': c.get('id')}
                             rec['tool_calls'].append(call); self.emit(stage='tool', n=n, **call)
                         elif c.get('type') == 'text' and c.get('text', '').strip():
                             rec['text'].append(c['text']); self.emit(stage='text', n=n, text=c['text'])
@@ -135,9 +153,10 @@ class Session:
                     for c in ev.get('message', {}).get('content', []):
                         if isinstance(c, dict) and c.get('type') == 'tool_result' and rec['tool_calls']:
                             body = c.get('content'); body = body[0].get('text', '') if isinstance(body, list) and body else str(body)
-                            call = rec['tool_calls'][-1]; res = _unwrap(body)
+                            call = next((x for x in reversed(rec['tool_calls']) if x.get('id') and x['id'] == c.get('tool_use_id')), rec['tool_calls'][-1])   # parallel calls: each result to its own call
+                            res = _unwrap(body)
                             call['result'] = body[:600]
-                            call['error'] = bool(c.get('is_error')) or (isinstance(res, dict) and ('error' in res or 'detail' in res))
+                            call['error'] = bool(c.get('is_error')) or _refused(res)
                             self._linked(call, res)
                 if ev.get('type') == 'result':
                     rec['reply'] = ev.get('result', ''); rec['cost_usd'] = ev.get('total_cost_usd')
@@ -186,7 +205,7 @@ class Session:
         if mode not in MODES: raise ValueError(f'mode must be one of {list(MODES)}')
         if self.thread and self.thread.is_alive():
             self.inbox.append({'text': text, 'mode': mode}); return {'id': self.d['id'], 'queued': True}
-        self.d['mode'] = mode; self.stop.clear(); self.d['status'] = 'working'; self.save()
+        self.d['mode'] = mode; self.stop.clear(); self.d['status'] = 'working'; self.d.pop('stop_requested', None); self.save()
         self.thread = threading.Thread(target=self.run, args=(text, source), daemon=True); self.thread.start()
         return {'id': self.d['id'], 'status': 'working'}
 
@@ -218,7 +237,7 @@ def resume_all(tools, broadcast, base_url: str):
     """At start-up: chats cut off mid-turn or while waiting continue in the same conversation."""
     for f in DIR.glob('session_*.json') if DIR.exists() else []:
         d = json.loads(f.read_text())
-        if d.get('status') in ('working', 'waiting'):
+        if d.get('status') in ('working', 'waiting') and not d.get('stop_requested'):
             s = _load(d['id'], tools, broadcast, base_url)
             s.say('The lab restarted while you were working. Check where things stand and continue.', d.get('mode', 'through'), 'wake')
 
@@ -239,6 +258,10 @@ def listing(project_id: str | None = None) -> list[dict]:
 
 def stop(sid: str) -> dict:
     s = _live.get(sid)
+    f = DIR / f'{sid}.json'
+    if f.exists():   # saved at once, so a restart before the turn ends never resumes a chat a person stopped
+        d = json.loads(f.read_text()); d['stop_requested'] = True; f.write_text(json.dumps(d, indent=1))
+        if s: s.d['stop_requested'] = True
     if s:
         s.stop.set(); s.inbox.clear()
         if s.proc and s.proc.poll() is None: s.proc.terminate()   # Claude Code; a planner turn checks stop between rounds

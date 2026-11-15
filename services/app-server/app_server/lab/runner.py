@@ -16,6 +16,7 @@ from .preview import render_and_read, REVISION, _label
 
 
 SHUTTING_DOWN = threading.Event()
+STOP: set[str] = set()   # projects whose run a person or the agent stopped (run_stop); each run checks between clips
 
 
 def start(tools, broadcast, project_id: str, actor: str):

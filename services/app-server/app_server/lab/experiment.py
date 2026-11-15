@@ -276,6 +276,7 @@ def run(tools, broadcast, project_id: str, actor: str) -> dict:
                 done.append({**tr, 'clip': str(clip), 'still': str(still), 'preds': str(pred)})
                 ev(done=k + 1, total=total, image=out_url(still))
                 if runner.SHUTTING_DOWN.is_set(): return
+                if project_id in runner.STOP: raise RuntimeError(f'Stopped by a person after {k + 1} of {total} clips; running it again picks up from there')
             ev(stage='comparing')
             res = analyse(done, P, out_url)
             rec = plans.Deferred()
@@ -300,6 +301,7 @@ def run(tools, broadcast, project_id: str, actor: str) -> dict:
             ev(stage='done')
         except Exception as e:
             if runner.SHUTTING_DOWN.is_set(): return
+            runner.STOP.discard(project_id)
             import traceback; traceback.print_exc()
             cur = s.get('project', project_id)
             tools.call('project_update', actor, project_id=project_id, expect_version=cur.version, status='Draft')
