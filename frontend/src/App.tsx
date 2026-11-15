@@ -14,7 +14,8 @@ import { GuidePanel, GUIDE } from './guide'
 import { Skeleton } from './wait'
 import { ExperimentalPage } from './experimental'
 import { SessionDock, Chat, type SessionInfo } from './agent'
-type Example = { id: string; title: string; what: string; source: string; doi: string | null; goal: string; media: string[]; project_id: string | null; here: string }
+type Example = { id: string; title: string; what: string; source: string; doi: string | null; goal: string; media: string[]; project_id: string | null; here: string
+  brain: { image: string; view: string; title: string } | null }   // the predicted response beside the stimulus
 import { ExperimentSetup, ExperimentRoom, ReportedCard, OriginChip, type Setup, type Reported } from './experiment'
 
 type View = 'room' | 'results' | 'datasets' | 'experimental' | 'samples' | 'brain' | 'search' | 'data' | 'findings' | 'sources' | 'agent'
@@ -622,7 +623,10 @@ function TemplateSheet({ examples, onOpenProject, onGoal, onChat, templates, dem
         </div>
         <h3 className="sechead" id="start-examples"><Icon name="flask" />Classic experiments</h3>
         <div className="excards">{examples.map(e => <article key={e.id} className="excard">
-          {e.media.length > 0 && <div className="pics">{e.media.map(src => src.endsWith('.mp4') ? <video key={src} src={src} autoPlay muted loop playsInline preload="metadata" aria-label={`${e.title}, the stimulus`} /> : <img key={src} src={src} alt="" />)}</div>}
+          {(e.media.length > 0 || e.brain) && <div className={`pics ${e.brain ? 'split' : ''}`}>
+            <div className="stim">{e.media.map(src => src.endsWith('.mp4') ? <video key={src} src={src} autoPlay muted loop playsInline preload="metadata" aria-label={`${e.title}, the stimulus`} /> : <img key={src} src={src} alt="" />)}</div>
+            {e.brain && <figure className="exbrain"><img src={e.brain.image} alt={`Predicted brain response: ${e.brain.title}`} /><figcaption>{e.brain.title}</figcaption></figure>}
+          </div>}
           <div className="exbody">
             <h3>{e.title}</h3>
             <div>{e.what}</div>

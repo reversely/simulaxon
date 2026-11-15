@@ -384,8 +384,13 @@ ol.calls li.refused .callrow > span:first-child { color: var(--flag); }
 .excards { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; margin: 16px 0 8px; }
 .excard { background: var(--paper); color: var(--paper-ink); border-radius: 16px; overflow: hidden; display: flex; flex-direction: column; }
 .excard .pics { display: flex; height: 140px; background: #0c0b0a; }
-.excard .pics img, .excard .pics video { flex: 1; min-width: 0; height: 160px; object-fit: cover; display: block; }
+.excard .pics .stim { flex: 1; min-width: 0; display: flex; }
+.excard .pics .stim img, .excard .pics .stim video { flex: 1; min-width: 0; height: 160px; object-fit: cover; display: block; }
 .excard .pics { height: 160px; }
+.excard .pics.split { display: grid; grid-template-columns: 1fr 1fr; }   /* the stimulus beside the brain's predicted response to it */
+.excard .exbrain { margin: 0; position: relative; min-width: 0; background: #0c0b0a; display: flex; align-items: center; justify-content: center; }
+.excard .exbrain img { width: 100%; height: 132px; object-fit: contain; margin-bottom: 24px; }
+.excard .exbrain figcaption { position: absolute; left: 8px; right: 8px; bottom: 6px; font-size: 12px; color: var(--ink-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .excard .exbody { padding: 14px 16px 16px; display: flex; flex-direction: column; gap: 6px; flex: 1; }
 .excard h3 { margin: 0; font-size: 18px; font-weight: 600; letter-spacing: -0.01em; }
 .excard .ink2, .excard .ink2 a { color: var(--paper-ink-2); font-size: 14px; }

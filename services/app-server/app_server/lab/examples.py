@@ -28,7 +28,7 @@ EXAMPLES = [
      'goal': 'Replicate Saygin and others 2012 (doi 10.1093/scan/nsr025): a body whose look and motion disagree, with the G1 and a human body in a scanned room.'},
     {'id': 'fit_person', 'title': 'Subject-specific encoding-model fitting', 'what': "How many of one person's scans it takes to predict their brain.",
      'source': "d'Ascoli and others, 2026, the model's own paper", 'doi': '10.48550/arXiv.2605.04326',
-     'media': ['examples/action_clips.mp4'], 'project_title': None, 'result_file': 'feasibility/data/had/personalize.json',
+     'media': ['examples/action_clips.mp4'], 'project_title': None, 'result_file': 'feasibility/data/had/personalize.json', 'dataset_id': 'openneuro_ds004488',
      'goal': "Fit the brain model to one person of the Human Action Dataset from their own scans, and compare with the released model and a fit to everyone else."},
     {'id': 'photoreal', 'title': 'Simulated versus photoreal renders', 'what': 'Does the brain respond the same once a render looks real?',
      'source': 'No classic paper yet', 'doi': None,
@@ -52,5 +52,54 @@ def listing(store) -> list[dict]:
             r = json.loads((ROOT / e['result_file']).read_text()); s = r['summary']
             here = f"Fitted here for {r['people']} people: r {s['released']['mean']:.2f} as released, {s['person']['mean']:.2f} fitted"
         out.append({k: e[k] for k in ('id', 'title', 'what', 'source', 'doi', 'goal')} | {'media': ['/files/' + i for i in e['media'] if (FILES / i).exists()],
-                                                                                          'project_id': project_id, 'here': here or 'Not run yet'})
+                                                                                          'project_id': project_id, 'here': here or 'Not run yet',
+                                                                                          'brain': _brain(store, project_id) if project_id else _adapter_brain(store, e.get('dataset_id'))})
     return out
+
+
+_SCORES: dict[str, float] = {}
+
+
+def _colour(rel: str) -> float:
+    """How much of a rendered map is coloured, not grey surface: the mean saturation of its visible pixels. Cached."""
+    if rel not in _SCORES:
+        try:
+            from PIL import Image
+            import numpy as np
+            a = np.asarray(Image.open(FILES / rel).convert('RGBA'), np.float32)
+            seen = a[..., 3] > 0; rgb = a[..., :3][seen]
+            _SCORES[rel] = float((rgb.max(1) - rgb.min(1)).mean()) if len(rgb) else 0.0
+        except OSError:
+            _SCORES[rel] = -1.0
+    return _SCORES[rel]
+
+
+def _shown(views: dict, title: str) -> dict | None:
+    """A map as an example card shows it: the view with the most response in colour, and what the map is."""
+    have = {v: rel for v, rel in (views or {}).items() if (FILES / rel).exists()}
+    if not have: return None
+    v = max(have, key=lambda k: _colour(have[k]))
+    return {'image': '/files/' + have[v], 'view': v, 'title': title}
+
+
+def _brain(store, project_id: str) -> dict | None:
+    """The brain's predicted response beside the stimulus on an example's card: the project's first contrast map."""
+    maps = {m.id: m.data for m in store.list('neural_map') if m.data.get('project_id') == project_id}
+    titles = {a.id: a.data.get('title') for a in store.list('analysis') if a.data.get('project_id') == project_id}
+    P = store.get('project', project_id); first = [c.get('name') for c in (((P.data if P else {}).get('experiment') or {}).get('contrasts') or []) if isinstance(c, dict)]
+    rank = lambda r: (first.index(t) if (t := titles.get(r.data.get('analysis_id'))) in first else len(first), str(t))   # the set-up's first contrast leads
+    for r in sorted(store.list('result'), key=rank):
+        m = maps.get(r.data.get('map_id'))
+        if r.data.get('project_id') == project_id and m:
+            return _shown(m.get('views'), titles.get(r.data.get('analysis_id')) or m.get('title') or 'Contrast')
+    return None
+
+
+def _adapter_brain(store, dataset_id: str | None) -> dict | None:
+    """For an example with no project, the newest adapter fitted on its dataset: where it predicts measured fMRI better than TRIBE v2."""
+    rows = sorted((a for a in store.list('adapter') if dataset_id and a.data.get('dataset_id') == dataset_id), key=lambda a: a.id, reverse=True)
+    if not rows: return None
+    from . import adapter, maps
+    a = rows[0].data
+    gain = adapter.area_map([{**x, 'gain': x['adapter_r'] - x['tribe_v2_r']} for x in a['areas']], 'gain')
+    return _shown(maps.render(gain, 'contrast', FILES)['views'], f"{a['name']}: adapter minus TRIBE v2, r per area")
