@@ -1,0 +1,250 @@
+<title>Simulaxon Demo</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Inter+Tight:wght@300;400;500&display=swap">
+<style>
+/* Layout: one reading column of chapters in the script's order; each chapter is the owner's lines, then its pictures.
+   Single dark look, the app's own palette: warm charcoal ground, ivory focal cards, a gold hairline, one lime accent. */
+:root {
+  color-scheme: dark;
+  --ground: #121110; --panel: #1b1917; --raise: #24211e; --rule: #2a2622; --rule-strong: #3a352f;
+  --ink: #f2efe8; --ink-2: #b9b2a7; --ink-3: #8f897f; --sel: #d6a24a;
+  --paper: #f3f0ea; --paper-ink: #171513; --paper-ink-2: #57524b; --paper-rule: #ddd6cb;
+  --accent: #b5de2b; --a: #7fa01c; --grey: #8a847b;
+  --display: "Inter Tight", Inter, system-ui, sans-serif; --body: Inter, system-ui, sans-serif;
+}
+* { box-sizing: border-box; }
+body { background: var(--ground); color: var(--ink); font: 16px/1.6 var(--body); -webkit-font-smoothing: antialiased; }
+.wrap { max-width: 1080px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 40px 96px; display: grid; gap: 88px; }
+a { color: var(--ink); text-decoration-color: var(--rule-strong); text-underline-offset: 3px; }
+a:focus-visible, video:focus-visible { outline: 2px solid var(--sel); outline-offset: 2px; }
+h1, h2 { font-family: var(--display); font-weight: 300; letter-spacing: -0.02em; margin: 0; text-wrap: balance; }
+h1 { font-size: clamp(40px, 7vw, 72px); line-height: 1.02; }
+h2 { font-size: clamp(28px, 4vw, 40px); line-height: 1.1; }
+h3 { font-size: 17px; font-weight: 600; margin: 0; }
+p { margin: 0; }
+.muted { color: var(--ink-2); }
+.small { font-size: 14px; color: var(--ink-3); }
+.num { font-variant-numeric: tabular-nums; }
+
+/* Header and chapter list */
+header { display: grid; gap: 22px; }
+.brand { font-family: var(--display); font-weight: 500; font-size: 18px; color: var(--ink-2); }
+.chapters { display: flex; flex-wrap: wrap; gap: 8px 18px; font-size: 14px; color: var(--ink-3); padding: 14px 0 0; border-top: 1px solid var(--rule); }
+.chapters a { color: var(--ink-2); text-decoration: none; }
+.chapters a:hover { color: var(--ink); }
+
+/* A chapter: its lines, then its pictures */
+.chapter { display: grid; gap: 28px; scroll-margin-top: 24px; }
+.chapter > .head { display: grid; gap: 10px; max-width: 760px; }
+.kicker { font-size: 13px; color: var(--sel); letter-spacing: 0.04em; }
+.lines { display: grid; gap: 12px; max-width: 760px; }
+.line { font-family: var(--display); font-weight: 300; font-size: clamp(19px, 2.2vw, 23px); line-height: 1.45; color: var(--ink); margin: 0; }
+.line.cut { color: var(--ink-3); text-decoration: line-through; text-decoration-color: var(--rule-strong); }
+
+/* The rendered cards */
+.film { border-radius: 12px; overflow: hidden; border: 1px solid var(--rule); background: var(--ground); }
+.film video { display: block; width: 100%; height: auto; aspect-ratio: 16 / 9; }
+
+/* Placeholders for live GIFs and screenshots */
+.slot { position: relative; aspect-ratio: 16 / 9; max-width: 100%; border: 1.5px dashed var(--rule-strong); border-radius: 12px; background:
+  repeating-linear-gradient(135deg, transparent 0 14px, rgba(255,255,255,0.018) 14px 15px), var(--panel);
+  display: flex; flex-direction: column; justify-content: flex-end; gap: 6px; padding: 18px 20px; min-width: 0; }
+.slot .what { font-weight: 500; font-size: 15px; }
+.slot .how { font-size: 13px; color: var(--ink-3); }
+.slot .tag { position: absolute; top: 14px; left: 18px; font-size: 12px; color: var(--sel); letter-spacing: 0.04em; }
+.slot.short { aspect-ratio: 16 / 7; }
+.grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 18px; }
+.grid3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 18px; }
+
+/* Classic experiments: stimulus beside its predicted brain */
+.excard { background: var(--paper); color: var(--paper-ink); border-radius: 14px; overflow: hidden; display: flex; flex-direction: column; min-width: 0; }
+.excard .pics { display: grid; grid-template-columns: 1fr 1fr; background: #0c0b0a; height: 170px; }
+.excard .pics img { width: 100%; height: 170px; display: block; min-width: 0; }
+.excard .pics .stim { object-fit: cover; }
+.excard .pics .brain { object-fit: contain; padding: 10px 6px 24px; }
+.excard .pics figure { margin: 0; position: relative; min-width: 0; }
+.excard .pics figcaption { position: absolute; left: 8px; right: 8px; bottom: 6px; font-size: 12px; color: var(--ink-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.excard .body { padding: 14px 16px 16px; display: grid; gap: 4px; }
+.excard .src { font-size: 13px; color: var(--paper-ink-2); }
+
+/* Benchmark and live, kept apart */
+.split { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 18px; }
+.panel { border-radius: 14px; padding: 22px 22px 20px; display: grid; gap: 14px; min-width: 0; }
+.panel.bench { background: var(--paper); color: var(--paper-ink); }
+.panel.live { border: 1.5px dashed var(--rule-strong); background: var(--panel); }
+.label { font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; }
+.bench .label { color: var(--paper-ink-2); }
+.live .label { color: var(--sel); }
+.bars { display: grid; gap: 12px; }
+.bar { display: grid; grid-template-columns: minmax(120px, 170px) 1fr 54px; gap: 12px; align-items: center; font-size: 15px; }
+.lane { position: relative; height: 14px; background: #e7e1d6; border-radius: 3px; }
+.lane i { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 3px; }
+.ceil { position: absolute; top: -6px; bottom: -6px; width: 2px; background: var(--paper-ink); }
+.bench .note { font-size: 13px; color: var(--paper-ink-2); }
+
+/* Machines */
+.machines { width: 100%; border-collapse: collapse; font-size: 15px; }
+.machines th, .machines td { text-align: left; vertical-align: top; padding: 12px 14px; border-bottom: 1px solid var(--rule); }
+.machines th { color: var(--ink-3); font-weight: 500; font-size: 13px; }
+.tablescroll { overflow-x: auto; min-width: 0; }
+.arch { border-radius: 12px; overflow: hidden; background: #fbfaf8; border: 1px solid var(--rule); }
+.arch img { display: block; width: 100%; height: auto; }
+
+/* Grafana questions */
+.q { display: grid; gap: 10px; min-width: 0; }
+.q .slot { aspect-ratio: 16 / 10; }
+.q h3 { font-family: var(--display); font-weight: 400; font-size: 19px; }
+
+/* Workflow steps */
+.steps { display: grid; gap: 26px; }
+.step { display: grid; grid-template-columns: 44px 1fr; gap: 6px 18px; align-items: start; }
+.step .n { font-family: var(--display); font-weight: 300; font-size: 28px; color: var(--ink-3); line-height: 1; padding-top: 2px; }
+.step .slot { grid-column: 2; aspect-ratio: 16 / 7; }
+
+footer { border-top: 1px solid var(--rule); padding-top: 18px; display: grid; gap: 6px; }
+@media (max-width: 560px) { .bar { grid-template-columns: 1fr 48px; } .bar .lane { grid-column: 1 / -1; grid-row: 2; } .step { grid-template-columns: 1fr; } .step .slot { grid-column: 1; } }
+</style>
+
+<div class="wrap">
+
+  <header>
+    <span class="brand">Simulaxon</span>
+    <h1>Prototype neuroscience experiments in hours.</h1>
+    <p class="line">Simulaxon's AI agents turn a hypothesis into scenes they can generate, predict how the brain would respond, and use those predictions to decide what to test next.</p>
+    <nav class="chapters" aria-label="Chapters">
+      <a href="#cost">Cost</a><a href="#develop">Develop first</a><a href="#model">The model</a><a href="#fitting">Fitting to fMRI</a><a href="#ciq">Runs on CIQ</a><a href="#compute">Compute and uptime</a><a href="#workflow">Workflow</a>
+    </nav>
+    <div class="film"><video src="assets/prototype-cards.mp4" controls muted loop playsinline preload="metadata" aria-label="Four animated cards: the title, the cost of scan time, fitting an adapter, and the two workstations"></video></div>
+    <p class="small">Draft cards, 24 s, made in HyperFrames: the title, the scan-time cost rolling from 1 to 20 people, one click fitting an adapter, and each message travelling between the two workstations. Turn the sound on for the Ramp effects.</p>
+  </header>
+
+  <section class="chapter" id="cost">
+    <div class="head"><span class="kicker">The cost of testing with people</span></div>
+    <div class="lines">
+      <p class="line cut">How does the brain make sense of an event as it unfolds?</p>
+      <p class="line">To find out what drives a response, researchers need to vary what people see, hear, or know going into a scene.</p>
+      <p class="line">Testing those comparisons with people gets expensive fast. A 20-person fMRI study with one hour per participant can cost nearly $14,000 in scan time alone.</p>
+    </div>
+    <p class="small">Rate: $710 an hour, Harvard Center for Brain Science, academic external, weekday peak, FY27; 20 hours come to $14,200. The struck line is the one cut from the script.</p>
+  </section>
+
+  <section class="chapter" id="develop">
+    <div class="head"><span class="kicker">Develop the experiment first</span></div>
+    <div class="lines">
+      <p class="line">Simulaxon gives researchers a way to develop the experiment before they bring in participants.</p>
+      <p class="line">The agent decides what to vary and what to hold fixed, generates the clips, and compares the predicted brain responses.</p>
+      <p class="line">It can then run a follow-up to see whether a pattern persists when another detail changes.</p>
+    </div>
+    <div class="grid3">
+      <div class="slot"><span class="tag">Live GIF</span><span class="what">A hypothesis typed to the agent becomes a project</span><span class="how">Nemotron plans what to vary and what to hold fixed; the chat shows its steps</span></div>
+      <div class="slot"><span class="tag">Live GIF</span><span class="what">One control changes the scene</span><span class="how">Busts against height-matched vases: the item switches, the render and its brain map update</span></div>
+      <div class="slot"><span class="tag">Live GIF</span><span class="what">A follow-up changes one detail</span><span class="how">Colour-matched, then shape-matched objects: the same region, two runs side by side</span></div>
+    </div>
+  </section>
+
+  <section class="chapter" id="model">
+    <div class="head"><span class="kicker">The model behind the predictions</span></div>
+    <div class="lines">
+      <p class="line">The predictions come from Meta's TRIBE v2, which trained on fMRI recordings of people watching films, television, and short videos of everyday events.</p>
+      <p class="line">In separate evaluations, it recovered known patterns of brain activity for seeing faces versus places and hearing descriptions of emotional versus physical pain.</p>
+    </div>
+    <div class="grid3">
+      <article class="excard">
+        <div class="pics"><img class="stim" src="assets/stim-rivalry.jpg" alt="A face from the rivalry stimulus"><figure><img class="brain" src="assets/brain-rivalry.png" alt="Predicted response, face only against house only, seen from below"><figcaption>Face only against house only</figcaption></figure></div>
+        <div class="body"><h3>Face and house binocular rivalry</h3><span class="src">After Tong, Nakayama, Vaughan and Kanwisher, 1998 · 24 clips run</span></div>
+      </article>
+      <article class="excard">
+        <div class="pics"><img class="stim" src="assets/stim-flash.jpg" alt="The grey field of the flash stimulus"><figure><img class="brain" src="assets/brain-flash.png" alt="Predicted response, flash against grey, seen from behind"><figcaption>Flash against grey</figcaption></figure></div>
+        <div class="body"><h3>Periodic full-field flash</h3><span class="src">After Logothetis and others, 2001 · 2 clips run</span></div>
+      </article>
+      <article class="excard">
+        <div class="pics"><img class="stim" src="assets/stim-faces.jpg" alt="A face from the localizer"><figure><img class="brain" src="assets/brain-faces.png" alt="Predicted response, faces against objects, seen from below"><figcaption>Faces against objects</figcaption></figure></div>
+        <div class="body"><h3>Face versus object selectivity</h3><span class="src">After Kanwisher, McDermott and Chun, 1997 · 48 clips run</span></div>
+      </article>
+    </div>
+    <p class="small">Each card is a run in the app: the stimulus beside TRIBE v2's predicted response, red higher and blue lower. Sources for the two lines: d'Ascoli and others, 2026 (arXiv:2605.04326), Table 1, § 2.5 and § 2.6.</p>
+  </section>
+
+  <section class="chapter" id="fitting">
+    <div class="head"><span class="kicker">Fitting to measured fMRI</span>
+      <p class="line">TRIBE v2 predicts an average viewer it has never met. With people's measured fMRI, the app fits an adapter in one click: a map from TRIBE v2's prediction for each brain area to the responses those people actually had.</p></div>
+    <div class="slot short"><span class="tag">Live GIF</span><span class="what">Fit an adapter: one click on the Human Action Dataset's Adapters tab</span><span class="how">30 people, 3,600 clips; the card appears in about 1.5 s</span></div>
+    <div class="split">
+      <div class="panel bench">
+        <span class="label">Benchmark · held-out categories of the Human Action Dataset</span>
+        <div class="bars" role="img" aria-label="Median r: TRIBE v2 as released 0.257, adapter 0.407, noise ceiling 0.675">
+          <div class="bar"><span>TRIBE v2 as released</span><span class="lane"><i style="width:36.7%;background:var(--grey)"></i><span class="ceil" style="left:96.4%"></span></span><span class="num">0.257</span></div>
+          <div class="bar"><span><b>Adapter</b></span><span class="lane"><i style="width:58.1%;background:var(--a)"></i><span class="ceil" style="left:96.4%"></span></span><span class="num"><b>0.407</b></span></div>
+          <div class="bar"><span>Labels shuffled</span><span class="lane"><i style="width:0%"></i><span class="ceil" style="left:96.4%"></span></span><span class="num">−0.011</span></div>
+        </div>
+        <p class="note">Median r over 212 reliable brain areas, on categories the fit never saw; the line on each bar is the noise ceiling, 0.675. From 38% to 60% of what the data allow. The adapter is higher in 179 of the 212 areas.</p>
+        <p class="note">A benchmark: the same 30 people, scanner and kind of stimulus it was fitted on. It does not say how the adapter does on new stimuli.</p>
+      </div>
+      <div class="panel live">
+        <span class="label">Live · new stimuli, no measured fMRI</span>
+        <p>An experiment read through the adapter. Its results name the adapter, show no r, and say when the stimuli lie outside what it was fitted on.</p>
+        <p class="small">To build: #28 item 3 and #37.</p>
+      </div>
+    </div>
+    <div class="grid2">
+      <div class="slot short"><span class="tag">Result to come</span><span class="what">Known results survive</span><span class="how">Faces against objects, run with and without the adapter, side by side (#37)</span></div>
+      <div class="slot short"><span class="tag">Result to come</span><span class="what">Transfer to new stimuli</span><span class="how">Fitted on the Human Action Dataset, scored on the Natural Object Dataset's images (#37)</span></div>
+    </div>
+  </section>
+
+  <section class="chapter" id="ciq">
+    <div class="head"><span class="kicker">Runs on CIQ</span></div>
+    <div class="lines">
+      <p class="line">The app and the video pipeline together need an estimated 150 GB of memory, so Fuzzball starts them on separate 128 GB workstations and gives both access to the same VAST storage.</p>
+      <p class="line">When you submit a hypothesis, Nemotron Super 120B plans the experiment on the first workstation.</p>
+      <p class="line">The app sends the scene specifications to the second, where Isaac Sim renders a reference video, NVIDIA Cosmos 3 Nano uses it to generate realistic footage, and TRIBE v2 predicts the fMRI response to each clip.</p>
+      <p class="line">The app sends the predictions back to Nemotron to compare conditions. If the agent chooses a follow-up, the app submits it to Fuzzball.</p>
+      <p class="line">Each round adds its clips, predictions, and log to the same VAST volume, so you can trace each result back to what the agent changed.</p>
+    </div>
+    <div class="arch"><img src="assets/architecture.png" alt="Architecture: Fuzzball places render-score (Isaac Sim, Cosmos3 Nano, TRIBE v2) on node A and Nemotron Super 120B with the app server on node B, both on one VAST volume"></div>
+    <div class="tablescroll">
+      <table class="machines">
+        <thead><tr><th>Machine</th><th>Role</th><th>Runs on</th></tr></thead>
+        <tbody>
+          <tr><td>DGX Spark</td><td>The desk: the lab app, interactive previews, the agent while a study is designed</td><td>The same repository and study code</td></tr>
+          <tr><td>Fuzzball cluster, GB10 nodes</td><td>Production: the planner as a service, study runs as workflows and task arrays, Prometheus and Grafana</td><td>Rocky Linux; study steps in <code>rockylinux/rockylinux:10</code> containers</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="small">The observer study ran on the cluster and matched the Spark's predictions at a median per-clip r of 0.9991.</p>
+    <div class="grid2">
+      <div class="slot short"><span class="tag">Live GIF</span><span class="what">A study starting as a Fuzzball workflow</span><span class="how">The app submits it; the task array renders in parallel; its steps finish one by one</span></div>
+      <div class="slot short"><span class="tag">Result to come</span><span class="what">RLC Pro AI's container on the same weights</span><span class="how">TRIBE v2, model loading, study steps and the planner, against today's images (#36)</span></div>
+    </div>
+  </section>
+
+  <section class="chapter" id="compute">
+    <div class="head"><span class="kicker">Compute and uptime</span>
+      <p class="line">Prometheus and Grafana watch every workflow, so compute is measured per stage and can be cut per stage.</p></div>
+    <div class="grid2">
+      <div class="q"><div class="slot"><span class="tag">Grafana screenshot</span><span class="how">Busy GPU-seconds per stage, stacked: planner, Isaac, Cosmos, TRIBE v2</span></div><h3>Where do the GPU hours go?</h3></div>
+      <div class="q"><div class="slot"><span class="tag">Grafana screenshot</span><span class="how">Utilisation while allocated, per job: renders run as tasks that release the GPU</span></div><h3>Is a GPU working while it is held?</h3></div>
+      <div class="q"><div class="slot"><span class="tag">Grafana screenshot</span><span class="how">Memory per service on each node, under a line at 128 GB</span></div><h3>Does each node fit in 128 GB?</h3></div>
+      <div class="q"><div class="slot"><span class="tag">Grafana screenshot</span><span class="how">Clips per hour, TRIBE v2 seconds per second of video, planner tokens per second</span></div><h3>How much work per GPU-hour?</h3></div>
+      <div class="q"><div class="slot"><span class="tag">Grafana screenshot</span><span class="how">Node state over time, uptime, each failed step with Fuzzball's error</span></div><h3>Is it up, and what failed?</h3></div>
+    </div>
+    <p class="small">Screenshots from the live dashboard once the cluster is back, time range set to real runs (#35).</p>
+  </section>
+
+  <section class="chapter" id="workflow">
+    <div class="head"><span class="kicker">Workflow</span></div>
+    <div class="steps">
+      <div class="step"><span class="n">1</span><p class="line">Ask the agent to design an experiment around your hypothesis.</p><div class="slot"><span class="tag">Live GIF</span><span class="how">The agent's chat: the hypothesis, its plan, the project it sets up</span></div></div>
+      <div class="step"><span class="n">2</span><p class="line">Upload footage or describe the scenes you want to test.</p><div class="slot"><span class="tag">Live GIF</span><span class="how">Upload into a dataset, or a scene described in the chat</span></div></div>
+      <div class="step"><span class="n">3</span><p class="line">Review the generated scenes and predicted responses alongside the agent's follow-up experiments.</p><div class="slot"><span class="tag">Live GIF</span><span class="how">A trial playing beside its brain; Results with the follow-up</span></div></div>
+      <div class="step"><span class="n">4</span><p class="line">Provide a participant's fMRI recordings and the videos they watched. Fine-tune the model in one click to predict how that person would respond to new footage.</p><div class="slot"><span class="tag">Live GIF</span><span class="how">Fit an adapter on measured fMRI; the benchmark card, labelled as one</span></div></div>
+      <div class="step"><span class="n">5</span><p class="line">Run robotics experiments that use predicted human brain responses to test whether a robot can better anticipate what someone is about to do from the way they move.</p><div class="slot"><span class="tag">Live GIF</span><span class="how">The Experimental section: a grasp recording with the predicted response beside it</span></div></div>
+    </div>
+  </section>
+
+  <footer>
+    <h2>Prototype neuroscience experiments in hours.</h2>
+    <p class="small">Draft. Dashed frames are places for live recordings and screenshots still to be taken.</p>
+  </footer>
+</div>
