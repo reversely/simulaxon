@@ -110,12 +110,20 @@ type Course = { region: string; seconds: number; conditions: { name: string; n: 
 
 /** A region's response second by second, one line per condition, from the run's saved predictions. Lines are labelled at
  * their ends; moving across the chart reads every condition at that second. */
+const COURSES = new Map<string, Course>()   // each project and region's course, kept for the page's life (#30)
+
 export function ConditionCourse({ pid, region, onS }: { pid: string; region: string; onS?: number }) {
-  const [c, setC] = useState<Course | null>(null); const [hover, setHover] = useState<number | null>(null); const [err, setErr] = useState('')
-  useEffect(() => { setC(null); setErr(''); call<Course>('course_get', { project_id: pid, region }).then(setC).catch(e => setErr(String(e.message ?? e))) }, [pid, region])
-  if (err) return null
-  if (!c) return <div className="ink2"><span className="spin" /> Reading the time course</div>
+  const key = `${pid} ${region}`
+  const [c, setC] = useState<Course | null>(() => COURSES.get(key) ?? null); const [hover, setHover] = useState<number | null>(null); const [err, setErr] = useState('')
+  useEffect(() => { setC(COURSES.get(key) ?? null); setErr(''); call<Course>('course_get', { project_id: pid, region }).then(x => { COURSES.set(key, x); setC(x) }).catch(e => setErr(String(e.message ?? e))) }, [key])
   const W = 900, H = 260, L = 56, R = 150, T = 14, B = 34, PW = W - L - R, PH = H - T - B
+  const note = `TRIBE v2, mean of each condition's trials. ${onS != null ? 'Shaded: the seconds the stimulus is on screen.' : ''}`
+  if (err) return null
+  if (!c) return <div className="card course" aria-busy="true">   {/* the card at its final size, the chart's place held, while the course is read */}
+    <h3>{regionLabel(region)}, second by second</h3><div className="legend" />
+    <div className="coursewait" role="status" aria-label="Reading the time course" style={{ aspectRatio: `${W} / ${H}` }}><span className="spin" /></div>
+    <div className="ink2">{note}</div>
+  </div>
   const all = c.conditions.flatMap(s => s.values); const lo = Math.min(...all, 0), hi = Math.max(...all, 0); const pad = (hi - lo) * 0.08 || 0.01
   const x = (t: number) => L + t * PW / Math.max(1, c.seconds - 1); const y = (v: number) => T + (hi + pad - v) / (hi - lo + 2 * pad) * PH
   const ticks = [lo, 0, hi].filter((v, i, a) => a.indexOf(v) === i)
@@ -136,7 +144,7 @@ export function ConditionCourse({ pid, region, onS }: { pid: string; region: str
       {c.conditions.length <= 4 && c.conditions.map((s, i) => <text key={s.name} x={x(c.seconds - 1) + 10} y={labelY[i] + 5} fontSize="14" fill="#f2efe8">{s.name}</text>)}
       {hover != null && <line x1={x(hover)} x2={x(hover)} y1={T} y2={T + PH} stroke="#b9b2a7" strokeDasharray="3 3" />}
     </svg>
-    <div className="ink2">TRIBE v2, mean of each condition's trials. {onS != null ? 'Shaded: the seconds the stimulus is on screen.' : ''}</div>
+    <div className="ink2">{note}</div>
   </div>
 }
 

@@ -229,7 +229,7 @@ export function BrainCanvas({ onReady, values, signed = false, label }: { onRead
   return <div className="brain3d">
     <div className="brain3dcanvas">
       <canvas ref={ref} role="img" aria-label={label} onPointerDown={down} onPointerMove={move} onPointerUp={() => { drag.current = null }} onPointerCancel={() => { drag.current = null }} />
-      {!ready && !err && <div className="brain3dwait" role="status"><span className="spin" /> Loading the brain</div>}
+      {!ready && !err && <div className="brain3dwait wait" role="status"><span className="spin" /> Loading the brain</div>}
       {err && <div className="brain3dwait">{err}</div>}
     </div>
     <div className="bar">
@@ -310,7 +310,8 @@ export function ClipBrain({ clip, image, predsUrl, sampleId, audio, lanes, squar
       <input type="range" aria-label="Time" min={0} max={T || 1} step={0.01} value={Math.min(t, T || 1)} disabled={!canPlay} onChange={e => seek(Number(e.target.value))} />
       <span className="num ink2">{t.toFixed(1)} of {T.toFixed(0)} s</span>
       <div className="seg" role="group" aria-label="Speed">{SPEEDS.map(s => <button key={s} className={speed === s ? 'on' : ''} onClick={() => { speedRef.current = s; setSpeed(s); sync() }}>{s}×</button>)}</div>
-      {sampleId && state === 'ready' && <a className="btn" href={`/api/recording/${encodeURIComponent(sampleId)}`} download>Download recording</a>}
+      {sampleId && <a className="btn" href={`/api/recording/${encodeURIComponent(sampleId)}`} download aria-hidden={state !== 'ready'} tabIndex={state === 'ready' ? undefined : -1}
+        style={state === 'ready' ? undefined : { visibility: 'hidden' }}>Download recording</a>}   {/* its place kept until the predictions are in, so the bar never reflows (#30) */}
     </div>
     {allLanes && allLanes.length > 0 && <Timeline lanes={allLanes} t={t} T={T} onSeek={seek} />}
     <div className="ink2 small">TRIBE v2 prediction for an average viewer at each second of the clip{T > dur + 0.5 && dur > 0 ? `; the clip ends at ${dur.toFixed(1)} s and the response runs on` : ''}. Drag the brain to turn it.</div>

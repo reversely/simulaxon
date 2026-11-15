@@ -9,6 +9,9 @@ import { Icon } from './icons'
 import { MiniInterval } from './charts'
 import { ConditionCourse } from './experiment'
 import { ContrastBrain } from './brain3d'
+import { Skeleton } from './wait'
+
+const RECORDS = new Map<string, RunRecord>()   // each project's last run record, kept for the page's life
 
 type Contrast = {
   contrast: string; region: string; named_by?: string | null; value: number; ci_low: number | null; ci_high: number | null; n: number | null
@@ -87,11 +90,11 @@ export function ResultsView({ pid, status, progress, live, focus, agentName, onP
   pid: string; status: string; progress?: { done: number; total: number; stage?: string }; live?: LiveTrial[]; focus: string; agentName: string
   onPickRegion: (r: string) => void; onOpenTrial: (i: number, unit: string) => void
 }) {
-  const [rec, setRec] = useState<RunRecord | null>(null); const [err, setErr] = useState('')
+  const [rec, setRec] = useState<RunRecord | null>(() => RECORDS.get(pid) ?? null); const [err, setErr] = useState('')
   const [scope, setScope] = useState<'named' | 'all'>('named'); const [sort, setSort] = useState<{ key: keyof Contrast; dir: number } | null>(null)
   useEffect(() => {
-    setRec(null); setErr(''); setSort(null)
-    if (status === 'Done') call<RunRecord>('run_get', { project_id: pid }).then(r => { setRec(r); setScope(r.regions_named.length ? 'named' : 'all') }).catch(e => setErr(String(e?.message ?? e)))
+    const kept = RECORDS.get(pid) ?? null; setRec(kept); setErr(''); setSort(null); if (kept) setScope(kept.regions_named.length ? 'named' : 'all')   // a revisit shows the last record at once (#30)
+    if (status === 'Done') call<RunRecord>('run_get', { project_id: pid }).then(r => { RECORDS.set(pid, r); setRec(r); if (!kept) setScope(r.regions_named.length ? 'named' : 'all') }).catch(e => setErr(String(e?.message ?? e)))   // then refreshes in place
   }, [pid, status])
   const by = (who?: string | null) => who === 'agent' ? agentName : who === 'person' ? 'you' : who === 'paper' ? 'the paper' : 'set-up'
   const rows = useMemo(() => {
@@ -116,7 +119,7 @@ export function ResultsView({ pid, status, progress, live, focus, agentName, onP
   }
   if (status !== 'Done') return <div className="empty">This project has no finished run yet.</div>
   if (err) return <div className="empty">Could not read this run's record: {err}</div>
-  if (!rec) return <div className="empty" role="status"><span className="spin" /> Reading the run's record</div>
+  if (!rec) return <Skeleton lines={1} blocks={[90, 300, 220]} label="Reading the run's record" />
 
   const m = rec.made; const t = m.trial ?? {}
   const scale = Math.max(...rec.contrasts.flatMap(c => [c.ci_low, c.ci_high, c.value].filter((v): v is number => v != null).map(Math.abs)), 1e-6)

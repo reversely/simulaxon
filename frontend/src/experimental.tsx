@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { call, fmt } from './api'
 import { RecordingView } from './recording'
+import { Skeleton } from './wait'
 
 type Row = { stream: string; label: string; role: string; held: number; auc: number | null }
 type Diff = { contrast: string; label: string; held: number; ci95: [number, number] }
@@ -62,14 +63,16 @@ function StudyCard({ s }: { s: Study }) {
   </article>
 }
 
+const KEPT: { list: Study[] | null } = { list: null }   // the last list, kept for the page's life: a revisit shows it at once (#30)
+
 export function ExperimentalPage() {
-  const [list, setList] = useState<Study[] | null>(null); const [err, setErr] = useState('')
-  useEffect(() => { call<Study[]>('experimental_list').then(setList).catch(x => setErr(String(x?.message ?? x))) }, [])
+  const [list, setList] = useState<Study[] | null>(() => KEPT.list); const [err, setErr] = useState('')
+  useEffect(() => { call<Study[]>('experimental_list').then(l => { KEPT.list = l; setList(l) }).catch(x => setErr(String(x?.message ?? x))) }, [])
   return <div className="exppage">
     <h1 className="q">Experimental</h1>
     <p className="ink2" style={{ marginTop: 0 }}>Studies apart from the established experiments: the robotic empathy programme. Each states its controls, its gates and what it cannot say.</p>
     {err && <div className="dsnote">{err}</div>}
-    {!list ? <div className="empty" role="status"><span className="spin" /> Reading the studies</div>
+    {!list ? <Skeleton lines={2} blocks={[420]} label="Reading the studies" />
       : list.map(s => s.missing ? <div key={s.id} className="empty">{s.missing}</div> : <StudyCard key={s.id} s={s} />)}
   </div>
 }

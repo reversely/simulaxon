@@ -11,6 +11,7 @@ import { ResultsView, type LiveTrial } from './results'
 import { DatasetsPage } from './datasets'
 import { ClipBrain, samplePreds } from './brain3d'
 import { GuidePanel, GUIDE } from './guide'
+import { Skeleton } from './wait'
 import { ExperimentalPage } from './experimental'
 import { SessionDock, Chat, type SessionInfo } from './agent'
 type Example = { id: string; title: string; what: string; source: string; doi: string | null; goal: string; media: string[]; project_id: string | null; here: string }
@@ -41,7 +42,14 @@ function namedRegions(a: AnalysisItem[], s: Row<Sample>[], P?: Project): string[
 export default function App() {
   const [templates, setTemplates] = useState<Template[]>([])
   const [projects, setProjects] = useState<Row<Project>[]>([]); const [projectsLoaded, setProjectsLoaded] = useState(false)
-  const [pid, setPid] = useState<string | null>(() => new URLSearchParams(location.search).get('project'))
+  const [fontsIn, setFontsIn] = useState(false)
+  useEffect(() => {   // the faces the first screen uses, loaded before it is drawn so no text reflows when they arrive (#30); at most 1 s
+    const faces = ['400 15px Inter', '600 15px Inter', '300 34px "Inter Tight"', '500 17px "Inter Tight"']
+    Promise.race([Promise.all(faces.map(f => document.fonts.load(f))), new Promise(r => setTimeout(r, 1000))]).catch(() => {}).finally(() => setFontsIn(true))
+  }, [])
+  const [want, setPid] = useState<string | null>(() => new URLSearchParams(location.search).get('project'))   // the project asked for
+  const [shownPid, setShown] = useState<string | null>(null)   // the project on screen: it changes only together with its own rows (#30)
+  const pid = shownPid ?? (projects.some(p => p.id === want) ? want : null)   // on first load, the project asked for, its rows still empty
   const [samples, setSamples] = useState<Row<Sample>[]>([])
   const [analyses, setAnalyses] = useState<AnalysisItem[]>([])
   const [steps, setSteps] = useState<any[]>([])
@@ -55,7 +63,6 @@ export default function App() {
   const [variant, setVariant] = useState(0)
   const [sheet, setSheet] = useState<null | 'templates'>(null)
   const [switcher, setSwitcher] = useState(false)
-  const [loading, setLoading] = useState(false)
   const [loadedFor, setLoadedFor] = useState<string | null>(null)   // the project the rows below belong to
   const [params, setParams] = useState<Row<Param>[]>([])
   const [previews, setPreviews] = useState<Row<Preview>[]>([])
@@ -99,16 +106,16 @@ export default function App() {
   const refreshProjects = useCallback(async () => {
     const [t, p] = await Promise.all([call<Template[]>('template_list'), call<Row<Project>[]>('project_list')])
     setTemplates(t); setProjects(p); setProjectsLoaded(true)
-    if ((!pid || !p.some(x => x.id === pid)) && p.length) setPid(p[0].id)
-  }, [pid])
+    if ((!want || !p.some(x => x.id === want)) && p.length) setPid(p[0].id)
+  }, [want])
   useEffect(() => { refreshProjects() }, [refreshProjects])
 
   const loadProject = useCallback(async (id: string, quiet = false) => {
-    if (!quiet) setLoading(true)
     const [s, a, st, pr, pv, as] = await Promise.all([call<Row<Sample>[]>('sample_list', { project_id: id }), call<AnalysisItem[]>('analysis_list', { project_id: id }), call<any[]>('step_list', { project_id: id, limit: 60 }),
       call<Row<Param>[]>('parameter_list', { project_id: id }), call<Row<Preview>[]>('preview_list', { project_id: id }), call<Record<string, any>>('asset_list', { project_id: id }).catch(() => ({}))])
-    if (live.current.pid !== id) return   // the person has moved to another project since: these rows are not its
-    setSamples(s); setAnalyses(a); setSteps(st); setParams(pr); setPreviews(pv); setAssets(as); setLoadedFor(id); setLoading(false)
+    if (live.current.want !== id) return   // the person has asked for another project since: these rows are not its
+    if (live.current.pid !== id) { setUnitIdx(0); setVariant(0) }   // a project newly on screen opens on its first unit
+    setSamples(s); setAnalyses(a); setSteps(st); setParams(pr); setPreviews(pv); setAssets(as); setLoadedFor(id); setShown(id)   // one render: the project and its own rows
     const P = projRef.current.find(x => x.id === id)?.data; const shown = demoRegion.current?.pid === id ? demoRegion.current.region : null
     if (!quiet) { demoRegion.current = null; setPicked(!!shown) }
     const names = [...((a.find(x => x.analysis.data.kind === 'paired')?.result?.data.regions ?? []) as Region[]).map(r => r.region), ...Object.keys(s[0]?.data.readout ?? {})]
@@ -117,13 +124,13 @@ export default function App() {
     if (follow.current?.unit != null) { setUnitIdx(follow.current.unit); follow.current = null }
   }, [])
   useEffect(() => {
-    if (!pid) return
-    setUnitIdx(0); setVariant(0); setLoadedFor(null); setSamples([]); setAnalyses([]); setParams([]); setPreviews([]); loadProject(pid)   // never pair a project with another's rows
-    call('preview_search', { project_id: pid }).catch(() => {})   // choice options render in the background, so picking one answers from cache
-    const u = new URL(location.href); u.searchParams.set('project', pid); history.replaceState(null, '', u)
-  }, [pid, loadProject])
+    if (!want) return
+    loadProject(want)   // the project on screen stays until this one's rows arrive; then both change in one render, never paired with another's rows
+    call('preview_search', { project_id: want }).catch(() => {})   // choice options render in the background, so picking one answers from cache
+    const u = new URL(location.href); u.searchParams.set('project', want); history.replaceState(null, '', u)
+  }, [want, loadProject])
   useEffect(() => { const u = new URL(location.href); u.searchParams.set('view', view); history.replaceState(null, '', u) }, [view])
-  const live = useRef({ pid, refreshProjects, loadProject }); live.current = { pid, refreshProjects, loadProject }
+  const live = useRef({ pid, want, refreshProjects, loadProject }); live.current = { pid, want, refreshProjects, loadProject }
   useEffect(() => {   // one event socket for the page's life, so no event is lost when the project changes; reconnects if dropped
     let ws: WebSocket; let closed = false
     const open = () => { ws = new WebSocket(`${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/events`); ws.onmessage = onMsg
@@ -172,6 +179,7 @@ export default function App() {
 
   projRef.current = projects
   const project = projects.find(p => p.id === pid) ?? null
+  const opening = !!want && want !== pid   // a switch still waiting for its rows: the switcher says so, seen after 300 ms (styles.css .spin)
   const P = project?.data
   const template = templates.find(t => t.id === P?.template_id)
   const byKind = (k: string) => analyses.find(a => a.analysis.data.kind === k)
@@ -240,14 +248,17 @@ export default function App() {
         onChat={() => { setSheet(null); setOpenSession(null); setView('agent') }} templates={templates} demos={demos} writeErr={writeErr} onWrite={id => call('demo_create', { seed_id: id }).then(() => call<DemoInfo[]>('demo_list').then(setDemos))} onClose={() => setSheet(null)} onCreate={createFromTemplate}
         onPlay={id => { setSheet(null); setNarr([]); call<DemoState>('demo_run', { demo_id: id }).then(setDemo) }} />
 
+  // opening the lab: until the fonts, the projects and the first project's own rows are in, only the ground (and after 300 ms a
+  // skeleton), so the header and columns appear once at their final size instead of growing in place (#30)
+  if (!fontsIn || !projectsLoaded || (projects.length > 0 && !shownPid)) return <div className="frame"><div className="centre"><Skeleton lines={2} blocks={[320]} label="Opening the lab" /></div>{sheetEl}</div>
+
   // no project yet, as on a fresh install: the agent's chat and New project, never a spinner that waits for nothing
   if (!project || !P) return <div className="frame">
     <header className="top"><span className="brand">Simulaxon</span><button className="btn" onClick={() => setSheet('templates')}><Icon name="plus" size={16} />New project</button>
       {machine?.dashboard && <a className="btn" href="/dashboard" target="_blank" rel="noreferrer"><Icon name="gauge" size={16} />Dashboard</a>}
       {offline && <span className="chip flag" role="status">Reconnecting to the lab server</span>}</header>
-    {!projectsLoaded ? <div className="centre"><span className="spin" /></div>
-      : <div className="body chatonly"><main className="col centre"><div className="chatwide"><h1 className="q">{sessions.find(x => x.id === openSession)?.goal ?? 'New chat with the agent'}</h1>
-        <Chat sid={openSession} live={sessionTick} onStarted={id => { setOpenSession(id); loadSessions() }} onOpenProject={id => { setPid(id); setView('room') }} /></div></main></div>}
+    <div className="body chatonly"><main className="col centre"><div className="chatwide"><h1 className="q">{sessions.find(x => x.id === openSession)?.goal ?? 'New chat with the agent'}</h1>
+      <Chat sid={openSession} live={sessionTick} onStarted={id => { setOpenSession(id); loadSessions() }} onOpenProject={id => { setPid(id); setView('room') }} /></div></main></div>
     {sheetEl}
   </div>
 
@@ -256,9 +267,9 @@ export default function App() {
       <header className="top">
         <span className="brand">Simulaxon</span>
         <div className="switch">
-          <button onClick={() => setSwitcher(s => !s)} aria-haspopup="menu" aria-expanded={switcher}><span>{P.title}</span><span aria-hidden>▾</span></button>
+          <button onClick={() => setSwitcher(s => !s)} aria-haspopup="menu" aria-expanded={switcher} aria-busy={opening}><span>{(projects.find(x => x.id === want)?.data ?? P).title}</span>{opening ? <span className="spin" aria-label="Opening the project" /> : <span aria-hidden>▾</span>}</button>
           {switcher && <div className="menu" role="menu" onMouseLeave={() => setSwitcher(false)}>
-            {projects.map(p => <button key={p.id} role="menuitem" className={p.id === pid ? 'on' : ''} onClick={() => { setPid(p.id); setSwitcher(false) }}>
+            {projects.map(p => <button key={p.id} role="menuitem" className={p.id === want ? 'on' : ''} onClick={() => { setPid(p.id); setSwitcher(false) }}>
               <span>{p.data.title}<div className="sub">{templates.find(t => t.id === p.data.template_id)?.title}</div></span>
               <span className={`chip ${p.data.status === 'Running' ? 'flag' : ''}`}>{p.data.status}</span>
             </button>)}
@@ -289,7 +300,7 @@ export default function App() {
         </aside>}
 
         <main className={`col centre ${WIDE.includes(view) && guide === null ? 'span2' : ''}`}>
-          {(demo.demo && demo.status !== 'idle' || jobs.length > 0 || sessions.length > 0 || runsNow.length > 0) && <div className="dock">
+          {<div className="dock">
             <SessionDock sessions={sessions} onOpen={id => { setOpenSession(id); setView('agent') }} onStop={id => fetch(`/agent/sessions/${id}/stop`, { method: 'POST' }).then(loadSessions)} />
             <DemoBar state={demo.status === 'done' && (demo as any).show?.project !== pid ? { ...demo, status: 'idle' } : demo} onControl={a => call<DemoState>('demo_update', { action: a }).then(setDemo)} />
             <LiveWorkspace jobs={jobs} runs={runsNow} onOpen={id => { setPid(id); setView('room') }} />
@@ -305,7 +316,7 @@ export default function App() {
               {P.counts && P.status === 'Done' && <span className="ink2 num">{P.counts.clips} clips</span>}
             </div>
           </div>
-          {loading || loadedFor !== pid ? <span className="spin" /> : P.status !== 'Done' && view !== 'room' ? (['samples', 'brain', 'data'].includes(view) && <Pending view={view} P={P} onSetup={() => setView('room')} />)
+          {loadedFor !== pid ? <Skeleton lines={0} blocks={[320, 140]} label="Opening the project" /> : P.status !== 'Done' && view !== 'room' ? (['samples', 'brain', 'data'].includes(view) && <Pending view={view} P={P} onSetup={() => setView('room')} />)
             : P.status !== 'Done' && P.plan === 'experiment' && (P as any).setup ? <ExperimentSetup setup={(P as any).setup as Setup} paper={(P as any).paper}
               running={P.status === 'Running'} progress={runProg[pid!]} onRun={() => call('project_run', { project_id: pid }).then(() => refreshProjects())} onAsk={text => send(text)} />
             : P.status !== 'Done' ? <>{(P as any).world && <WorldPanel pid={pid!} world={(P as any).world} script={(P as any).script} params={params} previews={previews} assets={assets}
@@ -701,7 +712,7 @@ function History({ pid, agent, tick, onUndo, onClose }: { pid: string; agent: st
   const call_ = (s: Step) => { try { return JSON.stringify(JSON.parse(s.args || '{}'), null, 1) } catch { return s.args } }
   return <div className="histpop" role="dialog" aria-label="Project history" ref={ref}>
     <div className="histhead"><b>History</b><button className="iconbtn" aria-label="Close" onClick={onClose}><Icon name="close" size={16} /></button></div>
-    {steps === null ? <div className="ink2"><span className="spin" /> Reading the history</div> : !rows.length ? <p className="ink2">No changes to this project yet.</p> :
+    {steps === null ? <div className="ink2 wait" role="status"><span className="spin" /> Reading the history</div> : !rows.length ? <p className="ink2">No changes to this project yet.</p> :
       <ul className="histlist">{rows.map(r => { const s = r.steps[0]; const canUndo = !s.undone_by && s.tool !== 'step_undo' && !s.undoes
         return <li key={s.step_id} className={s.undone_by ? 'undone' : ''}>
           <div className="histrow">

@@ -6,6 +6,7 @@ import { count, call, uploadWithProgress, type Project, type Row } from './api'
 import { Icon } from './icons'
 import { RecordingView } from './recording'
 import { AdaptersView } from './adapters'
+import { Skeleton } from './wait'
 
 type DS = { id: string; title?: string; ref?: string; licence?: string | null; fetched_at?: string; files_here?: number; gigabytes?: number
   samples: number; fields: number; media: Record<string, number>; indexed: boolean; embedded?: boolean; projects: string[]; status?: string; measured?: boolean; adapters?: number }
@@ -17,9 +18,11 @@ type Stage = Record<string, any>
 const n = (x: number) => x.toLocaleString()
 const MEDIA_NAMES: Record<string, string> = { image: 'images', video: 'videos', audio: 'audio' }
 const HIDDEN = new Set(['file', 'sha', 'folder'])
+const KEPT: { list: DS[] | null } = { list: null }   // the last list, kept for the page's life: a revisit shows it at once (#30)
 
 export function DatasetsPage({ projects, onOpenProject, show }: { projects: Row<Project>[]; onOpenProject: (id: string) => void; show?: { id: string; tab?: 'samples' | 'adapters' } | null }) {
-  const [list, setList] = useState<DS[] | null>(null); const [open, setOpen] = useState<string | null>(null)
+  const [list, setShown] = useState<DS[] | null>(() => KEPT.list); const [open, setOpen] = useState<string | null>(null)
+  const setList = (l: DS[]) => { KEPT.list = l; setShown(l) }
   useEffect(() => { if (show) setOpen(show.id || null) }, [show?.id, show?.tab])   // the guide (#26) opens a dataset, or the list
   const [q, setQ] = useState(''); const [creating, setCreating] = useState(false); const [err, setErr] = useState('')
   const load = () => call<DS[]>('dataset_list').then(setList).catch(e => setErr(String(e?.message ?? e)))
@@ -35,7 +38,7 @@ export function DatasetsPage({ projects, onOpenProject, show }: { projects: Row<
       <button className="btn primary" onClick={() => setCreating(true)}><Icon name="plus" size={16} />New dataset</button>
     </div>
     {err && <div className="empty">{err}</div>}
-    {!list ? <div className="empty" role="status"><span className="spin" /> Reading the datasets</div> :
+    {!list ? <Skeleton lines={0} blocks={[40, 56, 56, 56]} label="Reading the datasets" /> :
       <div className="tablewrap"><table className="data dstable">
         <thead><tr><th>Dataset</th><th>Samples</th><th>Media</th><th>Source</th><th>Added</th><th className="num">Projects</th></tr></thead>
         <tbody>{shown.map(d => <tr key={d.id} onClick={() => setOpen(d.id)} style={{ cursor: 'pointer' }}>
@@ -109,7 +112,7 @@ function DatasetView({ id, ds, projects, onBack, onOpenProject, onChanged, initi
     : tab === 'projects' ? <div className="tablewrap"><table className="data dstable"><thead><tr><th>Project</th><th>Status</th></tr></thead>
       <tbody>{users.length ? users.map(p => <tr key={p.id} onClick={() => onOpenProject(p.id)} style={{ cursor: 'pointer' }}><td>{p.data.title}</td><td>{p.data.status}</td></tr>)
         : <tr><td colSpan={2} className="ink2">No project uses this dataset yet. A new project picks its datasets when it is created.</td></tr>}</tbody></table></div>
-    : !res ? <div className="empty" role="status"><span className="spin" /> Reading the samples</div>
+    : !res ? <div className="empty wait" role="status"><span className="spin" /> Reading the samples</div>
     : !res.indexed ? <div className="empty">
         <p>{ds?.files_here ? `${count(ds.files_here, 'file')} here, not indexed yet. Indexing makes each image, video and audio file a sample with its fields.` : 'No files yet. Import images, videos or a folder.'}</p>
         {!!ds?.files_here && !indexing && <button className="btn primary" onClick={index}>Index the files</button>}

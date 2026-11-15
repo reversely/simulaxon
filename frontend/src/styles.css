@@ -37,7 +37,7 @@ input, select, textarea { font: inherit; color: inherit; }
 .switch { position: relative; }
 .switch > button { display: flex; align-items: center; gap: 8px; background: var(--raise); border: 1px solid var(--rule); border-radius: 8px; padding: 6px 12px; max-width: 420px; }
 .switch > button span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.menu { position: absolute; top: 44px; left: 0; z-index: 30; background: var(--raise); border: 1px solid var(--rule-strong); border-radius: var(--radius); padding: 6px; width: 460px; box-shadow: 0 18px 40px rgba(0, 0, 0, 0.5); }
+.menu { position: absolute; top: 44px; left: 0; z-index: 30; background: var(--raise); border: 1px solid var(--rule-strong); border-radius: var(--radius); padding: 6px; width: 460px; box-shadow: 0 18px 40px rgba(0, 0, 0, 0.5); max-height: calc(100vh - 80px); overflow-y: auto; }   /* a long list scrolls inside the menu, never past the window (#30) */
 .menu button { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 12px; width: 100%; text-align: left; background: none; border: 0; border-radius: 6px; padding: 9px 10px; }   /* a two-line title never stretches the status chip */
 .menu button:hover, .menu button.on { background: #24262b; }
 .menu .sub { color: var(--ink-2); font-size: 14px; }
@@ -79,7 +79,7 @@ a.btn { color: inherit; text-decoration: none; }   /* a link styled as a button,
 .q { font-family: var(--display); font-size: 34px; font-weight: 300; letter-spacing: -0.02em; line-height: 1.1; margin: 0; }
 .sub2 { color: var(--ink-2); }
 .stage { position: relative; background: #08090a; border: 1px solid var(--rule); border-radius: var(--radius); overflow: hidden; }
-.stage img, .stage video { display: block; width: 100%; height: auto; }
+.stage img, .stage video { display: block; width: 100%; height: auto; aspect-ratio: auto 832 / 480; }   /* Isaac's render size holds the place until the picture arrives, then the picture's own shape (#30) */
 .stage svg { position: absolute; inset: 0; width: 100%; height: 100%; }
 .stage .box { fill: transparent; stroke: rgba(236, 236, 233, 0.55); stroke-width: 1.5; cursor: pointer; }
 .stage .box:hover { stroke: var(--ink); fill: rgba(255, 255, 255, 0.06); }
@@ -121,7 +121,7 @@ a.btn { color: inherit; text-decoration: none; }   /* a link styled as a button,
 
 .brains { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px 14px; background: #08090a; border: 1px solid var(--rule); border-radius: var(--radius); padding: 14px; }
 .brains figure { margin: 0; text-align: center; }
-.brains img { width: 100%; max-height: 280px; object-fit: contain; }
+.brains img { width: 100%; max-height: 280px; object-fit: contain; aspect-ratio: auto 4 / 3; }   /* map views are about 4:3; the place is held before they load (#30) */
 .brains figcaption { color: var(--ink-3); font-size: 14px; }
 .legend { display: flex; align-items: center; gap: 10px; font-size: 14px; color: var(--ink-2); }
 .ramp { width: 160px; height: 10px; border-radius: 5px; background: linear-gradient(90deg, #4fd0ff, #1a6bb0 30%, #2a2b2e 50%, #b3261e 70%, #ffd23f); }
@@ -147,8 +147,16 @@ table.data tr:hover td { background: #16181b; }
 .field { display: flex; flex-direction: column; gap: 4px; }
 .field input { background: var(--raise); border: 1px solid var(--rule-strong); border-radius: 8px; padding: 8px 10px; }
 .empty { border: 1px dashed var(--rule-strong); border-radius: var(--radius); padding: 30px; text-align: center; color: var(--ink-2); }
-.spin { display: inline-block; width: 14px; height: 14px; border: 2px solid var(--rule-strong); border-top-color: var(--ink); border-radius: 50%; animation: spin 0.8s linear infinite; vertical-align: -2px; }
+/* Waiting without flashes (#30): a spinner, a wait line (.wait) and a skeleton (.skel) keep their place from the first
+ * frame but are seen only once the wait has lasted 300 ms, so a wait shorter than that shows nothing at all. */
+.spin { display: inline-block; width: 14px; height: 14px; border: 2px solid var(--rule-strong); border-top-color: var(--ink); border-radius: 50%; vertical-align: -2px; opacity: 0; animation: spin 0.8s linear infinite, seen 0s 300ms forwards; }
+.wait, .skel { opacity: 0; animation: seen 0s 300ms forwards; }
 @keyframes spin { to { transform: rotate(360deg); } }
+@keyframes seen { to { opacity: 1; } }
+.skel { display: flex; flex-direction: column; gap: 12px; }   /* still, no shimmer: a shape like the content it stands for */
+.skelline { height: 14px; border-radius: 4px; background: var(--raise); }
+.skelline:first-child { height: 24px; }
+.skelblock { border: 1px solid var(--rule); border-radius: var(--radius); background: var(--panel); }
 .tip { position: fixed; z-index: 50; pointer-events: none; background: var(--raise); border: 1px solid var(--rule-strong); border-radius: 8px; padding: 6px 10px; font-size: 14px; }
 .chart text { fill: var(--ink-2); font-size: 14px; font-family: inherit; }
 .chart .axis { stroke: var(--rule-strong); stroke-width: 1; }
@@ -180,7 +188,7 @@ table.data tr:hover td { background: #16181b; }
 .world { display: flex; flex-direction: column; gap: 12px; }
 .twoup { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: 14px; align-items: start; }
 .brainside { background: #08090a; border: 1px solid var(--rule); border-radius: var(--radius); padding: 12px 14px; display: flex; flex-direction: column; gap: 8px; }
-.brainside img { width: 100%; max-height: 230px; object-fit: contain; }
+.brainside img { width: 100%; max-height: 230px; object-fit: contain; aspect-ratio: auto 4 / 3; }
 .brainside .seg button { padding: 4px 10px; font-size: 14px; }
 .stagenote { position: absolute; left: 10px; bottom: 10px; background: rgba(14,15,17,.85); border: 1px solid var(--rule-strong); border-radius: 6px; padding: 2px 8px; font-size: 14px; }
 .controls { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 10px 18px; border: 1px solid var(--rule); border-radius: var(--radius); padding: 14px 16px; background: var(--panel); }
@@ -321,7 +329,7 @@ ol.calls li.refused .callrow > span:first-child { color: var(--flag); }
 
 /* square stimuli (an experiment's trials) are shown whole, at a height that leaves the numbers in view */
 .stage.square { display: flex; justify-content: center; background: #808080; }
-.stage.square img, .stage.square video { width: auto; max-width: 100%; max-height: 52vh; }
+.stage.square img, .stage.square video { width: min(100%, 52vh, 512px); height: auto; aspect-ratio: auto 1 / 1; }   /* trial files are 512 x 512: as wide as fits, square, its place held before it loads (#30) */
 
 /* chats with the agent */
 .chatwide { display: flex; flex-direction: column; gap: 12px; max-width: 980px; min-height: 0; height: 100%; }
@@ -399,7 +407,8 @@ ol.calls li.refused .callrow > span:first-child { color: var(--flag); }
 .entryfoot { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 20px; border-top: 1px solid var(--paper-rule); padding-top: 14px; margin-top: 6px; }
 .paper .trialbar .on { background: var(--paper-ink); }
 .paper .trialbar .rest { background: #e2dccf; }
-.course .legend { margin-bottom: 4px; }
+.course .legend { margin-bottom: 4px; min-height: 20px; }   /* one line of legend, held while the course is read (#30) */
+.coursewait { display: flex; align-items: center; justify-content: center; }
 .course .legend b { font-weight: 600; }
 .origin.generated::before { background: transparent; border: 2px solid var(--ink-2); width: 6px; height: 6px; }
 
@@ -509,7 +518,7 @@ figure.fig figcaption b { color: var(--ink); }
 .figtag { color: var(--ink-3); font-size: 13px; margin-bottom: 4px; }
 .mapsrow { display: flex; flex-direction: column; gap: 6px; }
 .maps { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
-.maps img { width: 100%; display: block; background: #08090a; border-radius: 6px; }
+.maps img { width: 100%; display: block; background: #08090a; border-radius: 6px; aspect-ratio: auto 4 / 3; object-fit: contain; }
 .maps span { display: block; text-align: center; margin-top: 2px; }
 @media (max-width: 700px) { .maps { grid-template-columns: repeat(2, minmax(0, 1fr)); } .figgrid { grid-template-columns: 1fr; } }
 .figpanel .legend { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 14px; color: var(--ink-2); margin-bottom: 4px; }

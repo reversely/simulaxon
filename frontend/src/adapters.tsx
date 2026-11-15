@@ -58,7 +58,7 @@ export function AdaptersView({ datasetId, views, onChanged }: { datasetId: strin
     </div>
     <p className="ink2 small" style={{ marginTop: 0 }}>An adapter maps TRIBE v2's predicted cortex to this dataset's measured fMRI, then is scored only on stimuli it never saw.</p>
     {err && <div className="dsnote">{err}</div>}
-    {!list ? <div className="empty" role="status"><span className="spin" /> Reading the adapters</div>
+    {!list ? <div className="empty wait" role="status"><span className="spin" /> Reading the adapters</div>
       : !list.length ? <div className="empty">No adapter yet. Fit one to see how far it moves TRIBE v2 toward these people's measured responses.</div>
       : list.map(a => <AdapterCard key={a.id} a={a} />)}
   </div>

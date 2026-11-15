@@ -25,29 +25,34 @@ async function peaks(url: string): Promise<{ values: number[]; dur: number }> {
 
 export function RecordingView({ manifestUrl }: { manifestUrl: string }) {
   const base = manifestUrl.slice(0, manifestUrl.lastIndexOf('/') + 1)
-  const [m, setM] = useState<Manifest | null>(null); const [lanes, setLanes] = useState<Lane[]>([]); const [err, setErr] = useState<string | null>(null)
+  const [rec, setRec] = useState<{ m: Manifest; lanes: Lane[] } | null>(null); const [err, setErr] = useState<string | null>(null)
   useEffect(() => {
-    let live = true; setM(null); setLanes([]); setErr(null)
+    let live = true; setRec(null); setErr(null)
     ;(async () => {
-      const man: Manifest = await (await fetch(manifestUrl)).json(); if (!live) return; setM(man)
-      const out: Lane[] = []
-      for (const s of man.streams) {
+      const man: Manifest = await (await fetch(manifestUrl)).json(); if (!live) return
+      const lane = async (s: Stream): Promise<Lane[]> => {   // every stream read at once; the player draws once, with all its lanes (#30)
         const url = base + s.file.split('/').map(encodeURIComponent).join('/'); const start = s.start_s ?? 0
-        if (s.kind === 'video') out.push({ name: s.name, start, dur: man.duration_s })
-        if (s.kind === 'audio') { try { const p = await peaks(url); out.push({ name: s.name, start, values: p.values, times: p.values.map((_, i) => i * p.dur / p.values.length) }) } catch { out.push({ name: s.name, start }) } }
+        if (s.kind === 'video') return [{ name: s.name, start, dur: man.duration_s }]
+        if (s.kind === 'audio') { try { const p = await peaks(url); return [{ name: s.name, start, values: p.values, times: p.values.map((_, i) => i * p.dur / p.values.length) }] } catch { return [{ name: s.name, start }] } }
         if (s.kind === 'table' || s.kind === 'events') {
           const rows = csv(await (await fetch(url)).text()); const head = rows[0] ?? []; const ti = Math.max(0, head.indexOf(s.time_column ?? 't')); const body = rows.slice(1)
           const times = body.map(r => Number(r[ti]))
-          if (s.kind === 'events') { const li = head.indexOf(s.label_column ?? 'label'); out.push({ name: s.name, start, ticks: true, times, labels: li >= 0 ? body.map(r => r[li]) : undefined }) }
-          else head.forEach((h, ci) => { if (ci !== ti && out.length < 12) out.push({ name: `${s.name}: ${h}`, start, times, values: body.map(r => Number(r[ci])) }) })
+          if (s.kind === 'events') { const li = head.indexOf(s.label_column ?? 'label'); return [{ name: s.name, start, ticks: true, times, labels: li >= 0 ? body.map(r => r[li]) : undefined }] }
+          return head.flatMap((h, ci) => ci !== ti ? [{ name: `${s.name}: ${h}`, start, times, values: body.map(r => Number(r[ci])) }] : [])
         }
+        return []
       }
-      if (live) setLanes(out)
+      const read = await Promise.all(man.streams.map(lane)); const out: Lane[] = []
+      read.forEach((ls, i) => { for (const l of ls) if (man.streams[i].kind !== 'table' || out.length < 12) out.push(l) })   // a table adds columns while fewer than 12 lanes
+      if (live) setRec({ m: man, lanes: out })
     })().catch(e => live && setErr(String(e)))
     return () => { live = false }
   }, [manifestUrl])
   if (err) return <div className="ink2">This recording could not be read: {err}</div>
-  if (!m) return <div className="ink2"><span className="spin" /> Reading the recording</div>
+  if (!rec) return <div className="clipbrain skel" role="status" aria-label="Reading the recording">   {/* the player's shape, its place held */}
+    <div className="twoup"><div className="skelblock" style={{ aspectRatio: '832 / 480' }} /><div className="skelblock" style={{ aspectRatio: '4 / 3', marginBottom: 96 }} /></div>
+    <div className="skelblock" style={{ height: 38 }} /></div>
+  const { m, lanes } = rec
   const file = (k: Stream['kind']) => { const s = m.streams.find(x => x.kind === k); return s ? base + s.file.split('/').map(encodeURIComponent).join('/') : null }
   return <ClipBrain clip={file('video')} predsUrl={file('tribe')} audio={file('audio')} lanes={lanes} />
 }
