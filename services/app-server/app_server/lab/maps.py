@@ -39,7 +39,9 @@ def render(values: np.ndarray, kind: str, files: Path, vmax: float | None = None
     import matplotlib; matplotlib.use('Agg'); import matplotlib.pyplot as plt
     os.environ.setdefault('PYVISTA_OFF_SCREEN', 'true')
     if _plotter is None:
-        from tribev2.plotting import PlotBrain
+        try: from tribev2.plotting import PlotBrain
+        except ImportError as e:   # the plotter needs torch, neuralset and pyvista; the cluster's app container has none, so a run keeps its numbers without pictures
+            return {'views': {}, 'vmax': vmax, 'note': f'no brain pictures here: {e}'}
         _plotter = PlotBrain(mesh='fsaverage5')
     (files / 'maps').mkdir(parents=True, exist_ok=True)
     for v, rel in out.items():
