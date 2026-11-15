@@ -19,9 +19,9 @@ The predictions come from Meta's TRIBE v2, which trained on fMRI recordings of p
 
 ```mermaid
 flowchart LR
-  H["Upload and ask<br/><sub>Nemotron Super 120B plans the test</sub>"] -->|plan what to vary| S["Scenes<br/><sub>Isaac Sim renders, Cosmos 3 Nano restyles</sub>"]
-  S -->|TRIBE v2 predicts| B["Brain response<br/><sub>predicted fMRI, second by second</sub>"]
-  B -->|compare conditions| N["Next test<br/><sub>Nemotron picks a follow-up</sub>"]
+  H["Upload and ask<br/>Nemotron plans"] -->|plan what to vary| S["Scenes<br/>Isaac Sim, Cosmos"]
+  S -->|TRIBE v2 predicts| B["Brain response<br/>fMRI per second"]
+  B -->|compare conditions| N["Next test<br/>Nemotron picks"]
   N -->|follow up| H
 ```
 
@@ -79,16 +79,16 @@ The app sends the predictions back to Nemotron to compare conditions. If the age
 flowchart TB
   subgraph F["Fuzzball on CIQ"]
     subgraph A["App workstation, 128 GB"]
-      APP["App server<br/><sub>tools, store, page</sub>"]
-      PL["Planner<br/><sub>Nemotron Super 120B</sub>"]
+      APP["App server"]
+      PL["Planner<br/>Nemotron Super 120B"]
       APP <-->|"http://planner"| PL
     end
     subgraph V["Video workstation, 128 GB"]
-      IS["Isaac Sim<br/><sub>renders</sub>"] --> CO["Cosmos 3 Nano<br/><sub>restyles</sub>"] --> TR["TRIBE v2<br/><sub>predicts fMRI</sub>"]
+      IS["Isaac Sim"] --> CO["Cosmos 3 Nano"] --> TR["TRIBE v2"]
     end
     APP -->|jobs| IS
   end
-  APP --> D[("VAST, /data<br/><sub>projects, clips, predictions, step log</sub>")]
+  APP --> D[("VAST at /data<br/>clips, predictions, log")]
   TR --> D
   U["Browser"] <-->|"HTTPS"| APP
 ```
