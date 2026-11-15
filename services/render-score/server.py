@@ -38,8 +38,8 @@ Q = Queue(CONNECTORS)
 
 
 def run(connector: str, inputs: dict, settings: dict, lane: str = 'batch') -> dict:
-    j = Q.submit(connector, inputs, settings, lane); j.done.wait()
-    if j.status != 'done': raise RuntimeError(f'{connector}: {j.error}')
+    j = Q.submit(connector, inputs, settings, lane); j.done.wait()   # the queue stops a job at its limit, so this always returns
+    if j.status != 'done': raise (TimeoutError if j.timed_out else RuntimeError)(f'{connector}: {j.error}')
     return j.outputs
 
 
@@ -72,6 +72,7 @@ class H(BaseHTTPRequestHandler):
             if self.path == '/score': return self._send(200, score(body))
             if self.path == '/job': return self._send(200, run(body['connector'], body['inputs'], body.get('settings', {}), body.get('lane', 'fast')))
             self._send(404, {'error': 'not found'})
+        except TimeoutError as e: self._send(504, {'error': str(e)})   # ran past its limit (#7)
         except (KeyError, ValueError) as e: self._send(422, {'error': f'{type(e).__name__}: {e}'})
         except Exception as e: self._send(500, {'error': f'{type(e).__name__}: {e}'})
 

@@ -22,7 +22,7 @@
 This is the one queue: the app server imports it as app_server.jobs and render-score imports the same file.
 """
 from __future__ import annotations
-import hashlib, json, subprocess, threading, time, uuid, queue, urllib.error, urllib.request
+import hashlib, json, os, subprocess, threading, time, uuid, queue, urllib.error, urllib.request
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -40,6 +40,20 @@ class Connector:
     memory_gb: float = 0.0  # what the warm worker holds; 0 means small enough to ignore
     args: list = field(default_factory=list)   # extra arguments to the worker script
     url: Any = ''          # a remote queue's base URL, or a function returning it: jobs go to its POST /job
+    limit_s: float | None = None   # one job's limit; None takes LIMIT_S for the connector's kind
+
+
+# How long one job may run before its worker is stopped (#7). Measured on the Spark: an Isaac render takes 10 to 60 s,
+# TRIBE about 2.2 s per second of clip (65 s for a 30 s clip), Cosmos about 4 min per 4 s clip plus 2 min to load.
+# Each limit is several times the longest of those, so only a worker that has stopped answering reaches it.
+LIMIT_S = {'renderer': 900.0, 'neural model': 900.0, 'generator': 2700.0}
+DEFAULT_LIMIT_S = 1800.0
+
+
+def job_limit(c: Connector) -> float:
+    """A job's limit on this connector: SIMULAXON_JOB_LIMIT_S when set, else its own, else its kind's."""
+    v = os.environ.get('SIMULAXON_JOB_LIMIT_S')
+    return float(v) if v else float(c.limit_s or LIMIT_S.get(c.kind, DEFAULT_LIMIT_S))
 
 
 def memory_available_gb() -> float:
@@ -98,7 +112,7 @@ class HttpWorker:
         body = json.dumps({'connector': self.c.connector_id, 'inputs': inputs, 'settings': settings, 'lane': lane}).encode()
         try:
             req = urllib.request.Request(self.base() + '/job', data=body, headers={'Content-Type': 'application/json'})
-            with urllib.request.urlopen(req, timeout=4 * 3600) as r: return {'job_id': job_id, 'outputs': json.loads(r.read())}
+            with urllib.request.urlopen(req, timeout=job_limit(self.c) + 120) as r: return {'job_id': job_id, 'outputs': json.loads(r.read())}   # the remote stops the job at its limit first
         except urllib.error.HTTPError as e:
             try: err = json.loads(e.read() or b'{}').get('error')
             except ValueError: err = None
@@ -125,6 +139,7 @@ class Job:
     cached: bool = False
     seconds: float | None = None
     where: str = 'local'     # 'local' or the remote runner's name
+    timed_out: bool = False  # ran past its limit, so its worker was stopped
     done: threading.Event = field(default_factory=threading.Event)
 
 
@@ -213,15 +228,29 @@ class Queue:
                         if c.url: w = self.workers.setdefault(c.connector_id, HttpWorker(c))
                         else: self._make_room(c); w = self.workers.setdefault(c.connector_id, WarmWorker(c))
                     self.last_used[c.connector_id] = time.time()
-                    msg = w.run(j.job_id, j.inputs, j.settings, j.lane)
+                    timer = threading.Timer(job_limit(c), self._expire, (j, w)) if isinstance(w, WarmWorker) else None
+                    if timer: timer.daemon = True; timer.start()
+                    try: msg = w.run(j.job_id, j.inputs, j.settings, j.lane)
+                    finally:
+                        if timer: timer.cancel()
                     self.last_used[c.connector_id] = time.time()
                     if 'error' in msg: j.status, j.error = 'failed', msg['error']
                     else: j.status, j.outputs = 'done', msg['outputs']; self.cache[j.key] = msg['outputs']
                 except Exception as e:
                     j.status, j.error = 'failed', f'{type(e).__name__}: {e}'
+                    dead = self.workers.get(c.connector_id)
+                    if isinstance(dead, WarmWorker) and dead.p.poll() is not None:   # stopped at its limit, or crashed: the next job starts a fresh one
+                        self.workers.pop(c.connector_id, None)
+                    if j.timed_out: j.error = f'{c.connector_id} ran past its limit of {job_limit(c):.0f} s, so its worker was stopped; the next job starts a fresh one'
                 j.seconds = round(time.time() - t0, 3); self._emit(j)
                 if j.lane in ('fast', 'batch'): self.last_live = time.time()   # before done: the waiting preview's next step lands inside the hold
                 j.done.set()
+
+    def _expire(self, j: Job, w: 'WarmWorker'):
+        """A job past its limit: stop its worker, so the job fails now and the queue moves on to the next one (#7)."""
+        j.timed_out = True
+        try: w.p.kill()
+        except Exception: pass
 
     def _make_room(self, c: Connector):
         """Unload idle workers, least recently used first, until c fits. Runs inside the job loop, so every
