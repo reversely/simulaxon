@@ -176,6 +176,17 @@ class Store:
         return [dict(zip(cols, r)) for r in self.db.execute(q, [project_id, project_id]).fetchall()]
 
     @_locked
+    def project_steps(self) -> list[dict]:
+        """Every step that wrote a project's rows, with that project's id, oldest first: steps_for over all projects at once (#32)."""
+        cols = ['project_id', 'step_id', 'tool', 'args', 'ts']
+        q = '''select distinct case when t.kind = 'project' then t.id else json_extract_string(r.data, '$.project_id') end as pid,
+                      s.step_id, s.tool, s.args, s.ts
+               from steps s join touched t on t.step_id = s.step_id
+               join rows r on r.kind = t.kind and r.id = t.id and r.version = t.after_version
+               where t.kind = 'project' or json_extract_string(r.data, '$.project_id') is not null order by s.ts'''
+        return [dict(zip(cols, r)) for r in self.db.execute(q).fetchall()]
+
+    @_locked
     def steps(self) -> list[dict]:
         cols = ['step_id', 'actor', 'tool', 'args', 'code', 'ts', 'undoes']
         return [dict(zip(cols, r)) for r in self.db.execute('select * from steps order by ts').fetchall()]

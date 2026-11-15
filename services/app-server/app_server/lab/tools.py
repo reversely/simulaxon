@@ -3,7 +3,7 @@
 Panels and the agent call the same tools. Project tools write steps; reads never do.
 """
 from __future__ import annotations
-import copy
+import copy, json
 from pathlib import Path
 import numpy as np
 from . import templates, regions, maps, records, titles
@@ -152,7 +152,26 @@ def register(tools, broadcast=lambda m: None):
 
     @tools.tool('project', 'list', writes_project=False)
     def project_list(actor):
-        return sorted(s.list('project'), key=lambda r: r.data.get('created_order', 0))
+        """Every project, last updated first (#32), each with created_at and updated_at (seconds since the epoch, from the
+        steps that wrote its rows), last_added on the newest, and picture: its hero image, else its first sample's.
+        A step that only rewrites a project's wording (question or title) does not count as an update."""
+        from ..store import Row
+        created, updated = {}, {}
+        for st in s.project_steps():
+            pid = st['project_id']; created.setdefault(pid, st['ts'])
+            if not _wording_only(st): updated[pid] = st['ts']
+        first = {}
+        for x in s.list('sample'):
+            d = x.data; pid = d.get('project_id')
+            if pid and d.get('image') and (pid not in first or d.get('index', 0) < first[pid][0]): first[pid] = (d.get('index', 0), d['image'])
+        rows = [Row(r.kind, r.id, r.version, {**r.data, 'created_at': created.get(r.id), 'updated_at': updated.get(r.id, created.get(r.id)),
+                                              'picture': r.data.get('hero') or (first.get(r.id) or (0, None))[1]}, r.step_id, r.deleted)
+                for r in s.list('project')]
+        newest = max(rows, key=lambda r: r.data['created_at'] or 0, default=None)
+        for r in rows: r.data['last_added'] = r is newest
+        return sorted(rows, key=lambda r: -(r.data['updated_at'] or 0))
+
+    WORDING = {'project_id', 'expect_version', 'question', 'title', 'question_written'}
 
     def _project(project_id) -> dict:
         row = s.get('project', project_id)
