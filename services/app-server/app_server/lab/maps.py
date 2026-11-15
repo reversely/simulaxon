@@ -38,14 +38,17 @@ def render(values: np.ndarray, kind: str, files: Path, vmax: float | None = None
     if all((files / p).exists() for p in out.values()): return {'views': out, 'vmax': vmax}
     import matplotlib; matplotlib.use('Agg'); import matplotlib.pyplot as plt
     os.environ.setdefault('PYVISTA_OFF_SCREEN', 'true')
+    child = bool(os.environ.get('SIMULAXON_MAPS_CHILD'))   # drawing for a container with no GPU graphics: matplotlib, not PyVista
     if _plotter is None:
-        try: from tribev2.plotting import PlotBrain
+        try:
+            if child: from tribev2.plotting import PlotBrainNilearn as PlotBrain
+            else: from tribev2.plotting import PlotBrain
         except ImportError as e:   # the plotter needs torch, neuralset and pyvista, which the cluster's app container lacks
             return _elsewhere(values, kind, files, vmax, out, e)
         _plotter = PlotBrain(mesh='fsaverage5')
     (files / 'maps').mkdir(parents=True, exist_ok=True)
     for v, rel in out.items():
-        fig, ax = plt.subplots(figsize=(4, 3), dpi=200)
+        fig, ax = plt.subplots(figsize=(4, 3), dpi=200, **({'subplot_kw': {'projection': '3d'}} if child else {}))
         if kind == 'single':
             _plotter.plot_surf(values, axes=ax, views=v, cmap='fire', norm_percentile=99, vmin=0.6, alpha_cmap=(0, 0.2))
         else:
