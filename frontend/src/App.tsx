@@ -358,13 +358,25 @@ export default function App() {
       </div>
 
       {view !== 'agent' && <footer className="prov" aria-label="Provenance">
-        {P.provenance?.length ? (P.plan === 'experiment' && (P as any).setup ? [...P.provenance.slice(0, -1), ((P as any).setup.regions as string[]).map(regionLabel).join(', ')] : P.provenance).map((s, i) => <span key={i} style={{ display: 'contents' }}>{i > 0 && <span className="arrow">→</span>}<span>{s}</span></span>) : <span>Nothing has run in this project yet</span>}
+        {P.provenance?.length ? (P.plan === 'experiment' && (P as any).setup ? [...P.provenance.slice(0, -1).map(provShort), regionCount((P as any).setup.regions as string[])] : P.provenance.map(provShort))
+          .map((s, i) => <span key={i} style={{ display: 'contents' }}>{i > 0 && <span className="arrow">→</span>}<span title={typeof s === 'string' ? undefined : s.title}>{typeof s === 'string' ? s : s.text}</span></span>) : <span>Nothing has run in this project yet</span>}
       </footer>}
 
       {sheetEl}
     </div>
   )
 }
+
+/** A provenance step as the bar shows it: the thing itself, without versions, settings or read windows. The stored
+ * step keeps its full text for Results and exports. */
+function provShort(s: string): string {
+  let m = s.match(/^(\d+) trials, one ([\d.]+) s clip each$/); if (m) return `${m[1]} trials × ${Number(m[2])} s`
+  m = s.match(/^([\d.]+) s (?:on screen|of motion), then ([\d.]+) s grey$/); if (m) return `${m[1]} s on, ${m[2]} s grey`
+  if (/^TRIBE v2\b/.test(s)) return 'TRIBE v2'
+  if (/^Isaac Sim\b/.test(s)) return 'Isaac Sim'
+  return s.split(', ')[0]
+}
+const regionCount = (rs: string[]) => ({ text: `${rs.length} ${rs.length === 1 ? 'region' : 'regions'}`, title: rs.map(regionLabel).join(', ') })
 
 function Conversation({ P, pid, template, flowNow, narr, widen, onWiden, chips, sid, live, onStarted, onOpenProject }: {
   P: Project; pid: string; template?: Template; flowNow: string; steps?: any[]; narr: Narration[]; onUndo?: (id: string) => void; widen: boolean; onWiden: () => void
