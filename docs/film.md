@@ -14,6 +14,28 @@ it. Claims in the script are checked in `docs/research/pitch-claims.md`.
 - A Grafana section, showing it working; it need not be live.
 - The narrative targets Rocky Linux usage, possibly RLC Pro AI, then Fuzzball usage, uptime monitoring, and both clusters used in a way that is not absurd. Plan the Grafana data story first, from real usage screenshots once back online, with the dashboard focused on compute optimization: `docs/grafana-plan.md`.
 
+## Fine-tuning: the demo story
+
+The owner, 15 Nov: fine-tuning is "our best benchmark and is kind of more valid as an idea"; "there's benchmarking, and there's live results. these are two different kinds of results. when you talk about how well the adapter did this doesn't reflect usefulness in prod on new unseen images"; "the demo story of a fine tune needs to be made clear".
+
+What the app has is an adapter: a map from TRIBE v2's prediction for each of 360 brain areas to measured fMRI, fitted in one click (#28). It does not retrain TRIBE v2's own weights, as the TRIBE v2 paper's fine-tuning does, so the demo calls it "fitting TRIBE v2 to measured fMRI" and the app calls the result an adapter.
+
+The story has two halves that are never mixed: a **benchmark**, scored against measured fMRI the fit never saw, and a **live** use on new stimuli, where no measured fMRI exists and no r is shown.
+
+| # | Beat | Screen | What it says | Evidence | Status |
+|---|---|---|---|---|---|
+| 1 | TRIBE v2 predicts an average viewer it has never met | A trial in the Room: the clip beside its predicted brain | Predictions come from other people watching other films | TRIBE v2 paper, Table 1 | Built |
+| 2 | Bring people's measured fMRI | Datasets: the Human Action Dataset, 30 people, 3,600 clips, with an Adapters tab | A dataset with measured responses can be fitted to | OpenNeuro ds004488 | Built |
+| 3 | One click | Fit an adapter; the card appears in about 1.5 s | Fitting is one action | #28 page check: 1.2 to 1.6 s | Built |
+| 4 | **Benchmark** | The adapter card, labelled "Benchmark: held-out categories of the Human Action Dataset" | On categories it never saw: 0.257 as released, 0.407 fitted, against a ceiling of 0.675 (38% to 60% of what the data allow); shuffled labels −0.011 | #28: 179 of 212 areas improve | Numbers built; the label and a V-JEPA 2 baseline row are not |
+| 5 | Known results survive | Faces against objects (Kanwisher 1997) run with and without the adapter, side by side | The fit does not break a finding the field already knows | Not yet run | To build (#37) |
+| 6 | **Live** | An experiment run through the adapter: its results name the adapter, show no r, and say when the stimuli lie outside what it was fitted on | Use on new stimuli, stated as a prediction | Not yet built | To build (#28 item 3, #37) |
+| 7 | Transfer | Fitted on the Human Action Dataset, scored on a dataset of different stimuli with measured fMRI | The closest test of new, unseen stimuli that can still be scored | Not yet run | To build (#37) |
+
+The film uses beats 1 to 4 today, with the benchmark labelled as one; beats 5 to 7 join it as they are built. It never puts the benchmark's r beside a live result.
+
+Not claimed: a fit to one person. In the lab's run, one person's own fit scored 0.107 on that person's held-out categories, against 0.115 for a fit to everyone else; workflow step 4 in `docs/pitch.md` ("predict how that person would respond") is the owner's line and stays, and the picture under it is the group adapter until a personal fit beats the group's.
+
 ## The owner's lines, in order
 
 Cut: "How does the brain make sense of an event as it unfolds?"
