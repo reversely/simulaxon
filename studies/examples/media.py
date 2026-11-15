@@ -24,6 +24,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / 'services' / 'app-server'))
 from app_server.home import HOME          # noqa: E402
 from app_server.lab import datasets       # noqa: E402
+from app_server.lab.examples import EXAMPLES   # noqa: E402  (each example's project title, in one place)
 
 DATA = HOME / 'backend' / 'data'; OUT = DATA / 'files' / 'examples'; GEN = datasets.HERE / 'generated_examples'
 FLOC = datasets.HERE / 'github_vpnl_floc' / 'stimuli'; HAD = HOME / 'feasibility' / 'data' / 'had' / 'stimuli'
@@ -37,9 +38,10 @@ def tool(name, **args):
     return json.load(urllib.request.urlopen(req, timeout=30))['result']
 
 
-def run_clips(title):
-    """The first trial clip of each condition in the finished project with this title, and the seconds its stimulus is on
+def run_clips(example):
+    """The first trial clip of each condition in this example's finished project, and the seconds its stimulus is on
     screen; None when there is no such run, or no server to ask."""
+    title = next(e['project_title'] for e in EXAMPLES if e['id'] == example)
     try:
         p = next((p for p in tool('project_list') if p['data'].get('title') == title and p['data'].get('status') == 'Done'), None)
         if p is None: return None
@@ -66,7 +68,7 @@ def stills(paths, seconds, out, size=480):
 def rivalry():
     if not (GEN / 'rivalry' / 'replay_0.mp4').exists(): return 'no generated stimuli; run stimuli.py'
     ff('-i', GEN / 'rivalry' / 'replay_0.mp4', '-t', 12, '-vf', 'scale=480:480', out=OUT / 'rivalry.mp4')
-    run = run_clips('A face to one eye, a house to the other')
+    run = run_clips('rivalry')
     conds = {'Face only': 'face', 'House only': 'house', 'Both at once': 'both', 'Taking turns': 'replay'}
     for cond, name in [('Face only', 'face_only'), ('House only', 'house_only'), ('Both at once', 'both'), ('Taking turns', 'turns')]:
         src, on = (run[0][cond], run[1]) if run and cond in run[0] else (GEN / 'rivalry' / f'{conds[cond]}_0.mp4', 24)
@@ -81,7 +83,7 @@ def flash():
 
 
 def faces_objects():
-    run = run_clips('Kanwisher 1997 FFA: faces vs objects')
+    run = run_clips('faces')
     if run and {'faces', 'objects'} <= set(run[0]):
         c, on = run
         ff('-t', on, '-i', c['faces'], '-t', on, '-i', c['objects'], '-filter_complex', '[0:v]scale=480:480,setsar=1[a];[1:v]scale=480:480,setsar=1[b];[a][b]concat=n=2:v=1[v]', '-map', '[v]', out=OUT / 'faces_objects.mp4')
@@ -102,7 +104,7 @@ def humanoid():
 
 
 def photoreal():
-    run = run_clips('The G1 in the EgoBody room, Isaac Sim against Cosmos')
+    run = run_clips('photoreal')
     if run and {'Isaac Sim', 'Cosmos'} <= set(run[0]):
         c, on = run; a, b, crop = c['Isaac Sim'], c['Cosmos'], f'{UNPAD},'
     else:

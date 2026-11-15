@@ -6,7 +6,7 @@ from __future__ import annotations
 import copy
 from pathlib import Path
 import numpy as np
-from . import templates, regions, maps, records
+from . import templates, regions, maps, records, titles
 from .ingest import FILES
 
 
@@ -429,3 +429,6 @@ def register(tools, broadcast=lambda m: None):
                 'reported': a['result'].data.get('reported'), 'note': a['result'].data.get('vjepa_note')}
                for a in analysis_list(actor, project_id) if a['result']]
         return {'title': P.get('title'), 'question': P.get('question'), 'status': P.get('status'), 'experiment': P.get('experiment'), 'results': res}
+
+    for fn in (project_create_from, project_update, experiment_create):   # the title argument says how to title (#11)
+        fn.__doc__ = (fn.__doc__ or '').rstrip() + f'\n        title: {titles.ARG}.'

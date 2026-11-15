@@ -13,7 +13,7 @@ kept in backend/data/sessions/<id>.json, so the page shows the work live and a r
 from __future__ import annotations
 import json, os, subprocess, sys, tempfile, threading, time, uuid
 from pathlib import Path
-from . import datasets, planner_agent
+from . import datasets, planner_agent, titles
 from .ingest import DATA
 
 DIR = DATA / 'sessions'
@@ -29,6 +29,7 @@ Measured here about TRIBE: its output has the blood-flow lag removed, so a stimu
 Cosmos (a condition's cosmos option) restyles stimuli toward photoreal video. Measured here: Cosmos over an Isaac render moved the fusiform by +0.085, and one Cosmos seed moves it by 0.026, the size of the effects studied. So give every Cosmos condition at least two seeds, and run the same stimuli without Cosmos as their own condition, so the difference Cosmos makes is measured beside the result. Cosmos takes about 4 min per 4 s clip.
 When paper_fetch finds only the abstract (the full text is not openly licensed), say so, work from what the abstract states, mark every design choice the abstract does not give as your assumption, and say that a person can add the PDF for the full methods.
 Rules: every number you give comes from a tool result. TRIBE reads video only, cannot tell left from right in the visual field, and has no attention or eye-specific input: when a paper's effect depends on those, say what the closest stimulus-driven version is and run that. No verdict words such as supported, confirmed or refuted. Short plain sentences."""
+SYSTEM += '\n\n' + titles.GUIDE   # how to title projects and experiments (#11)
 MODES = {
     'discuss': "This message is for discussion. Answer it, propose, and look things up as needed. Set up an experiment with experiment_create only when the person asks for it or agrees to your proposal, so they can see it; do not start a run (project_run) or a large fetch until they ask. End your turn when you have answered.",
     'through': "Go all the way through on your own: read, fetch, set up, run, and report. When the goal is finished, end your final report with the single word DONE.",

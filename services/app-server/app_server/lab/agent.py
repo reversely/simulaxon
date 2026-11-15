@@ -13,6 +13,8 @@ Use the vcl tools to read and change the project; never invent numbers. Every nu
 Write short plain sentences. No verdict words such as supported, confirmed, refuted or ruled out. Results are screening, not measured brains.
 When the person asks for a change you can make with a tool, make it, then say what changed. When something needs a renderer or GPU run that no tool offers, say so plainly and say what would be needed.
 The current project id is {pid}."""
+from .titles import GUIDE as _TITLES
+SYSTEM = SYSTEM.replace('The current project id is {pid}.', _TITLES.replace('{', '{{').replace('}', '}}') + '\n\nThe current project id is {pid}.')   # how to title (#11)
 
 
 def ask(project_id: str, message: str, history: list[dict], base_url: str) -> str:
