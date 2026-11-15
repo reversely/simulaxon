@@ -191,6 +191,11 @@ body.light .live { border-color: #cfc7ba; }
 .fc-cursor { position: absolute; left: 0; top: 0; width: 24px; height: 24px; opacity: 0; z-index: 3; pointer-events: none; }
 @media (max-width: 820px) { .fc-bar { grid-template-columns: 1fr 56px; } .fc-bar .fc-lane { grid-column: 1 / -1; grid-row: 2; } }
 
+/* Try the demo: the film's button, ivory on the dark ground */
+.try { display: flex; align-items: center; gap: 18px; flex-wrap: wrap; margin: 22px 0 8px; font-size: 15px; }
+.try-btn { display: inline-block; font-size: 17px; font-weight: 500; padding: 11px 20px; border-radius: 8px; background: var(--paper); color: var(--paper-ink); text-decoration: none; }
+.try-btn:hover { background: #e9e4da; }
+
 /* Grabs from the real interface */
 .grab { margin: 0; display: grid; gap: 10px; min-width: 0; }
 .grab video { width: 100%; height: auto; border-radius: 12px; border: 1px solid var(--rule); }
