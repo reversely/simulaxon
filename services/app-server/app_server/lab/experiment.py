@@ -154,7 +154,7 @@ def _src(item) -> str:
 def cosmos_item(item: dict, item_s: float, wait) -> str:
     """A stimulus restyled by Cosmos: the source as a 30 fps 16:9 clip (an image is held), then Cosmos with the prompt, seed
     and control. Cached by content, so a rerun or another condition with the same item reuses it."""
-    src = Path(item['src']); n = max(5, min(121, int(item_s * 30) // 4 * 4 + 1))   # Cosmos takes 4k + 1 frames, at most 121 here
+    src = Path(item['src']); n = max(5, min(301, int(item_s * 30) // 4 * 4 + 1))   # Cosmos takes 4k + 1 frames; up to 10 s, so a 9 s body-study clip goes through whole (#17)
     key = hashlib.sha1(json.dumps([str(src), src.stat().st_mtime_ns, item['prompt'], item['seed'], item['control'], n]).encode()).hexdigest()[:16]
     out_dir = CLIPS / 'cosmos'; done = out_dir / key / 'vision.mp4'
     if done.exists(): return str(done)
