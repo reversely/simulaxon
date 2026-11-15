@@ -836,3 +836,8 @@ table.data.compact td, table.data.compact th { padding: 3px 8px; font-size: 14px
 /* History: a day heading over each day's changes, and the switch for the quiet steps */
 .histlist .histday { font-size: 12px; font-weight: 600; color: var(--ink-3); text-transform: none; padding: 12px 0 4px; border: 0; }
 .histall { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--ink-2); padding: 10px 0 2px; border-top: 1px solid var(--rule); margin-top: 6px; }
+
+/* The demo page (docs/demo, served at /demo/): the header's one blue button, and a link on the guide's welcome */
+.btn.demolink { background: #1f6fb2; border-color: #1f6fb2; color: #ffffff; font-weight: 600; text-decoration: none; }
+.btn.demolink:hover { background: #2f7fc1; border-color: #2f7fc1; }
+.gslide-demo { margin-right: auto; text-decoration: none; }

@@ -269,7 +269,7 @@ export default function App() {
 
   // no project yet, as on a fresh install: the agent's chat and New project, never a spinner that waits for nothing
   if (!project || !P) return <div className="frame">
-    <header className="top"><span className="brand">Simulaxon</span><button className="btn" onClick={() => setSheet('templates')}><Icon name="plus" size={16} />New project</button>
+    <header className="top"><span className="brand">Simulaxon</span><a className="btn demolink" href="/demo/" target="_blank" rel="noreferrer"><Icon name="open" size={16} />Demo page</a><button className="btn" onClick={() => setSheet('templates')}><Icon name="plus" size={16} />New project</button>
       {machine?.dashboard && <a className="btn" href="/dashboard" target="_blank" rel="noreferrer"><Icon name="gauge" size={16} />Dashboard</a>}
       {offline && <span className="chip flag" role="status">Reconnecting to the lab server</span>}</header>
     <div className="body chatonly"><main className="col centre"><div className="chatwide"><h1 className="q">{chatTitle(sessions.find(x => x.id === openSession)?.goal)}</h1>
@@ -282,6 +282,7 @@ export default function App() {
     <div className="frame">
       <header className="top">
         <span className="brand">Simulaxon</span>
+        <a className="btn demolink" href="/demo/" target="_blank" rel="noreferrer"><Icon name="open" size={16} />Demo page</a>
         <div className="switch">
           <button onClick={() => setSwitcher(s => !s)} aria-haspopup="menu" aria-expanded={switcher} aria-busy={opening}><span>{fresh ? 'New project' : (projects.find(x => x.id === want)?.data ?? P).title}</span>{opening ? <span className="spin" aria-label="Opening the project" /> : <span aria-hidden>▾</span>}</button>
           {switcher && <div className="menu" role="menu" onMouseLeave={() => setSwitcher(false)}>
