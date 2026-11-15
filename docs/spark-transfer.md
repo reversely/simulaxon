@@ -43,7 +43,7 @@ No database change: the store code changed only how Undo works, so the Spark's s
 |---|---|---|---|
 | Renders, TRIBE, Cosmos | render-score, `POST /job` on port 8100 | Warm workers started by the app server's own queue | `RENDER_SCORE_URL`, `FB_WORKFLOW_ID`, both unset here |
 | The agent | Planner at `http://planner:8000/v1` | `claude -p` with the lab's tool server | `SIMULAXON_AGENT=claude`; `PLANNER_URL` unset |
-| Data and research tools | `/data` | `~/Repos/visual-cortex-lab` | `SIMULAXON_HOME`, `SIMULAXON_DATA` |
+| Data and research tools | `/data` | `~/Repos/visual-cortex-lab` | `SIMULAXON_HOME`; either it or `SIMULAXON_DATA` alone is enough (#9) |
 | Store | `/data/log/lab.duckdb` | `backend/data/lab_main.duckdb` | `--db` |
 | Address | `0.0.0.0:8791`, endpoint `simulaxon` | `127.0.0.1:8790`; the dev page on the tailnet at port 5176 | `--host`, `--port`; `LAB_API` for the dev page |
 | Dashboard, `/dashboard` | Grafana's endpoint, found through the Fuzzball CLI | None: the link is hidden, and `/dashboard` says Grafana isn't running | Whether the Fuzzball CLI is installed |
@@ -67,7 +67,7 @@ cd ~/Repos/simulaxon && git switch main && git merge --ff-only vast-final-2026-1
 cd frontend && npm ci && npx vite build
 cd ../services/app-server
 V=~/Repos/visual-cortex-lab
-SIMULAXON_HOME=$V SIMULAXON_DATA=$V/backend/data SIMULAXON_AGENT=claude PYTHONPATH=. \
+SIMULAXON_HOME=$V SIMULAXON_AGENT=claude PYTHONPATH=. \
   $V/feasibility/.venv/bin/python -m app_server.lab.serve --port 8790 --db $V/backend/data/lab_main.duckdb
 ```
 This takes over port 8790 from the research repo's server, after these steps in order:

@@ -1,6 +1,7 @@
 """Where the app server finds things. Each setting comes from the environment, with the cluster's layout as default.
 
-  SIMULAXON_DATA    data root; dataset files, media and the DuckDB log live under it (default /data)
+  SIMULAXON_DATA    data root; dataset files, media and the DuckDB log live under it (default SIMULAXON_HOME, then /data;
+                    either setting alone names the root for the whole app server, #9)
   SIMULAXON_UI      built frontend to serve (default frontend/dist in the repo)
   PLANNER_URL       OpenAI-compatible API of the planner (default http://planner:8000/v1)
   PLANNER_MODEL     model name the planner serves (default nvidia/nemotron-3-super)
@@ -13,7 +14,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[3]                      # the repository
 APP = Path(__file__).resolve().parents[1]                       # services/app-server
-DATA = Path(os.environ.get('SIMULAXON_DATA', '/data'))
+DATA = Path(os.environ.get('SIMULAXON_DATA') or os.environ.get('SIMULAXON_HOME') or '/data')
 UI = Path(os.environ.get('SIMULAXON_UI', ROOT / 'frontend' / 'dist'))
 SOURCES = APP / 'sources'
 RUNS = APP / 'runs'
