@@ -1,5 +1,5 @@
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { call, count, fmt, regionLabel, describeStep, whoName, type Step, PLAN_NAMES, PLAN_INFO, PLAN_ICON, ROLE_NAMES, type AnalysisItem, type MapRow, type Project, type Region, type Row, type Sample, type Template } from './api'
+import { call, count, fmt, regionLabel, describeStep, whoName, agentName, type Step, PLAN_NAMES, PLAN_INFO, PLAN_ICON, ROLE_NAMES, type AnalysisItem, type MapRow, type Project, type Region, type Row, type Sample, type Template } from './api'
 import { Icon, type IconName } from './icons'
 import { DotStrip, MiniInterval, SignedBars, TimeCourse } from './charts'
 import { FindingsView, SearchView, SourcesView } from './views'
@@ -292,7 +292,7 @@ export default function App() {
         <button className={`btn ${view === 'experimental' ? 'on' : ''}`} onClick={() => setView('experimental')}><Icon name="flask" size={16} />Experimental</button>
         <button className="btn" aria-haspopup="dialog" aria-expanded={hist} onClick={() => setHist(h => !h)}><Icon name="clock" size={16} />History</button>
         <button className={`btn ${guide !== null ? 'on' : ''}`} aria-pressed={guide !== null} onClick={() => guide === null ? guideTo(0) : setGuide(null)}><Icon name="book" size={16} />Guide</button>
-        {hist && <History pid={pid!} agent={machine?.agent ?? 'The agent'} tick={steps.length ? steps[steps.length - 1].step_id : ''} onClose={() => setHist(false)}
+        {hist && <History pid={pid!} agent={agentName(machine?.agent)} tick={steps.length ? steps[steps.length - 1].step_id : ''} onClose={() => setHist(false)}
           onUndo={async id => { await call('step_undo', { step_id: id }); refreshProjects(); loadProject(pid!) }} />}
         <button className="btn" onClick={() => setSheet('templates')}><Icon name="plus" size={16} />New project</button>
         {machine?.dashboard && <a className="btn" href="/dashboard" target="_blank" rel="noreferrer"><Icon name="gauge" size={16} />Dashboard</a>}
@@ -346,7 +346,7 @@ export default function App() {
             {view === 'brain' && <BrainView P={P} unit={unit} variant={variant} objects={objects} analyses={analyses} course={course} region={region} />}
             {view === 'data' && <DataView units={units} regions={regionNames} onOpen={i => { setUnitIdx(i); setView('room') }} />}
           </>}
-          {view === 'results' && <ResultsView pid={pid!} status={P.status} progress={runProg[pid!]} live={runTrials[pid!]} focus={picked ? region : ''} agentName={machine?.agent ?? 'the agent'}
+          {view === 'results' && <ResultsView pid={pid!} status={P.status} progress={runProg[pid!]} live={runTrials[pid!]} focus={picked ? region : ''} agentName={agentName(machine?.agent)}
             onPickRegion={pickRegion} onOpenTrial={openTrial} />}
           {view === 'search' && <SearchView search={(P as any).search} />}
           {view === 'findings' && <FindingsView P={P} pid={pid!} projects={projects} region={region} analysesFor={id => call('analysis_list', { project_id: id })} onOpen={id => { setPid(id) }} onAsk={send} />}

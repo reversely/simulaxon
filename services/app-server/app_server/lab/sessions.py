@@ -248,7 +248,8 @@ def resume_all(tools, broadcast, base_url: str):
 
 
 def get(sid: str) -> dict:
-    return json.loads((DIR / f'{sid}.json').read_text())
+    d = json.loads((DIR / f'{sid}.json').read_text())
+    return d | {'agent': planner_agent.shown(d.get('agent'))}
 
 
 def listing(project_id: str | None = None) -> list[dict]:
@@ -256,7 +257,7 @@ def listing(project_id: str | None = None) -> list[dict]:
     for f in sorted(DIR.glob('session_*.json'), key=lambda p: p.stat().st_mtime, reverse=True) if DIR.exists() else []:
         d = json.loads(f.read_text())
         if project_id and d.get('project_id') != project_id: continue
-        out.append({k: d.get(k) for k in ('id', 'goal', 'project_id', 'mode', 'status', 'why', 'started', 'updated', 'agent', 'waiting_for')} | {
+        out.append({k: d.get(k) for k in ('id', 'goal', 'project_id', 'mode', 'status', 'why', 'started', 'updated', 'waiting_for')} | {'agent': planner_agent.shown(d.get('agent')),
             'turns': len(d['turns']), 'tool_calls': sum(len(t['tool_calls']) for t in d['turns']), 'errors': sum(sum(1 for c in t['tool_calls'] if c.get('error') and not c.get('internal')) for t in d['turns']),
             'internal_errors': sum(sum(1 for c in t['tool_calls'] if c.get('internal')) for t in d['turns'])})
     return out

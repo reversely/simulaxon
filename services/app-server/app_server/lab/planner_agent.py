@@ -23,8 +23,13 @@ def backend() -> str:
 
 
 def label() -> str:
-    """The agent's name as the page shows it."""
-    return f'{PLANNER_MODEL} on the planner' if backend() == 'planner' else 'Claude Code'
+    """The agent's name as the page shows it (#40): the planner's model when it runs the turns, else "the agent"."""
+    return f'{PLANNER_MODEL} on the planner' if backend() == 'planner' else 'the agent'
+
+
+def shown(name: str | None) -> str:
+    """A saved agent name as the page shows it: names saved before #40 as "Claude Code" read as "the agent"."""
+    return 'the agent' if not name or 'claude' in name.lower() else name
 
 
 def call_tool(base: str, name: str, args: dict):

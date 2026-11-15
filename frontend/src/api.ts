@@ -126,4 +126,6 @@ export function describeStep(s: Step, byId: Record<string, Step> = {}): string {
   return toolName(s.tool)
 }
 /** Who took a step, as the header names them: never the stored value "person" or "agent". */
-export const whoName = (actor: string, agent: string) => actor === 'person' ? 'You' : actor === 'agent' ? agent : 'The app'
+export const whoName = (actor: string, agent: string) => actor === 'person' ? 'You' : actor === 'agent' ? (agent === 'the agent' ? 'The agent' : agent) : 'The app'
+/** The agent as the page names it (#40), from machine_get's agent name; a missing or runtime name ("Claude Code") reads "the agent". */
+export const agentName = (name?: string | null) => !name || /claude/i.test(name) ? 'the agent' : name
