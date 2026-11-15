@@ -32,19 +32,21 @@ figcaption b:first-child { font-weight: 700; }
 p { text-align: justify; }
 figcaption b { color: var(--ink); font-weight: 600; }
 .fig1 { display: grid; grid-template-columns: 1fr 1fr 1.15fr; gap: 4pt; }
-.fig1 img { width: 100%; height: 0.86in; object-fit: cover; border-radius: 3pt; display: block; background: var(--ground); }
+.fig1 img { width: 100%; height: 0.8in; object-fit: cover; border-radius: 3pt; display: block; background: var(--ground); }
 .fig1 .brain { object-fit: contain; background: var(--ground); }
-.cols { display: grid; grid-template-columns: 1fr 1.06fr; gap: 15pt; flex: 1; min-height: 0; }
+.flow { columns: 2; column-gap: 15pt; column-fill: balance; flex: 1; min-height: 0; }
+.flow figure, .flow tr, .flow .refs, .flow li, .flow h2 { break-inside: avoid; } .flow h2 { break-after: avoid; }
+.flow > section { margin-bottom: 6pt; }
 .col { display: flex; flex-direction: column; gap: 6pt; min-width: 0; }
 section { padding-top: 1pt; }
 ol.steps { margin: 2pt 0 0; padding-left: 11pt; } ol.steps li { margin: 0 0 1.5pt; padding-left: 1pt; } ol.steps li::marker { color: var(--ink-3); font-size: 6.8pt; }
 .fig2 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4pt; margin-top: 3pt; }
 .fig2 .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5pt; border-radius: 3pt; overflow: hidden; background: var(--ground); }
-.fig2 img { width: 100%; height: 0.8in; object-fit: cover; display: block; }
+.fig2 img { width: 100%; height: 0.66in; object-fit: cover; display: block; }
 .fig2 .lab { font-size: 6.4pt; color: var(--ink-2); margin-top: 2pt; line-height: 1.3; }
 .fig2 .lab b { color: var(--ink); }
 .fig3 { display: grid; grid-template-columns: 1.4in 1fr; gap: 7pt; align-items: center; margin-top: 3pt; }
-.fig3 .map { width: 100%; height: 1.3in; object-fit: cover; object-position: 50% 58%; display: block; }
+.fig3 .map { width: 100%; height: 1.05in; object-fit: cover; object-position: 50% 58%; display: block; }
 .bars { display: grid; gap: 3.5pt; }
 .bar { display: grid; grid-template-columns: 0.98in 1fr 0.34in; gap: 5pt; align-items: center; font-size: 6.8pt; }
 .lane { position: relative; height: 4.5pt; background: #e7e1d6; border-radius: 2pt; }
@@ -59,14 +61,14 @@ table { width: 100%; border-collapse: collapse; font-size: 6.6pt; line-height: 1
 td { padding: 1.8pt 0; border-bottom: 0.4pt solid var(--rule); vertical-align: top; }
 td.num { font: 600 8.4pt/1.2 "Inter Tight", Inter, sans-serif; width: 0.78in; white-space: nowrap; }
 td.k { font-weight: 600; width: 0.82in; padding-right: 5pt; }
-.refs { font-size: 6.2pt; color: var(--ink-2); line-height: 1.4; margin-top: auto; border-top: 0.4pt solid var(--rule); padding-top: 4pt; }
+.refs { font-size: 6.2pt; color: var(--ink-2); line-height: 1.4; margin-top: 0; border-top: 0.4pt solid var(--rule); padding-top: 4pt; }
 .refs ol { margin: 0; padding-left: 10pt; columns: 2; column-gap: 12pt; }
 sup { font-size: 0.7em; color: var(--ink-3); }
 </style>
 </head>
 <body>
 
-<div class="topbar"><b>Simulaxon</b><span>Demo brief · 15 November 2026</span></div>
+<div class="topbar"><b><img src="logo.png" alt="" style="width:15pt;height:15pt;border-radius:3pt;vertical-align:-3.5pt;margin-right:5pt">Simulaxon</b><span>Demo brief · 15 November 2026</span></div>
 <header class="head">
   <div>
     <h1>Prototype neuroscience experiments in hours.</h1>
@@ -84,8 +86,7 @@ sup { font-size: 0.7em; color: var(--ink-3); }
   <figcaption><b>Fig. 1 | A trial rendered, restyled and read.</b> A run in the app: a G1 humanoid in a scanned room, rendered in <span class="tok">Isaac Sim</span> (left), the same moment restyled to photoreal by <span class="tok">Cosmos 3 Nano</span> (centre), and <span class="tok">TRIBE v2</span>'s predicted response on the cortex (right).</figcaption>
 </figure>
 
-<div class="cols">
-  <div class="col">
+<div class="flow">
     <section>
       <h2><span class="n">1</span>Every comparison costs scanner hours</h2>
       <p>To find out what drives a response, researchers need to vary what people see, hear, or know going into a scene. Testing those comparisons with people gets expensive fast, at tens of thousands of dollars per study.</p>
@@ -130,15 +131,12 @@ sup { font-size: 0.7em; color: var(--ink-3); }
         <figcaption><b>Fig. 3 | An adapter fitted on measured fMRI.</b> <b>a</b>, Adapter r per brain area. <b>b</b>, Benchmark on the <span class="tok">Human Action Dataset</span><sup>2</sup> (30 people, action video clips): median r with measured fMRI over 212 reliable brain areas, on action categories the fit never saw (ridge regression, 10 folds over categories). The adapter raises TRIBE v2's correlation by 58% and is higher in 179 of 212 areas. The line on each bar is the noise ceiling.</figcaption>
       </figure>
     </section>
-  </div>
-
-  <div class="col">
     <section>
       <h2><span class="n">5</span>One round runs on two CIQ workstations</h2>
       <p>The app and the video pipeline together need an estimated 150 GB of memory, so Fuzzball starts them on separate 128 GB workstations and gives both access to the same VAST storage.</p>
       <figure class="fig4">
         <img src="architecture.png" alt="Fuzzball 4.3 starts workstation 1 (app server, Nemotron 3 Super 120B, build-ui, observability) and workstation 2 (render-score: Isaac Sim 6.2, Cosmos 3 Nano, TRIBE v2, V-JEPA 2) over one VAST volume">
-        <figcaption><b>Fig. 4 | One round on two CIQ workstations.</b> As the Fuzzfiles define it. Workstation 1: the planner (<span class="tok">vLLM 0.27.1</span>, 8 cores, 100 GiB, 1 GPU, NVFP4, MTP decoding) and the app server (4 cores, 8 GiB). Workstation 2: render-score (<span class="tok">Isaac Sim 6.2</span> image, 16 cores, 96 GiB, 1 GPU). Every container mounts the VAST volume at /data. <b>CIQ Fuzzball 4.3.1</b> starts each service from its Fuzzfile, holds the planner until vLLM's health check passes, gives the app <i>render-score.&lt;workflow-id&gt;:8100</i> through service discovery inside the team's group, and pulled the 136 GB of weights from Hugging Face into the persistent volume. Study steps run in <b>Rocky Linux</b> containers.</figcaption>
+        <figcaption><b>Fig. 4 | One round on two CIQ workstations.</b> Planner: <span class="tok">vLLM 0.27.1</span>, 8 cores, 100 GiB, 1 GPU, NVFP4, MTP decoding. render-score: <span class="tok">Isaac Sim 6.2</span> image, 16 cores, 96 GiB, 1 GPU. <b>CIQ Fuzzball 4.3.1</b> starts each service from its Fuzzfile, holds the planner until vLLM's health check passes, connects the app to <i>render-score.&lt;id&gt;:8100</i> by service discovery, and pulled the 136 GB of weights from Hugging Face into the VAST volume every container mounts. Study steps run in <b>Rocky Linux</b> containers.</figcaption>
       </figure>
       <ol class="route">
         <li><b>Planner on workstation 1.</b> When you submit a hypothesis, Nemotron Super 120B plans the experiment on the first workstation.</li>
@@ -154,10 +152,15 @@ sup { font-size: 0.7em; color: var(--ink-3); }
 
     <section>
       <h2><span class="n">6</span>The cluster matches the desk and fits in memory</h2>
+      <p>Prometheus and Grafana run beside the services as their own Fuzzball workflow and read every node and GPU job. Values on 15 November, from the dashboard.</p>
       <table>
-        <tr><td class="num">0.9991</td><td class="k">Cluster against desk</td><td>Median per-clip correlation between the cluster's and the DGX Spark's predictions for the same clips.</td></tr>
-        <tr><td class="num">21.5 tok/s</td><td class="k">Planner reply speed</td><td>Nemotron Super 120B with speculative decoding, up from 11 to 16 tokens/s without it.</td></tr>
-        <tr><td class="num">6% free</td><td class="k">Planner's node</td><td>Grafana, Nodes now: CIQ-CHI-SPARK26 has 6% of 122 GiB available (memory pressure) with the planner, app server and monitoring; CIQ-CHI-SPARK25 has 34% of 120 GiB available with render-score.</td></tr>
+        <tr><td class="num">0.9991</td><td class="k">Cluster against desk</td><td>Median per-clip r, cluster against DGX Spark, same clips.</td></tr>
+        <tr><td class="num">21.5 tok/s</td><td class="k">Planner reply speed</td><td>Nemotron Super 120B, MTP speculative decoding on the cluster; 11 to 16 without it.</td></tr>
+        
+              <tr><td class="num">115 / 122 GiB</td><td class="k">Workstation 1</td><td>Memory in use on CIQ-CHI-SPARK26: planner, app server, monitoring.</td></tr>
+        <tr><td class="num">69 / 120 GiB</td><td class="k">Workstation 2</td><td>Memory in use on CIQ-CHI-SPARK25: render-score, 52.6 GiB in its container.</td></tr>
+        <tr><td class="num">0.64 / 0.63</td><td class="k">Busy GPU-hours</td><td>Planner and render-score, 6 h; busy 10% and 16% of the time held; peak 74 W and 81 W.</td></tr>
+        <tr><td class="num">9.6 s</td><td class="k">First token</td><td>Planner, median over 6 h; peak 24.6 tokens/s.</td></tr>
       </table>
     </section>
 
@@ -172,14 +175,14 @@ sup { font-size: 0.7em; color: var(--ink-3); }
       </ol>
     </section>
 
-    <div class="refs">
+
+  </div>
+<div class="refs">
       <ol>
         <li>d'Ascoli S. et al. A foundation model of vision, audition, and language for in-silico neuroscience. arXiv:2605.04326, 2026.</li>
         <li>A large-scale fMRI dataset for human action recognition. OpenNeuro ds004488.</li>
       </ol>
     </div>
-  </div>
-</div>
 
 </body>
 </html>

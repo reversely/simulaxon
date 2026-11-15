@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Simulaxon Demo</title>
-<link rel="icon" href="data:,">
+<link rel="icon" href="assets/logo.png">
 <!-- A plain scroll page: open index.html, or serve this folder. Copy follows docs/pitch.md; facts are checked in
      docs/research/pitch-claims.md and docs/script.md. The three dashed frames are the agent-chat recordings still to be taken.
      Motion is GSAP, as in the HyperFrames film; the backdrop and scroll pacing follow the Provinans case study. -->
@@ -57,7 +57,7 @@
 <!-- Hero: a real trial beside its predicted brain -->
 <header class="section hero" data-biome="home">
   <div class="atmos" data-glyphs aria-hidden="true"></div>
-  <span class="brand"><span class="h-ico" aria-hidden="true"><svg><use href="#i-brain"/></svg></span>Simulaxon</span>
+  <span class="brand"><img class="logo" src="assets/logo.png" alt="" width="40" height="40">Simulaxon</span>
   <div class="two">
     <div class="lines">
       <h1>Prototype neuroscience experiments in hours.</h1>
@@ -259,8 +259,8 @@
       <article class="station rs">
         <div class="rs-head"><span class="rs-ico"><svg><use href="#i-compare"/></svg></span><span class="rs-n num">6</span><h3>Back to the planner</h3></div>
         <p>The app sends the predictions back to Nemotron to compare conditions.</p>
-        <p class="toks"><span class="tok"><svg><use href="#i-mem"/></svg>CIQ-CHI-SPARK26: 6% of 122 GiB available, memory pressure</span></p>
-        <figure class="grab"><a class="full" href="assets/grafana/nodes-now.png"><img src="assets/grafana/nodes-now.png" alt="Grafana, Nodes now: CIQ-CHI-SPARK25 in use with 34% of 120 GiB available running render-score; CIQ-CHI-SPARK26 under memory pressure with 6% of 122 GiB available running the planner, app server and observability"></a><figcaption>Grafana, Nodes now: each GB10 node's state, memory available and the team's jobs on it, read from the cluster by the exporter.</figcaption></figure>
+        <p class="toks"><span class="tok"><svg><use href="#i-mem"/></svg>CIQ-CHI-SPARK26: 115 of 122 GiB in use</span></p>
+        <figure class="grab"><a class="full" href="assets/grafana/memory-per-node.png"><img src="assets/grafana/memory-per-node.png" alt="Grafana: memory in use on each GB10 node over three hours, under the 128 GB line"></a><figcaption>Grafana, Memory in use on each node: CIQ-CHI-SPARK26 holds the planner and the app server; CIQ-CHI-SPARK25 holds render-score.</figcaption></figure>
       </article>
       <article class="station rs">
         <div class="rs-head"><span class="rs-ico"><svg><use href="#i-flow"/></svg></span><span class="rs-n num">7</span><h3>Follow-up on Fuzzball</h3></div>
@@ -281,7 +281,7 @@
         <div class="ar-band" data-at="fuzz"><svg class="ic"><use href="#i-flow"/></svg><b>Fuzzball 4.3</b><em>CIQ, starts every service</em></div>
         <div class="ar-node" data-at="ws1">
           <div class="ar-nh"><svg class="ic"><use href="#i-node"/></svg><b>Workstation 1</b><span>CIQ-CHI-SPARK26</span></div>
-          <p class="ar-hw cfg"><span class="c"><svg><use href="#i-gpu"/></svg>GB10, 1 GPU</span><span class="c"><svg><use href="#i-mem"/></svg>122 GiB, 6% available</span><span class="c">memory pressure</span></p>
+          <p class="ar-hw cfg"><span class="c"><svg><use href="#i-gpu"/></svg>GB10, 1 GPU</span><span class="c"><svg><use href="#i-mem"/></svg>115 of 122 GiB in use</span></p>
           <div class="ar-svc" data-at="app">
             <div class="ar-sh"><svg class="ic"><use href="#i-app"/></svg><b>App server</b><em>FastAPI, DuckDB</em></div>
             <p class="cfg"><span class="c"><svg><use href="#i-box"/></svg>python:3.12-slim</span><span class="c"><svg><use href="#i-cpu"/></svg>4 cores</span><span class="c"><svg><use href="#i-mem"/></svg>8 GiB</span><span class="c"><svg><use href="#i-port"/></svg>8791</span><span class="c"><svg><use href="#i-link"/></svg>endpoint simulaxon</span></p>
@@ -301,7 +301,7 @@
         </div>
         <div class="ar-node" data-at="ws2">
           <div class="ar-nh"><svg class="ic"><use href="#i-node"/></svg><b>Workstation 2</b><span>CIQ-CHI-SPARK25</span></div>
-          <p class="ar-hw cfg"><span class="c"><svg><use href="#i-gpu"/></svg>GB10, 1 GPU</span><span class="c"><svg><use href="#i-mem"/></svg>120 GiB, 34% available</span><span class="c">in use</span></p>
+          <p class="ar-hw cfg"><span class="c"><svg><use href="#i-gpu"/></svg>GB10, 1 GPU</span><span class="c"><svg><use href="#i-mem"/></svg>69 of 120 GiB in use</span></p>
           <div class="ar-svc ar-rs" data-at="rs">
             <div class="ar-sh"><svg class="ic"><use href="#i-flow"/></svg><b>render-score</b><em>service</em></div>
             <p class="cfg"><span class="c"><svg><use href="#i-box"/></svg>nvcr.io/nvidia/isaac-sim:6.2.0</span><span class="c"><svg><use href="#i-cpu"/></svg>16 cores</span><span class="c"><svg><use href="#i-mem"/></svg>96 GiB</span><span class="c"><svg><use href="#i-gpu"/></svg>1 GPU</span><span class="c"><svg><use href="#i-link"/></svg>render-score.&lt;workflow-id&gt;:8100</span></p>
@@ -342,7 +342,7 @@
   <div class="figures">
     <div class="figure reveal"><span class="h-ico sm" aria-hidden="true"><svg><use href="#i-compare"/></svg></span><span class="big num">0.9991</span><span class="meter" aria-hidden="true"><i style="width:99.91%"></i></span><b>Cluster against desk</b><p>Median per-clip correlation between the cluster's and the <span class="tok"><svg><use href="#i-node"/></svg>DGX Spark</span>'s predictions for the same clips.</p></div>
     <div class="figure reveal"><span class="h-ico sm" aria-hidden="true"><svg><use href="#i-bolt"/></svg></span><span class="big num">21.5 tokens/s</span><span class="meter" aria-hidden="true"><i class="was" style="left:44%;width:20%"></i><i style="left:85%;width:2%"></i></span><b>Planner reply speed</b><p><span class="tok"><svg><use href="#i-llm"/></svg>Nemotron Super 120B</span> with <span class="tok"><svg><use href="#i-bolt"/></svg>speculative decoding</span>, up from 11 to 16 tokens/s without it.</p></div>
-    <div class="figure reveal"><span class="h-ico sm" aria-hidden="true"><svg><use href="#i-mem"/></svg></span><span class="big num">6% available</span><span class="meter" aria-hidden="true"><i style="width:94%"></i></span><b>Memory on the planner's node</b><p>Grafana's Nodes now panel, 15 Nov: CIQ-CHI-SPARK26 has 6% of its 122 GiB available and reads memory pressure while it holds the planner, the app server, Prometheus and Grafana. CIQ-CHI-SPARK25 has 34% of 120 GiB available with render-score loaded.</p></div>
+    <div class="figure reveal"><span class="h-ico sm" aria-hidden="true"><svg><use href="#i-mem"/></svg></span><span class="big num">115 of 122 GiB</span><span class="meter" aria-hidden="true"><i style="width:94%"></i></span><b>Memory in use, workstation 1</b><p>From Grafana on 15 Nov: CIQ-CHI-SPARK26 holds the planner, the app server, Prometheus and Grafana. CIQ-CHI-SPARK25 has 69 of 120 GiB in use with render-score's models loaded.</p></div>
   </div>
 </section>
 
