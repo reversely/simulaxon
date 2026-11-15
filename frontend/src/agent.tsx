@@ -18,22 +18,48 @@ function about(c: ToolCall): string {
 }
 const strip = (s: string) => s.replace(/\s*\b(WAITING|DONE)\s*$/, '').trim()
 
-/** The agent writes Markdown; show it as text with its emphasis, code, lists and paragraphs, never the raw marks. */
+/** The agent writes Markdown; show it as text with its emphasis, code, links, lists, tables and paragraphs, never the raw marks. */
 function inline(s: string): ReactNode[] {
-  return s.split(/(`[^`]+`|\*\*[^*]+\*\*|\*[^*\s][^*]*\*)/g).map((x, i) => x.startsWith('`') && x.endsWith('`') && x.length > 2 ? <code key={i}>{x.slice(1, -1)}</code>
-    : x.startsWith('**') && x.endsWith('**') && x.length > 4 ? <b key={i}>{x.slice(2, -2)}</b> : x.startsWith('*') && x.endsWith('*') && x.length > 2 ? <em key={i}>{x.slice(1, -1)}</em> : x)
+  return s.split(/(`[^`]+`|\*\*[^*]+\*\*|\*[^*\s][^*]*\*|\[[^\]]+\]\([^)\s]+\))/g).map((x, i) => {
+    const link = x.match(/^\[([^\]]+)\]\(([^)\s]+)\)$/)
+    if (link) return <a key={i} href={link[2]} target="_blank" rel="noreferrer">{link[1]}</a>
+    return x.startsWith('`') && x.endsWith('`') && x.length > 2 ? <code key={i}>{x.slice(1, -1)}</code>
+      : x.startsWith('**') && x.endsWith('**') && x.length > 4 ? <b key={i}>{x.slice(2, -2)}</b> : x.startsWith('*') && x.endsWith('*') && x.length > 2 ? <em key={i}>{x.slice(1, -1)}</em> : x
+  })
+}
+type Item = { text: string; ordered: boolean; kids: Item[] }
+const cells = (l: string) => l.replace(/^\|/, '').replace(/\|$/, '').split('|').map(c => c.trim())
+function items(list: Item[], key: number): ReactNode {
+  const L = list[0].ordered ? 'ol' : 'ul'
+  return <L key={key}>{list.map((x, i) => <li key={i}>{inline(x.text)}{x.kids.length > 0 && items(x.kids, 0)}</li>)}</L>
 }
 export function Rich({ text }: { text: string }) {
-  const out: ReactNode[] = []; let list: { ordered: boolean; items: string[] } | null = null; let para: string[] = []
-  const flush = () => { if (para.length) out.push(<p key={out.length}>{inline(para.join(' '))}</p>); para = []
-    if (list) { const L = list.ordered ? 'ol' : 'ul'; out.push(<L key={out.length}>{list.items.map((x, i) => <li key={i}>{inline(x)}</li>)}</L>); list = null } }
-  for (const raw of text.split('\n')) {
-    const l = raw.trim(); const item = l.match(/^([-*•]|\d+[.)])\s+(.*)$/); const head = l.match(/^#{1,6}\s+(.*)$/)
-    if (!l) flush()
-    else if (item) { const ordered = /\d/.test(item[1]); if (para.length || (list && list.ordered !== ordered)) flush(); (list ??= { ordered, items: [] }).items.push(item[2]) }
-    else if (head) { flush(); out.push(<p key={out.length}><b>{inline(head[1])}</b></p>) }
-    else { if (list) flush(); para.push(l) }
+  const out: ReactNode[] = []; let list: Item[] = []; let para: string[] = []; let table: string[][] = []; let code: string[] | null = null
+  const flush = () => {
+    if (para.length) out.push(<p key={out.length}>{inline(para.join(' '))}</p>); para = []
+    if (list.length) out.push(items(list, out.length)); list = []
+    if (table.length) { const [head, ...rows] = table
+      out.push(<div className="tablescroll" key={out.length}><table className="data compact"><thead><tr>{head.map((c, i) => <th key={i}>{inline(c)}</th>)}</tr></thead>
+        <tbody>{rows.map((r, i) => <tr key={i}>{r.map((c, j) => <td key={j}>{inline(c)}</td>)}</tr>)}</tbody></table></div>) }
+    table = []
   }
+  for (const raw of text.split('\n')) {
+    if (code) { if (raw.trim().startsWith('```')) { out.push(<pre key={out.length}><code>{code.join('\n')}</code></pre>); code = null } else code.push(raw); continue }
+    const l = raw.trim(); const item = l.match(/^([-*•]|\d+[.)])\s+(.*)$/); const head = l.match(/^#{1,6}\s+(.*)$/)
+    if (l.startsWith('```')) { flush(); code = [] }
+    else if (l.startsWith('|')) { if (para.length || list.length) flush(); if (!/^\|?[\s:|-]+\|?$/.test(l) || !l.includes('-')) table.push(cells(l)) }   // the |---| row only marks the header
+    else if (!l) flush()
+    else if (/^(-{3,}|\*{3,}|_{3,})$/.test(l)) { flush(); out.push(<hr key={out.length} />) }
+    else if (item) {
+      if (para.length || table.length) flush()
+      const it: Item = { text: item[2], ordered: /\d/.test(item[1]), kids: [] }; const deep = raw.length - raw.trimStart().length >= 2
+      if (deep && list.length) list[list.length - 1].kids.push(it)   // an indented item belongs to the one above it
+      else { if (list.length && list[0].ordered !== it.ordered) flush(); list.push(it) }
+    }
+    else if (head) { flush(); out.push(<p key={out.length}><b>{inline(head[1])}</b></p>) }
+    else { if (list.length || table.length) flush(); para.push(l) }
+  }
+  if (code) out.push(<pre key={out.length}><code>{(code as string[]).join('\n')}</code></pre>)
   flush(); return <>{out}</>
 }
 
