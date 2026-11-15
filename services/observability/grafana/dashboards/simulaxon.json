@@ -352,9 +352,9 @@
    "id": 34
   },
   {
-   "type": "status-history",
-   "title": "Utilisation while allocated, per job",
-   "description": "Each row is one job while it holds a GPU; colour is utilisation. A service held idle shows as a long low band; a render task shows busy, then ends.",
+   "type": "timeseries",
+   "title": "GPU utilisation per job",
+   "description": "Each line is one GPU job: the share of time its GPU was busy, from nvidia-smi every 15 s. A job held but idle sits near 0%; a render shows as a burst.",
    "datasource": {
     "type": "prometheus",
     "uid": "prometheus"
@@ -372,7 +372,7 @@
       "uid": "prometheus"
      },
      "expr": "max by (workflow_name, job) (simulaxon_gpu_utilization_percent)",
-     "legendFormat": "{{workflow_name}}/{{job}}",
+     "legendFormat": "{{job}}",
      "refId": "A"
     }
    ],
@@ -381,19 +381,15 @@
      "unit": "percent",
      "min": 0,
      "max": 100,
-     "color": {
-      "mode": "continuous-GrYlRd"
+     "custom": {
+      "lineWidth": 1,
+      "fillOpacity": 15,
+      "spanNulls": false
      }
     },
     "overrides": []
    },
-   "options": {
-    "showValue": "never",
-    "rowHeight": 0.8
-   },
-   "id": 35,
-   "maxDataPoints": 120,
-   "interval": "1m"
+   "id": 35
   },
   {
    "type": "bargauge",
