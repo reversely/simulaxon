@@ -59,6 +59,8 @@ No database change: the store code changed only how Undo works, so the Spark's s
 
 ## 6. Switching the Spark to this version
 
+Done at 6:02 pm Chicago, 14 Nov, from branch spark-transfer. All four checks below passed.
+
 Once the freeze tag exists:
 ```bash
 cd ~/Repos/simulaxon && git switch main && git merge --ff-only vast-final-2026-11-14
