@@ -19,6 +19,9 @@ jobs:
     mounts:
       /data:
         volume: data
+    policy:
+      timeout:
+        execute: 6h   # jobs stop at 1 h by default, which cut a long copy off
     script: |
       #!/bin/sh
       sleep 21600
