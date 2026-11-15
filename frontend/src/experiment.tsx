@@ -17,13 +17,13 @@ export type Paper = { title?: string; authors?: string; year?: string | number; 
 export const SERIES = ['#5aa9e6', '#9a948a', '#a8d1f2', '#5f5a53']
 const LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
 
-/** Where a stimulus came from, on every tile and stage: fetched from a dataset, rendered in Isaac Sim, made here, or Cosmos. */
+/** Where a stimulus came from, on every tile and stage: fetched from a dataset, rendered in Isaac Sim, restyled by Cosmos, or added as a file. */
 export function OriginChip({ o, long }: { o?: Origin | null; long?: boolean }) {
-  if (!o) return null
+  if (!o || o.kind === 'generated') return null   // stimuli made by a script here carry no chip
   const tip = o.kind === 'cosmos' ? [`Restyled by Cosmos, seeds ${o.seeds?.join(', ')}`, `Prompt: ${o.prompt}`, o.from?.title, o.from?.ref] : [o.title, o.ref, o.licence ? `Licence ${o.licence}` : 'No licence stated']
   return <span className={`origin ${o.kind}`} title={tip.filter(Boolean).join('\n')}>
     {o.kind === 'cosmos' ? (long ? `Cosmos, from ${o.from?.kind === 'dataset' ? o.from.ref?.replace(/^\w+:/, '') ?? 'a dataset' : o.from?.kind === 'isaac' ? 'Isaac Sim' : 'a file'}` : 'Cosmos')
-      : o.kind === 'dataset' ? (long ? `From ${o.ref?.replace(/^\w+:/, '') ?? o.title ?? 'a dataset'}` : 'Dataset') : o.kind === 'isaac' ? 'Isaac Sim' : o.kind === 'generated' ? (long ? 'Made here from photos' : 'Made here') : 'Added file'}
+      : o.kind === 'dataset' ? (long ? `From ${o.ref?.replace(/^\w+:/, '') ?? o.title ?? 'a dataset'}` : 'Dataset') : o.kind === 'isaac' ? 'Isaac Sim' : 'Added file'}
   </span>
 }
 

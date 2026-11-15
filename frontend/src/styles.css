@@ -407,7 +407,6 @@ ol.calls li.refused .callrow > span:first-child { color: var(--flag); }
 .letter.b { background: #ffffff; color: var(--paper-ink); border: 1.5px solid var(--paper-ink); }
 .routechips { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px; }
 .paper .origin { color: var(--paper-ink); border-color: #cfc7ba; background: #f8f6f1; }
-.paper .origin.generated::before { background: transparent; border: 2px solid var(--paper-ink); width: 6px; height: 6px; }
 .paper .arrow { color: var(--paper-ink-2); }
 .addentry { font: inherit; font-size: 15px; color: var(--paper-ink-2); background: transparent; border: 1.5px dashed #c8c0b3; border-radius: 12px; padding: 9px 12px; text-align: left; cursor: pointer; min-height: 44px; }
 .addentry:hover { color: var(--paper-ink); border-color: var(--paper-ink-2); }
@@ -422,7 +421,6 @@ ol.calls li.refused .callrow > span:first-child { color: var(--flag); }
 .course .legend { margin-bottom: 4px; min-height: 20px; }   /* one line of legend, held while the course is read (#30) */
 .coursewait { display: flex; align-items: center; justify-content: center; }
 .course .legend b { font-weight: 600; }
-.origin.generated::before { background: transparent; border: 2px solid var(--ink-2); width: 6px; height: 6px; }
 
 .origin.stagechip::before { display: none; }
 @media (max-width: 760px) {
