@@ -43,6 +43,18 @@ export const regionInText = (r: string) => { const l = regionLabel(r); return l 
 /** A region's name inside a sentence: words in lower case, atlas codes such as FFC or V1 kept as they are. */
 export const inText = (r: string) => /^[LR]?_?[A-Z0-9][A-Za-z0-9_-]*$/.test(r) && /[A-Z]{2}|\d/.test(r) ? r : r.toLowerCase()
 export const fmt = (v: number | null | undefined, d = 3) => v == null || Number.isNaN(v) ? 'None' : (v > 0 ? '+' : v < 0 ? '−' : '') + Math.abs(v).toFixed(d)
+/** How each plan works, in one plain sentence, shown wherever the plan is first met (a template card), and on hover elsewhere. */
+export const PLAN_INFO: Record<string, string> = {
+  matched: 'Each item beside a look-alike; the result is the difference within each pair.',
+  leave_one_out: 'Each object hidden in turn; the result is what changes without it.',
+  selection: 'Every stimulus scored first; the ones that fit the question are kept.',
+  factorial: 'Every combination of two choices, so each one\'s effect reads on its own.',
+  experiment: 'Conditions from a paper or a dataset, compared, with the paper\'s result beside them.',
+  adaptive: 'Each run chooses the next values from what the last one showed.',
+  grid: 'Every value of the controls, on an even grid.',
+  random: 'Values drawn at random across the controls.',
+}
+export const PLAN_ICON: Record<string, string> = { matched: 'pairs', leave_one_out: 'leaveout', selection: 'funnel', factorial: 'samples', experiment: 'flask', adaptive: 'branch', grid: 'table', random: 'shuffle' }
 export const PLAN_NAMES: Record<string, string> = { matched: 'Matched pairs', leave_one_out: 'Leave one out', adaptive: 'Adaptive search', selection: 'Selection', grid: 'Grid', random: 'Random', factorial: 'Two by two', experiment: 'Experiment' }
 export const ROLE_NAMES: Record<string, string> = { manipulated: 'Manipulated', matched: 'Matched', fixed: 'Fixed', randomized: 'Randomized', measured: 'Measured', split: 'Split' }
 

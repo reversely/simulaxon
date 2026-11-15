@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { call, fmt, regionLabel, type Row, type Sample } from './api'
+import { Icon } from './icons'
 
 export type Origin = { kind: 'dataset' | 'isaac' | 'file' | 'generated' | 'cosmos'; label: string; title?: string; ref?: string; licence?: string | null; dataset_id?: string; from?: Origin; prompt?: string; seeds?: number[] }
 export type Setup = {
@@ -50,7 +51,7 @@ export function ExperimentSetup({ setup, paper, onRun, onAsk, running, progress 
         <span className="routechips"><OriginChip o={c.origin} long />{c.origin.kind === 'cosmos' && <span className="origin cosmos">Cosmos, seeds {c.origin.seeds?.join(' and ')}</span>}<span className="arrow" aria-hidden>→</span><span className="origin stagechip">TRIBE v2</span></span>
         <span className="ink2 num count">{c.files_available} files, {c.trials} trials</span>
       </div>)}
-      {!running && <button className="addentry" onClick={() => onAsk('Suggest one more condition for this experiment. Set it up only if I agree.')}>Add condition</button>}
+      {!running && <button className="addentry" onClick={() => onAsk('Suggest one more condition for this experiment. Set it up only if I agree.')}><Icon name="plus" size={16} />Add condition</button>}
 
       <div className="entrycols">
         <div>
@@ -64,7 +65,7 @@ export function ExperimentSetup({ setup, paper, onRun, onAsk, running, progress 
         <div>
           <h3>Regions</h3>
           <div className="pills">{setup.regions.map(r => <span key={r} className="pill" title={r}>{regionLabel(r)}</span>)}
-            {!running && <button className="addentry pilladd" onClick={() => onAsk('Suggest another brain region for this experiment and say why.')}>Add region</button>}</div>
+            {!running && <button className="addentry pilladd" onClick={() => onAsk('Suggest another brain region for this experiment and say why.')}><Icon name="plus" size={16} />Add region</button>}</div>
         </div>
       </div>
 
@@ -75,14 +76,14 @@ export function ExperimentSetup({ setup, paper, onRun, onAsk, running, progress 
           <span>{ct.name}</span>
         </div> })}
       {setup.reported.map((r, i) => <div key={i} className="entryrow reportedrow"><span className="ink2">Paper</span><span>{regionLabel(r.region)} {r.direction ?? 'higher'} for {r.contrast}</span><span className="ink2">{r.where}</span></div>)}
-      {!running && <button className="addentry" onClick={() => onAsk('Suggest another comparison for this experiment. Set it up only if I agree.')}>Add comparison</button>}
+      {!running && <button className="addentry" onClick={() => onAsk('Suggest another comparison for this experiment. Set it up only if I agree.')}><Icon name="plus" size={16} />Add comparison</button>}
 
       <div className="entryfoot">
         {running ? <><div className="fbar" style={{ width: 280 }}><span style={{ width: `${progress?.total ? 100 * progress.done / progress.total : 0}%` }} /></div>
           <span className="ink2 num">{progress?.stage === 'comparing' ? 'Comparing' : progress?.stage === 'cosmos' ? `Cosmos is restyling, then TRIBE: ${progress.done} of ${progress.total} trials` : progress?.total ? `${progress.done} of ${progress.total} clips through TRIBE` : 'Starting'}</span></>
           : <><span><b>{setup.clips}</b> clips</span><span className="ink2">About {Math.max(1, Math.round(setup.minutes_estimate))} min</span>
-            <span className="bar" style={{ marginLeft: 'auto' }}><button className="btn" onClick={() => onAsk('Check this set-up against the paper before it runs.')}>Ask the agent</button>
-              {onRun && <button className="btn primary" onClick={onRun}>{progress?.stage === 'failed' ? 'Run again' : 'Run'}</button>}</span></>}
+            <span className="bar" style={{ marginLeft: 'auto' }}><button className="btn" onClick={() => onAsk('Check this set-up against the paper before it runs.')}><Icon name="chat" size={16} />Ask the agent</button>
+              {onRun && <button className="btn primary" onClick={onRun}><Icon name="play" size={16} />{progress?.stage === 'failed' ? 'Run again' : 'Run'}</button>}</span></>}
       </div>
     </section>
   </div>

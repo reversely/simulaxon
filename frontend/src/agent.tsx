@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { upload as sendFile } from './api'
+import { Icon, type IconName } from './icons'
 
 export type ToolCall = { tool: string; arguments: Record<string, unknown>; at: number; result?: string; error?: boolean; internal?: boolean; project_id?: string }
 export type Turn = { n: number; from?: 'person' | 'wake' | 'goal'; mode?: 'discuss' | 'through'; prompt: string; started: string; ended?: string; seconds?: number; tool_calls: ToolCall[]; text: string[]; reply: string | null }
@@ -40,8 +41,8 @@ export function SessionDock({ sessions, onOpen, onStop }: { sessions: SessionInf
       <span className="chip">{STATUS[s.status]}</span>
       <span className="ink2 num">{s.tool_calls} steps{s.errors ? `, ${s.errors} refused` : ''}{s.internal_errors ? `, ${s.internal_errors} ${s.internal_errors === 1 ? 'error' : 'errors'}` : ''}</span>
       <span className="bar" style={{ marginLeft: 'auto' }}>
-        <button className="btn" onClick={() => onOpen(s.id)}>Open</button>
-        <button className="btn" onClick={() => onStop(s.id)}>Stop</button>
+        <button className="btn" onClick={() => onOpen(s.id)}><Icon name="open" size={15} />Open</button>
+        <button className="btn" onClick={() => onStop(s.id)}><Icon name="stop" size={15} />Stop</button>
       </span>
     </div>)}
   </section>
@@ -52,7 +53,7 @@ export function SessionDock({ sessions, onOpen, onStop }: { sessions: SessionInf
  * runs and fetches arrive on their own when they finish. */
 export function Chat({ sid, projectId, live, compact, header, footer, chips, onStarted, onOpenProject }: {
   sid: string | null; projectId?: string | null; live: number; compact?: boolean; header?: ReactNode; footer?: ReactNode
-  chips?: { label: string; run: () => void }[]; onStarted: (id: string) => void; onOpenProject: (pid: string) => void
+  chips?: { label: string; run: () => void; icon?: IconName }[]; onStarted: (id: string) => void; onOpenProject: (pid: string) => void
 }) {
   const [s, setS] = useState<Session | null>(null); const [text, setText] = useState(''); const [files, setFiles] = useState<{ file: string; dataset_id: string; megabytes: number }[]>([])
   const [open, setOpen] = useState<Record<string, boolean>>({}); const [busy, setBusy] = useState(false); const [err, setErr] = useState(''); const [sent, setSent] = useState<{ text: string; mode: string } | null>(null)   // shown at once, until the chat has it
@@ -112,19 +113,19 @@ export function Chat({ sid, projectId, live, compact, header, footer, chips, onS
       {footer}
       <div ref={end} />
     </div>
-    {chips && chips.length > 0 && <div className="chips">{chips.map(c => <button key={c.label} onClick={c.run}>{c.label}</button>)}</div>}
+    {chips && chips.length > 0 && <div className="chips">{chips.map(c => <button key={c.label} onClick={c.run}>{c.icon && <Icon name={c.icon} size={15} />}{c.label}</button>)}</div>}
     <form className="ask composer" onSubmit={e => { e.preventDefault(); send('discuss') }}>
       {files.length > 0 && <div className="attach">{files.map(f => <span key={f.file} className="origin file">{f.file}</span>)}</div>}
       <textarea aria-label="Message the agent" placeholder="Discuss, or paste a link to a paper or dataset" value={text} onChange={e => setText(e.target.value)}
         onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send('discuss') } }} />
       <div className="bar">
         <input ref={fileIn} type="file" multiple hidden onChange={e => { upload(e.target.files); e.target.value = '' }} aria-label="Files to upload" />
-        <button type="button" className="btn" onClick={() => fileIn.current?.click()}>Upload</button>
-        {running && sid && <button type="button" className="btn" onClick={() => fetch(`/agent/sessions/${sid}/stop`, { method: 'POST' })}>Stop</button>}
+        <button type="button" className="btn" onClick={() => fileIn.current?.click()}><Icon name="upload" size={16} />Upload</button>
+        {running && sid && <button type="button" className="btn" onClick={() => fetch(`/agent/sessions/${sid}/stop`, { method: 'POST' })}><Icon name="stop" size={16} />Stop</button>}
         {err && <span className="flag">{err}</span>}
         <span className="bar" style={{ marginLeft: 'auto' }}>
-          <button type="submit" className="btn" disabled={busy || (!text.trim() && !files.length)}>Send</button>
-          <button type="button" className="btn primary" disabled={busy || (!text.trim() && !files.length)} onClick={() => send('through')}>Set up and run</button>
+          <button type="submit" className="btn" disabled={busy || (!text.trim() && !files.length)}><Icon name="send" size={16} />Send</button>
+          <button type="button" className="btn primary" disabled={busy || (!text.trim() && !files.length)} onClick={() => send('through')}><Icon name="play" size={16} />Set up and run</button>
         </span>
       </div>
     </form>

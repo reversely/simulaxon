@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { call, fmt, regionLabel, PLAN_NAMES, ROLE_NAMES, type AnalysisItem, type MapRow, type Project, type Region, type Row, type Sample, type Template, regionInText } from './api'
+import { call, fmt, regionLabel, PLAN_NAMES, PLAN_INFO, PLAN_ICON, ROLE_NAMES, type AnalysisItem, type MapRow, type Project, type Region, type Row, type Sample, type Template, regionInText } from './api'
+import { Icon, type IconName } from './icons'
 import { DotStrip, MiniInterval, SignedBars, TimeCourse } from './charts'
 import { FindingsView, SearchView, SourcesView } from './views'
 import { WorldPanel, type Param, type Preview, type PreviewEvent } from './world'
@@ -13,6 +14,7 @@ import { ExperimentSetup, ExperimentRoom, ReportedCard, OriginChip, type Setup, 
 type View = 'room' | 'samples' | 'brain' | 'search' | 'data' | 'findings' | 'sources' | 'agent'
 const WIDE: View[] = ['search', 'data', 'findings', 'sources', 'agent']
 type Unit = { key: string; label: string; variants: Row<Sample>[]; labels: string[] }
+const VIEW_ICON: Record<string, IconName> = { room: 'room', samples: 'samples', brain: 'brain', search: 'search', data: 'table', findings: 'findings', sources: 'book' }
 const VIEWS: [View, string][] = [['room', 'Room'], ['samples', 'Samples'], ['brain', 'Brain'], ['search', 'Search'], ['data', 'Data'], ['findings', 'Findings'], ['sources', 'Sources']]
 const ANALYSIS_NAMES: Record<string, string> = { paired: 'Difference per region', items_needed: 'Pairs needed', time_course: 'Response by second', per_object: 'Effect of each object' }
 const VIEW_NAMES: Record<string, string> = { left: 'Left', right: 'Right', ventral: 'Underside', posterior: 'Back' }
@@ -185,12 +187,12 @@ export default function App() {
 
   const runsNow = projects.filter(p => p.data.status === 'Running').map(p => ({ id: p.id, title: p.data.title, done: runProg[p.id]?.done ?? 0, total: runProg[p.id]?.total ?? 0, stage: runProg[p.id]?.stage }))
 
-  function chipsFor(): { label: string; run: () => void }[] {
+  function chipsFor(): { label: string; run: () => void; icon?: IconName }[] {
     if (!P) return []
     if (P.status === 'Running') return []
     if (P.status !== 'Done') return [P.plan === 'experiment' ? { label: 'Ask the agent to check it', run: () => send(`Check this experiment against its paper before it runs: ${P.question}`) }
       : { label: 'Ask the agent to build it', run: () => send(`Build and run this project: ${P.question}`) }]
-    const out: { label: string; run: () => void }[] = []
+    const out: { label: string; run: () => void; icon?: IconName }[] = []
     if (view !== 'brain') out.push({ label: 'Show the brain', run: () => setView('brain') })
     if ((P as any).search && view !== 'search') out.push({ label: 'How were the items chosen?', run: () => setView('search') })
     const sibs = projects.filter(p => p.data.template_id === P.template_id && p.id !== pid && p.data.status === 'Done')
@@ -207,8 +209,8 @@ export default function App() {
 
   // no project yet, as on a fresh install: the agent's chat and New project, never a spinner that waits for nothing
   if (!project || !P) return <div className="frame">
-    <header className="top"><span className="brand">Simulaxon</span><button className="btn" onClick={() => setSheet('templates')}>New project</button>
-      {machine?.dashboard && <a className="btn" href="/dashboard" target="_blank" rel="noreferrer">Dashboard</a>}
+    <header className="top"><span className="brand">Simulaxon</span><button className="btn" onClick={() => setSheet('templates')}><Icon name="plus" size={16} />New project</button>
+      {machine?.dashboard && <a className="btn" href="/dashboard" target="_blank" rel="noreferrer"><Icon name="gauge" size={16} />Dashboard</a>}
       {offline && <span className="chip flag" role="status">Reconnecting to the lab server</span>}</header>
     {!projectsLoaded ? <div className="centre"><span className="spin" /></div>
       : <div className="body chatonly"><main className="col centre"><div className="chatwide"><h1 className="q">{sessions.find(x => x.id === openSession)?.goal ?? 'New chat with the agent'}</h1>
@@ -229,15 +231,15 @@ export default function App() {
             </button>)}
           </div>}
         </div>
-        <button className="btn" onClick={() => setSheet('templates')}>New project</button>
-        {machine?.dashboard && <a className="btn" href="/dashboard" target="_blank" rel="noreferrer">Dashboard</a>}
+        <button className="btn" onClick={() => setSheet('templates')}><Icon name="plus" size={16} />New project</button>
+        {machine?.dashboard && <a className="btn" href="/dashboard" target="_blank" rel="noreferrer"><Icon name="gauge" size={16} />Dashboard</a>}
         {machine && <div className="status" aria-label="Machine status">
           <span>Agent: {machine.agent}</span>
           <span><span className={`dot ${machine.world_node !== 'Idle' ? 'busy' : ''}`} />World node {machine.world_node === 'Idle' ? 'idle' : machine.world_node}</span>
           <span><span className={`dot ${machine.brain_node !== 'Idle' ? 'busy' : ''}`} />Brain node {machine.brain_node === 'Idle' ? 'idle' : machine.brain_node}</span>
         </div>}
         {offline && <span className="chip flag" role="status">Reconnecting to the lab server</span>}
-        <nav className="tabs">{VIEWS.map(([v, n]) => <button key={v} className={`tab ${view === v ? 'on' : ''}`} onClick={() => setView(v)}>{n}</button>)}</nav>
+        <nav className="tabs">{VIEWS.map(([v, n]) => <button key={v} className={`tab ${view === v ? 'on' : ''}`} onClick={() => setView(v)}><Icon name={VIEW_ICON[v]} size={16} />{n}</button>)}</nav>
       </header>
 
       <div className={`body ${widen ? 'wideconvo' : ''} ${view === 'agent' ? 'chatonly' : ''}`}>
@@ -259,7 +261,7 @@ export default function App() {
             <h1 className="q">{P.question}</h1>
             <div className="bar" style={{ marginTop: 8 }}>
               <span className="ink2">{template?.title}</span>
-              <span className="chip">{PLAN_NAMES[P.plan] ?? P.plan}</span>
+              <span className="chip" title={PLAN_INFO[P.plan]}>{PLAN_ICON[P.plan] && <Icon name={PLAN_ICON[P.plan] as IconName} size={14} />}{PLAN_NAMES[P.plan] ?? P.plan}</span>
               <span className={`chip ${P.status === 'Running' ? 'flag' : ''}`}>{P.status}</span>
               {P.counts && P.status === 'Done' && <span className="ink2 num">{P.counts.clips} clips</span>}
             </div>
@@ -307,7 +309,7 @@ export default function App() {
 
 function Conversation({ P, pid, template, flowNow, steps, narr, onUndo, widen, onWiden, chips, sid, live, onStarted, onOpenProject }: {
   P: Project; pid: string; template?: Template; flowNow: string; steps: any[]; narr: Narration[]; onUndo: (id: string) => void; widen: boolean; onWiden: () => void
-  chips: { label: string; run: () => void }[]; sid: string | null; live: number; onStarted: (id: string) => void; onOpenProject: (pid: string) => void
+  chips: { label: string; run: () => void; icon?: IconName }[]; sid: string | null; live: number; onStarted: (id: string) => void; onOpenProject: (pid: string) => void
 }) {
   const [code, setCode] = useState<string | null>(null)
   const mine = steps.slice(-6)
@@ -326,14 +328,14 @@ function Conversation({ P, pid, template, flowNow, steps, narr, onUndo, widen, o
     <div className="steps">
       {mine.map(s => <div key={s.step_id}>
         <div className="step"><span><code>{s.tool}</code> by {s.actor}</span><span className="bar" style={{ gap: 6 }}>
-          <button className="btn" onClick={() => setCode(code === s.step_id ? null : s.step_id)} aria-expanded={code === s.step_id}>Code</button>
-          {s.tool !== 'step_undo' && !s.undoes && <button className="btn" onClick={() => onUndo(s.step_id)}>Undo</button>}</span></div>
+          <button className="btn" onClick={() => setCode(code === s.step_id ? null : s.step_id)} aria-expanded={code === s.step_id}><Icon name="code" size={15} />Code</button>
+          {s.tool !== 'step_undo' && !s.undoes && <button className="btn" onClick={() => onUndo(s.step_id)}><Icon name="undo" size={15} />Undo</button>}</span></div>
         {code === s.step_id && <pre className="codebox">{`${s.tool}(${JSON.stringify(JSON.parse(s.args || '{}'), null, 1)})`}</pre>}
       </div>)}
     </div>
   </div>
   return <Chat sid={sid} projectId={pid} live={live} compact={!widen} header={header} footer={footer} onStarted={onStarted} onOpenProject={onOpenProject}
-    chips={[...chips.slice(0, 3), { label: widen ? 'Narrow' : 'Widen', run: onWiden }]} />
+    chips={[...chips.slice(0, 3), { label: widen ? 'Narrow' : 'Widen', run: onWiden, icon: widen ? 'shrink' : 'expand' }]} />
 }
 
 /** A tab of a project that hasn't finished: what will appear here, and how far the run has got. */
@@ -532,9 +534,9 @@ function Inspector({ P, pid, template, projects, paired, needed, objects, perObj
       <div className="kv"><span className="k">{(template?.unit_noun ?? 'unit')[0].toUpperCase() + (template?.unit_noun ?? 'unit').slice(1)}s needed, {region}</span><span className="mid">{need.pairs_needed ?? 'None'}</span></div>
       <div className="muted" style={{ marginTop: 4 }}>For 80% power at this effect and spread, in TRIBE</div>
       <ul className="list" style={{ marginTop: 8 }}>{template?.handoff.map(h => <li key={h}><span>{h}</span></li>)}</ul>
-      <button className="btn" style={{ marginTop: 8 }} onClick={bundle}>Download bundle</button>
+      <button className="btn" style={{ marginTop: 8 }} onClick={bundle}><Icon name="download" size={16} />Download bundle</button>
     </div>}
-    {!need && P.status === 'Done' && <div className="card"><h3>Hand off</h3><ul className="list">{template?.handoff.map(h => <li key={h}><span>{h}</span></li>)}</ul><button className="btn" style={{ marginTop: 8 }} onClick={bundle}>Download bundle</button></div>}
+    {!need && P.status === 'Done' && <div className="card"><h3>Hand off</h3><ul className="list">{template?.handoff.map(h => <li key={h}><span>{h}</span></li>)}</ul><button className="btn" style={{ marginTop: 8 }} onClick={bundle}><Icon name="download" size={16} />Download bundle</button></div>}
     {(P as any).scene && <SceneCard scene={(P as any).scene} selected={unit?.key} onPick={onPickObject} />}
     {!template && P.status !== 'Done' && <div className="card"><h3>Results</h3><div className="ink2">After the run: TRIBE beside the paper's result, with baselines.</div></div>}
     {template && <>
@@ -542,7 +544,7 @@ function Inspector({ P, pid, template, projects, paired, needed, objects, perObj
       <ul className="list">{template_analyses.map(k => { const a = analyses.find(x => x.analysis.data.kind === k); return <li key={k}><span>{a?.analysis.data.title ?? ANALYSIS_NAMES[k] ?? k}</span><span className="ink2">{a?.result ? (a.stale ? 'Out of date' : 'Done') : 'Not run'}</span></li> })}</ul>
     </div>
     <div className="card"><h3>Challenge</h3>
-      <ul className="list">{template?.controls.map(c => <li key={c}><span>{c}</span><button className="btn" onClick={() => onFork(c)}>Fork</button></li>)}</ul>
+      <ul className="list">{template?.controls.map(c => <li key={c}><span>{c}</span><button className="btn" onClick={() => onFork(c)}><Icon name="branch" size={16} />Fork</button></li>)}</ul>
       {siblings.length > 0 && <><div className="ink2" style={{ margin: '10px 0 4px' }}>Same template</div><ul className="list">{siblings.map(s => <li key={s.id}><button className="tab" style={{ padding: 0, textAlign: 'left' }} onClick={() => onOpenProject(s.id)}>{s.data.title}</button><span className="chip">{s.data.status}</span></li>)}</ul></>}
     </div>
     <div className="card"><h3>Parameters</h3>
@@ -556,31 +558,35 @@ function TemplateSheet({ examples, onOpenProject, onGoal, onChat, templates, dem
   const blanks = pick ? [...new Set([...pick.question.matchAll(/\{(\w+)\}/g)].map(m => m[1]))] : []
   return <div className="overlay" onClick={onClose}>
     <div className="sheet" onClick={e => e.stopPropagation()} role="dialog" aria-label="New project">
-      <div className="bar"><h2>New project</h2><button className="btn" style={{ marginLeft: 'auto' }} onClick={onClose}>Close</button></div>
+      <div className="sheethead"><h2>New project</h2><button className="iconbtn" onClick={onClose} aria-label="Close" title="Close"><Icon name="close" size={20} /></button></div>
       {!pick ? <>
-        <div className="bar" style={{ alignItems: 'flex-end' }}>
-          <div style={{ flex: 1 }}><h2 className="q" style={{ fontSize: 30 }}>Examples</h2><p className="ink2" style={{ margin: '6px 0 0' }}>Classic experiments, set up and ready to run or change. Brain responses are predicted by TRIBE v2, Meta's model of the human brain.</p></div>
-          <button className="btn primary" onClick={onChat}>New chat</button>
+        <p className="ink2 sheetlede">Brain responses are predicted by TRIBE v2, Meta's model of the human brain. Start one of three ways.</p>
+        <div className="startways">
+          <button className="startway first" onClick={onChat}><Icon name="chat" size={26} /><b>Chat with the agent</b><span>Describe what to test, or paste a paper or a dataset. Set it up together, or let the agent run it.</span></button>
+          <button className="startway" onClick={() => document.getElementById('start-examples')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}><Icon name="flask" size={26} /><b>Open a classic experiment</b><span>Set up already, ready to run or change.</span></button>
+          <button className="startway" onClick={() => document.getElementById('start-templates')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}><Icon name="template" size={26} /><b>Start from a template</b><span>A study design with blanks to fill in.</span></button>
         </div>
+        <h3 className="sechead" id="start-examples"><Icon name="flask" />Classic experiments</h3>
         <div className="excards">{examples.map(e => <article key={e.id} className="excard">
           {e.media.length > 0 && <div className="pics">{e.media.map(src => src.endsWith('.mp4') ? <video key={src} src={src} autoPlay muted loop playsInline preload="metadata" aria-label={`${e.title}, the stimulus`} /> : <img key={src} src={src} alt="" />)}</div>}
           <div className="exbody">
             <h3>{e.title}</h3>
             <div>{e.what}</div>
             <div className="ink2">{e.doi ? <a href={`https://doi.org/${e.doi}`} target="_blank" rel="noreferrer">{e.source}</a> : e.source}</div>
-            <div className="here"><span>{e.here}</span>{e.project_id ? <button className="btn primary" onClick={() => onOpenProject(e.project_id!)}>Open</button> : <button className="btn" onClick={() => onGoal(e.goal)}>Start with the agent</button>}</div>
+            <div className="here"><span>{e.here}</span>{e.project_id ? <button className="btn primary" onClick={() => onOpenProject(e.project_id!)}><Icon name="open" size={16} />Open</button> : <button className="btn" onClick={() => onGoal(e.goal)}><Icon name="chat" size={16} />Start with the agent</button>}</div>
           </div>
         </article>)}</div>
-        <h2 style={{ marginTop: 28 }}>Templates</h2>
-        <p className="ink2">Start from a template. Every template runs the same six steps: build a world, choose what varies, run, compare, challenge, hand off.</p>
+        <h3 className="sechead" id="start-templates"><Icon name="template" />Templates</h3>
+        <p className="ink2">Every template runs the same six steps: build a world, choose what varies, run, compare, challenge, hand off.</p>
         <div className="cards">{templates.map(t => <div key={t.id} className="tcard">
           <h3>{t.title}</h3>
           <div className="qq">{t.question.replace(/\{(\w+)\}/g, '…')}</div>
           <div className="ink2">{t.blurb}</div>
-          <div className="bar"><span className="chip">{PLAN_NAMES[t.plan]}</span><span className="ink2 num">{t.projects} {t.projects === 1 ? 'project' : 'projects'}</span></div>
-          <button className="btn primary" style={{ marginTop: 'auto' }} onClick={() => { setPick(t); setTitle(''); setVals({}) }}>Use template</button>
+          <div className="planline">{PLAN_ICON[t.plan] && <Icon name={PLAN_ICON[t.plan] as IconName} />}<span><b>{PLAN_NAMES[t.plan]}</b>{PLAN_INFO[t.plan] ? `: ${PLAN_INFO[t.plan].replace(/^./, c => c.toLowerCase())}` : ''}</span></div>
+          <div className="ink2 num">{t.projects} {t.projects === 1 ? 'project' : 'projects'} made from it</div>
+          <button className="btn primary" style={{ marginTop: 'auto' }} onClick={() => { setPick(t); setTitle(''); setVals({}) }}><Icon name="template" size={16} />Use template</button>
         </div>)}</div>
-        <h2 style={{ marginTop: 28 }}>Paper demos</h2>
+        <h3 className="sechead"><Icon name="play" />Paper demos</h3>
         <p className="ink2">The agent reads a paper, writes its steps with the templates above, and replays it in the paper's order. Every render and reading is real.</p>
         <div className="cards">{demos.map(d => <div key={d.id} className="tcard">
           <h3>{d.title ?? d.paper}</h3><a className="ink2" href={d.url} target="_blank" rel="noreferrer">{d.paper}</a>
@@ -588,7 +594,7 @@ function TemplateSheet({ examples, onOpenProject, onGoal, onChat, templates, dem
           {writeErr[d.id] && <span className="chip flag">{writeErr[d.id]}</span>}
           <div className="bar"><span className="chip">{templates.find(t => t.id === d.template)?.title}</span>{d.written && <span className="ink2">Written by the agent</span>}</div>
           <div className="bar" style={{ marginTop: 'auto' }}>
-            {d.written && !d.missing_projects?.length && <button className="btn primary" onClick={() => onPlay(d.id)}>Play</button>}
+            {d.written && !d.missing_projects?.length && <button className="btn primary" onClick={() => onPlay(d.id)}><Icon name="play" size={16} />Play</button>}
             {d.missing_projects?.length ? <span className="chip flag">Its study was deleted</span> : null}
             <button className={d.written && !d.missing_projects?.length ? 'btn' : 'btn primary'} disabled={d.writing} onClick={() => onWrite(d.id)}>{d.written ? 'Write again' : 'Write with the agent'}</button>
           </div>
@@ -598,7 +604,7 @@ function TemplateSheet({ examples, onOpenProject, onGoal, onChat, templates, dem
         <div className="q" style={{ fontSize: 22 }}>{pick.question.replace(/\{(\w+)\}/g, (_, k) => vals[k] || '…')}</div>
         <label className="field"><span>Project name</span><input value={title} onChange={e => setTitle(e.target.value)} /></label>
         {blanks.map(b => <label key={b} className="field"><span>{b === 'a' ? 'First condition' : b === 'b' ? 'Second condition' : b.replace(/_/g, ' ').replace(/^./, c => c.toUpperCase())}</span><input value={vals[b] ?? ''} onChange={e => setVals(v => ({ ...v, [b]: e.target.value }))} /></label>)}
-        <div className="bar"><button className="btn" onClick={() => setPick(null)}>Back</button><button className="btn primary" disabled={!title.trim() || blanks.some(b => !vals[b]?.trim())} onClick={() => onCreate(pick, title.trim(), vals)}>Create project</button></div>
+        <div className="bar"><button className="btn" onClick={() => setPick(null)}><Icon name="back" size={16} />Back</button><button className="btn primary" disabled={!title.trim() || blanks.some(b => !vals[b]?.trim())} onClick={() => onCreate(pick, title.trim(), vals)}>Create project</button></div>
       </div>}
     </div>
   </div>

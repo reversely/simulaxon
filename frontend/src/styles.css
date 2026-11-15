@@ -444,3 +444,36 @@ aside.left .convo { padding-bottom: 28px; }
 .course .legend { flex-wrap: wrap; gap: 6px 16px; }
 .course .legend span { display: inline-flex; align-items: center; gap: 6px; }
 .course .legend i { display: inline-block; width: 16px; height: 3px; border-radius: 2px; flex: none; }
+
+/* icons: one line weight, beside the word on every button, tab and chip (owner: icon components to make interpretation easier) */
+.ico { flex: none; display: block; }
+.btn, .tab, .chips button, a.btn { display: inline-flex; align-items: center; gap: 7px; }
+.tab .ico { opacity: 0.8; } .tab.on .ico { opacity: 1; }
+.chip .ico { margin-right: 2px; }
+.iconbtn { display: inline-flex; align-items: center; justify-content: center; width: 40px; height: 40px; background: none; border: 1px solid transparent; border-radius: 10px; color: var(--ink-2); cursor: pointer; }
+.iconbtn:hover { color: var(--ink); border-color: var(--rule-strong); background: var(--raise); }
+.iconbtn:focus-visible { outline: 2px solid var(--sel); outline-offset: 2px; }
+/* New project: one title, three ways to start in order, a section for each */
+.sheethead { display: flex; align-items: center; gap: 12px; }
+.sheethead h2 { margin: 0; font-size: 26px; }
+.sheethead .iconbtn { margin-left: auto; }
+.sheetlede { margin: 6px 0 18px; }
+.startways { display: grid; grid-template-columns: 1.3fr 1fr 1fr; gap: 14px; }
+.startway { display: grid; grid-template-columns: auto 1fr; grid-template-rows: auto auto; column-gap: 12px; row-gap: 4px; align-items: start; text-align: left; font: inherit; color: var(--ink); background: var(--ground); border: 1px solid var(--rule); border-radius: 12px; padding: 16px; cursor: pointer; }
+.startway .ico { grid-row: 1 / 3; margin-top: 2px; color: var(--ink-2); }
+.startway b { font-size: 17px; font-weight: 600; }
+.startway span { color: var(--ink-2); font-size: 14.5px; }
+.startway:hover { border-color: var(--rule-strong); background: var(--raise); }
+.startway.first { border-color: var(--sel); }
+.startway.first .ico { color: var(--sel); }
+.sechead { display: flex; align-items: center; gap: 10px; font-size: 20px; margin: 30px 0 4px; scroll-margin-top: 20px; }
+.sechead .ico { color: var(--ink-2); }
+.planline { display: flex; gap: 9px; align-items: flex-start; font-size: 14.5px; color: var(--ink-2); line-height: 1.45; }
+.planline b { color: var(--ink); font-weight: 600; }
+.planline .ico { margin-top: 1px; color: var(--ink); }
+@media (max-width: 760px) { .startways { grid-template-columns: 1fr; } }
+@media (max-width: 760px) {   /* a chat row on a phone: what and its state on one line, its buttons on the next */
+  .sessionrow { grid-template-columns: auto minmax(0, 1fr) auto; }
+  .sessionrow .num { display: none; }
+  .sessionrow .bar { grid-column: 2 / 4; justify-content: flex-end; }
+}

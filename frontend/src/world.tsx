@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { call, fmt, ROLE_NAMES, type Row, regionInText, upload as sendFile } from './api'
+import { Icon } from './icons'
 
 export type Param = { name: string; type: string; value: any; role: string; unit?: string; range?: [number, number]; options?: string[]; label?: string; project_id: string }
 export type Preview = { key: string; values: Record<string, any>; image: string; clip: string; readout: Record<string, number>; map: { views: Record<string, string> } }
@@ -43,8 +44,8 @@ export function WorldPanel({ pid, world, script, params, previews, assets, event
   return <div className="world">
     <div className="bar">
       <span className="mid">{world.name}</span>
-      <button className="btn" onClick={() => setShowScript(s => !s)} aria-expanded={showScript}>Scene script</button>
-      <div className="switch"><button className="btn" onClick={() => setAdd(a => !a)} aria-haspopup="dialog" aria-expanded={add}>Add</button>
+      <button className="btn" onClick={() => setShowScript(s => !s)} aria-expanded={showScript}><Icon name="code" size={16} />Scene script</button>
+      <div className="switch"><button className="btn" onClick={() => setAdd(a => !a)} aria-haspopup="dialog" aria-expanded={add}><Icon name="plus" size={16} />Add</button>
         {add && <AddMenu pid={pid} params={params} onDone={() => { setAdd(false); onChanged() }} />}</div>
       {working && <span className="ink2"><span className="spin" /> {STAGE_TEXT[event!.stage]}{event!.actor === 'agent' ? ', changed by the agent' : ''}</span>}
       {event?.stage === 'failed' && <span className="chip flag">Render failed: {event.error}</span>}
@@ -120,7 +121,7 @@ function AddMenu({ pid, params, onDone }: { pid: string; params: Row<Param>[]; o
       <div className="results">{rows.map(r => <button key={r.id} disabled={!!busy} onClick={() => add({ source_id: 'palatial', record_id: r.id }, r.name)}>
         {r.image ? <img src={r.image} alt="" /> : <span className="noimg" />}<span>{r.name}<div className="ink2">{r.size_m} m{r.local ? '' : ', downloads first'}</div></span></button>)}</div></>}
     {methods.slice(1).map(m => <div key={m.name} className={`addrow ${m.ready ? '' : 'off'}`}><b>{m.name}</b><span className="ink2">{m.status}</span>
-      {m.name === 'Your file' && m.ready && <><input ref={file} type="file" hidden accept=".glb,.gltf,.obj,.ply,.stl,.usd,.usda,.usdc,.usdz" onChange={e => e.target.files?.[0] && upload(e.target.files[0])} /><button className="btn" disabled={!!busy} onClick={() => file.current?.click()}>Choose file</button></>}</div>)}
+      {m.name === 'Your file' && m.ready && <><input ref={file} type="file" hidden accept=".glb,.gltf,.obj,.ply,.stl,.usd,.usda,.usdc,.usdz" onChange={e => e.target.files?.[0] && upload(e.target.files[0])} /><button className="btn" disabled={!!busy} onClick={() => file.current?.click()}><Icon name="upload" size={16} />Choose file</button></>}</div>)}
     {busy && <div className="ink2"><span className="spin" /> Adding {busy}</div>}
     {err && <div className="chip flag">{err}</div>}
   </div>
