@@ -100,16 +100,16 @@
   </div>
   <div class="examples">
     <article class="excard reveal">
-      <div class="pics"><img class="stim" src="assets/stim-rivalry.jpg" alt="A face from the rivalry stimulus"><figure><img class="brain" src="assets/brain-rivalry.png" alt="Predicted response, face only against house only, from below"><figcaption>Face only against house only</figcaption></figure></div>
-      <div class="body"><h3>Face and house binocular rivalry</h3><span class="src">After Tong and others, 1998 · 24 clips run</span></div>
+      <div class="pics"><img class="stim" src="assets/stim-busts.png" alt="An Isaac Sim render of a sculpted bust on a counter"><figure><img class="brain" src="assets/brain-busts.png" alt="Predicted response, bust minus vase, from below"><figcaption>Bust minus vase</figcaption></figure></div>
+      <div class="body"><h3>Sculpted busts against height-matched vases</h3><span class="src">Isaac Sim · 40 clips run</span></div>
     </article>
     <article class="excard reveal">
-      <div class="pics"><img class="stim" src="assets/stim-flash.jpg" alt="The grey field of the flash stimulus"><figure><img class="brain" src="assets/brain-flash.png" alt="Predicted response, flash against grey, from behind"><figcaption>Flash against grey</figcaption></figure></div>
-      <div class="body"><h3>Periodic full-field flash</h3><span class="src">After Logothetis and others, 2001 · 2 clips run</span></div>
+      <div class="pics"><img class="stim" src="assets/stim-food.png" alt="An Isaac Sim render of a food item on a counter"><figure><img class="brain" src="assets/brain-food.png" alt="Predicted response, food minus colour-matched object, from below"><figcaption>Food minus colour-matched object</figcaption></figure></div>
+      <div class="body"><h3>Food against colour-matched objects</h3><span class="src">Isaac Sim · 40 clips run</span></div>
     </article>
     <article class="excard reveal">
-      <div class="pics"><img class="stim" src="assets/stim-faces.jpg" alt="A face from the localizer"><figure><img class="brain" src="assets/brain-faces.png" alt="Predicted response, faces against objects, from below"><figcaption>Faces against objects</figcaption></figure></div>
-      <div class="body"><h3>Face versus object selectivity</h3><span class="src">After Kanwisher and others, 1997 · 48 clips run</span></div>
+      <div class="pics"><img class="stim" src="assets/stim-humanoid.png" alt="A Cosmos 3 Nano restyle of a G1 humanoid in a scanned room"><figure><img class="brain" src="assets/brain-humanoid.png" alt="Predicted response, Cosmos against Isaac Sim, from the left"><figcaption>Cosmos against Isaac Sim</figcaption></figure></div>
+      <div class="body"><h3>A humanoid, rendered and restyled</h3><span class="src">Isaac Sim and Cosmos 3 Nano · 2 clips run</span></div>
     </article>
   </div>
 </section>
@@ -166,7 +166,7 @@
   <div class="sticky">
     <h2>Runs on CIQ</h2>
     <div class="strip">
-      <article class="stage"><span class="where">Fuzzball, two 128 GB workstations, one VAST volume</span><p>The app and the video pipeline together need an estimated 150 GB of memory, so Fuzzball starts them on separate 128 GB workstations and gives both access to the same VAST storage.</p><img class="arch" src="assets/architecture.png" alt="Architecture: render-score on node A, Nemotron and the app server on node B, one VAST volume"></article>
+      <article class="stage"><span class="where">Fuzzball, two 128 GB workstations, one VAST volume</span><p>The app and the video pipeline together need an estimated 150 GB of memory, so Fuzzball starts them on separate 128 GB workstations and gives both access to the same VAST storage.</p></article>
       <article class="stage"><span class="where">Workstation 1</span><p>When you submit a hypothesis, Nemotron Super 120B plans the experiment on the first workstation.</p><div class="slot"><b>Nemotron planning</b><span>Recording to come: the plan streaming into the chat</span></div></article>
       <article class="stage"><span class="where">Workstation 2</span><p>The app sends the scene specifications to the second, where Isaac Sim renders a reference video, NVIDIA Cosmos 3 Nano uses it to generate realistic footage, and TRIBE v2 predicts the fMRI response to each clip.</p><div class="slot"><b>Render, restyle, predict</b><span>Recording to come: an Isaac render, its Cosmos version, the predicted brain</span></div></article>
       <article class="stage"><span class="where">Back to Workstation 1, then Fuzzball</span><p>The app sends the predictions back to Nemotron to compare conditions. If the agent chooses a follow-up, the app submits it to Fuzzball.</p><div class="slot"><b>A follow-up as a workflow</b><span>Recording to come: the workflow starting; its task array rendering in parallel</span></div></article>
