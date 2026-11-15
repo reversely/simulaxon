@@ -163,7 +163,7 @@
       <article class="stage"><span class="where">Fuzzball, two 128 GB workstations, one VAST volume</span><p>The app and the video pipeline together need an estimated 150 GB of memory, so Fuzzball starts them on separate 128 GB workstations and gives both access to the same VAST storage.</p></article>
       <article class="stage"><span class="where">Workstation 1</span><p>When you submit a hypothesis, Nemotron Super 120B plans the experiment on the first workstation.</p><div class="slot"><b>Nemotron planning</b><span>Recording to come: the plan streaming into the chat</span></div></article>
       <article class="stage"><span class="where">Workstation 2</span><p>The app sends the scene specifications to the second, where Isaac Sim renders a reference video, NVIDIA Cosmos 3 Nano uses it to generate realistic footage, and TRIBE v2 predicts the fMRI response to each clip.</p><figure class="grab"><video src="assets/cluster/isaac-cosmos-vase.mp4" muted loop playsinline autoplay aria-label="An Isaac Sim render of a vase on a counter beside its Cosmos restyle"></video><figcaption>Isaac Sim's render on the left, and Cosmos 3 Nano's restyle on the right, made in 181 s. TRIBE v2 predicted the response to the restyle in 11 s.</figcaption></figure></article>
-      <article class="stage"><span class="where">Back to Workstation 1, then Fuzzball</span><p>The app sends the predictions back to Nemotron to compare conditions. If the agent chooses a follow-up, the app submits it to Fuzzball.</p><figure class="grab"><img src="assets/grafana/fuzzball-jobs.png" alt="Grafana: every job in the running Fuzzball workflows, with its node"><figcaption>Fuzzball workflows: the planner and app server on one node, rendering and prediction on the other, with Prometheus and Grafana.</figcaption></figure></article>
+      <article class="stage"><span class="where">Back to Workstation 1, then Fuzzball</span><p>The app sends the predictions back to Nemotron to compare conditions. If the agent chooses a follow-up, the app submits it to Fuzzball.</p></article>
       <article class="stage"><span class="where">VAST</span><p>Each round adds its clips, predictions, and log to the same VAST volume, so you can trace each result back to what the agent changed.</p></article>
     </div>
     <div class="dots" aria-hidden="true"></div>
@@ -182,7 +182,7 @@
   <div class="two top" style="margin-top:14vh">
     <div class="lines reveal">
       <h2>The desk and production</h2>
-      <p class="note">The same study code runs on both. The observer study ran on the cluster and matched the Spark's predictions at a median per-clip r of 0.9991.</p>
+      <p class="note">The same study code runs on both.</p>
     </div>
     <div class="tablescroll reveal">
       <table class="machines">
@@ -197,28 +197,13 @@
   </div>
 </section>
 
-<!-- Compute and uptime: the screenshot follows the question -->
+<!-- Measured on the cluster: three numbers -->
 <section class="section" data-biome="compute">
-  <div class="stations">
-    <div class="text">
-      <div class="station"><h2>Compute, measured per stage</h2><p>Where do the GPU hours go? Busy GPU-seconds per stage: planner, Isaac, Cosmos, TRIBE v2.</p></div>
-      <div class="station"><p>Is a GPU working while it is held? Utilisation per job, counted only while the job holds its GPU.</p></div>
-      <div class="station"><p>Does each node fit in 128 GB? Memory per service on each node, under the line.</p></div>
-      <div class="station"><p>How much work per GPU-hour? Planner tokens per second, with speculative decoding.</p></div>
-      <div class="station"><p>Is it up? The share of scrapes each service answered.</p></div>
-    </div>
-    <div class="pin">
-      <div>
-        <div class="frames">
-          <figure class="grab"><img src="assets/grafana/gpu-hours.png" alt="Grafana: busy GPUs by service over three hours, the planner and render-score stacked"><figcaption>Busy GPUs by service: the Isaac Sim, Cosmos and TRIBE v2 jobs, then the planner.</figcaption></figure>
-          <figure class="grab"><img src="assets/grafana/busy-while-held.png" alt="Grafana: GPU utilisation per job while each job holds its GPU"><figcaption>Utilisation per job while it holds its GPU.</figcaption></figure>
-          <figure class="grab"><img src="assets/grafana/memory-per-node.png" alt="Grafana: memory in use on each of the two GB10 nodes, under the 128 GB line"><figcaption>Memory in use on each GB10 node: the planner's node near 112 GiB, under the 128 GB line.</figcaption></figure>
-          <figure class="grab"><img src="assets/grafana/planner-tokens.png" alt="Grafana: planner tokens per second"><figcaption>Planner tokens per second, with MTP speculative decoding: 21.5 tokens/s measured on one answer, against 11 to 16 before.</figcaption></figure>
-          <figure class="grab"><img src="assets/grafana/uptime.png" alt="Grafana: share of scrapes answered per target over 24 hours"><figcaption>Share of scrapes answered per service over 24 hours.</figcaption></figure>
-        </div>
-        <div class="ticks" aria-hidden="true"></div>
-      </div>
-    </div>
+  <h2 class="reveal">Measured on the cluster</h2>
+  <div class="figures">
+    <div class="figure reveal"><span class="big num">0.9991</span><b>Cluster against desk</b><p>Median per-clip correlation between the cluster's and the DGX Spark's predictions for the same clips.</p></div>
+    <div class="figure reveal"><span class="big num">21.5 tokens/s</span><b>Planner reply speed</b><p>Nemotron Super 120B with speculative decoding, up from 11 to 16 tokens/s without it.</p></div>
+    <div class="figure reveal"><span class="big num">112 of 119 GiB</span><b>Peak memory</b><p>Highest use on either 128 GB workstation while the planner, Isaac Sim, Cosmos and TRIBE v2 ran.</p></div>
   </div>
 </section>
 
