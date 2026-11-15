@@ -272,17 +272,18 @@ export default function App() {
     <header className="top"><span className="brand">Simulaxon</span><button className="btn" onClick={() => setSheet('templates')}><Icon name="plus" size={16} />New project</button>
       {machine?.dashboard && <a className="btn" href="/dashboard" target="_blank" rel="noreferrer"><Icon name="gauge" size={16} />Dashboard</a>}
       {offline && <span className="chip flag" role="status">Reconnecting to the lab server</span>}</header>
-    <div className="body chatonly"><main className="col centre"><div className="chatwide"><h1 className="q">{sessions.find(x => x.id === openSession)?.goal ?? 'New chat with the agent'}</h1>
+    <div className="body chatonly"><main className="col centre"><div className="chatwide"><h1 className="q">{chatTitle(sessions.find(x => x.id === openSession)?.goal)}</h1>
       <Chat sid={openSession} live={sessionTick} replay={replay} onStarted={id => { setReplay(false); setOpenSession(id); loadSessions() }} onOpenProject={id => { setPid(id); setView('room') }} /></div></main></div>
     {sheetEl}
   </div>
 
+  const fresh = guide !== null && view === 'agent'   // the guide's chat steps show the lab as a new project: no open project's name or running chats
   return (
     <div className="frame">
       <header className="top">
         <span className="brand">Simulaxon</span>
         <div className="switch">
-          <button onClick={() => setSwitcher(s => !s)} aria-haspopup="menu" aria-expanded={switcher} aria-busy={opening}><span>{(projects.find(x => x.id === want)?.data ?? P).title}</span>{opening ? <span className="spin" aria-label="Opening the project" /> : <span aria-hidden>▾</span>}</button>
+          <button onClick={() => setSwitcher(s => !s)} aria-haspopup="menu" aria-expanded={switcher} aria-busy={opening}><span>{fresh ? 'New project' : (projects.find(x => x.id === want)?.data ?? P).title}</span>{opening ? <span className="spin" aria-label="Opening the project" /> : <span aria-hidden>▾</span>}</button>
           {switcher && <div className="menu" role="menu" onMouseLeave={() => setSwitcher(false)}>
             {projects.slice(0, 8).map(p => <button key={p.id} role="menuitem" className={p.id === want ? 'on' : ''} onClick={() => { setPid(p.id); setSwitcher(false) }}>
               <span>{p.data.title}<div className="sub">{templates.find(t => t.id === p.data.template_id)?.title ?? PLAN_NAMES[p.data.plan]}</div></span>
@@ -316,12 +317,12 @@ export default function App() {
         </aside>}
 
         <main className={`col centre ${WIDE.includes(view) && guide === null ? 'span2' : ''}`}>
-          {<div className="dock">
+          {!fresh && <div className="dock">
             <SessionDock sessions={sessions} onOpen={id => { setOpenSession(id); setView('agent') }} onStop={id => fetch(`/agent/sessions/${id}/stop`, { method: 'POST' }).then(loadSessions)} />
             <DemoBar state={demo.status === 'done' && (demo as any).show?.project !== pid ? { ...demo, status: 'idle' } : demo} onControl={a => call<DemoState>('demo_update', { action: a }).then(setDemo)} />
             <LiveWorkspace jobs={jobs} runs={runsNow} onOpen={id => { setPid(id); setView('room') }} />
           </div>}
-          {view === 'projects' ? <ProjectsPage projects={projects} current={pid} onOpen={id => { setPid(id); setView('room') }} /> : view === 'datasets' ? <DatasetsPage projects={projects} onOpenProject={id => { setPid(id); setView('room') }} show={dsShow} /> : view === 'experimental' ? <ExperimentalPage /> : view === 'agent' ? <div className="chatwide"><h1 className="q">{sessions.find(x => x.id === openSession)?.goal ?? 'New chat with the agent'}</h1>
+          {view === 'projects' ? <ProjectsPage projects={projects} current={pid} onOpen={id => { setPid(id); setView('room') }} /> : view === 'datasets' ? <DatasetsPage projects={projects} onOpenProject={id => { setPid(id); setView('room') }} show={dsShow} /> : view === 'experimental' ? <ExperimentalPage /> : view === 'agent' ? <div className="chatwide"><h1 className="q">{chatTitle(sessions.find(x => x.id === openSession)?.goal)}</h1>
             <Chat sid={openSession} live={sessionTick} replay={replay} onStarted={id => { setReplay(false); setOpenSession(id); loadSessions() }} onOpenProject={id => { setPid(id); setView('room') }} /></div> : <>
           <div>
             <h1 className="q">{P.template_id && !(P as any).question_written ? P.title : P.question}</h1>
@@ -778,3 +779,5 @@ function History({ pid, agent, tick, onUndo, onClose }: { pid: string; agent: st
   </div>
 }
 
+/** A chat's heading: the person's question without the list of files uploaded with it. */
+const chatTitle = (goal?: string) => goal ? goal.split(/\n+Uploaded here:/)[0].trim() : 'New chat with the agent'

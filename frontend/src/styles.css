@@ -365,6 +365,8 @@ ol.calls li.refused .callrow > span:first-child { color: var(--flag); }
 /* a chat with the agent in the centre takes the whole body; the project's own chat is in its left column */
 .body.chatonly > .col.centre { grid-column: 1 / -1; }
 .body.chatonly .chatwide { margin: 0 auto; width: 100%; }
+.body.chatonly.guided > .col.centre { grid-column: 1 / 3; }   /* the guide keeps its own track beside a chat */
+.chatwide > h1.q { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
 
 .origin.cosmos::before { background: #a8d1f2; }   /* origins in one hue: Isaac Sim blue, Cosmos pale blue, datasets grey */
 
