@@ -36,7 +36,7 @@ Constraints already measured (`services/observability/README.md`): GPU utilisati
 
 ## 3. From Grafana to the film
 
-The film's motion grammar is one card, one interaction (`docs/film.md`). Grafana already has that interaction: hovering a panel shows the value at a moment. So each film card is a real screenshot of one panel at 1920 by 1080, cropped to the panel, with the cursor moving to one point and Grafana's own tooltip showing the value there.
+The film's motion grammar is one card, one interaction (`docs/script.md`). Grafana already has that interaction: hovering a panel shows the value at a moment. So each film card is a real screenshot of one panel at 1920 by 1080, cropped to the panel, with the cursor moving to one point and Grafana's own tooltip showing the value there.
 
 | Film card | Panel | The hover lands on |
 |---|---|---|
