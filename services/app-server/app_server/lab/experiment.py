@@ -95,10 +95,15 @@ def plan(spec: dict) -> dict:
         bad = [k for k in ct['weights'] if k not in names]
         if bad: raise ValueError(f"contrast {ct['name']}: no condition {bad}")
         if abs(sum(ct['weights'].values())) > 1e-9: raise ValueError(f"contrast {ct['name']}: weights must sum to zero")
+    groups = {_region_name(r) for r in regs}
+    reported = []
     for rp in spec.get('reported') or []:
         if rp.get('contrast') not in [c['name'] for c in cts]: raise ValueError(f"reported result names no contrast here: {rp.get('contrast')}")
-        regions.mask_for(rp['region'])
-    return {'trial': t, 'trials': trials, 'contrasts': cts, 'regions': regs, 'reported': spec.get('reported') or [],
+        name = _region_name(rp['region']) if isinstance(rp.get('region'), (str, dict)) else None
+        if name is None: raise ValueError('a reported result needs a region: a name from regions, or an atlas name')
+        if name not in groups: regions.mask_for(name)   # a region of this experiment, such as a group it defines, or any atlas name
+        reported.append({**rp, 'region': name})
+    return {'trial': t, 'trials': trials, 'contrasts': cts, 'regions': regs, 'reported': reported,
             'clips': len(trials), 'cosmos_clips': len(cz := {json.dumps(x, sort_keys=True) for tr in trials for x in tr['items'] if isinstance(x, dict)}),
             'minutes_estimate': round(len(trials) * (TRIBE_S_PER_SECOND * t['clip_s'] + 3) / 60 + (len(cz) * 4 * max(0.5, t['item_s'] / 4) + 2 if cz else 0), 1)}   # Cosmos: about 4 min per 4 s clip, 2 min to load
 
@@ -236,7 +241,7 @@ def analyse(trials: list[dict], P: dict, out_url) -> dict:
         reported = []
         for rp in P['reported']:
             if rp['contrast'] != ct['name']: continue
-            m = regions.mask_for(rp['region']); row = next((r for r in rows if r['region'] == rp['region']), None) or region_row(rp['region'], m)
+            row = next((r for r in rows if r['region'] == rp['region']), None) or region_row(rp['region'], regions.mask_for(rp['region']))   # a group this experiment defines is one of its rows
             want = 1 if rp.get('direction', 'higher') in ('higher', '+', 'positive', 'increase') else -1
             lo, hi = row['interval_95']; sign = 1 if lo > 0 else -1 if hi < 0 else 0
             verdict = 'match' if sign == want else ('no match: interval includes zero' if sign == 0 else 'no match: opposite direction')

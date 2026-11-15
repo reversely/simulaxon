@@ -404,7 +404,8 @@ def register(tools, broadcast=lambda m: None):
           TRIBE's output to average (second 0 is onset; default the seconds on screen, since TRIBE's output has the blood-flow lag removed), seed,
           paired: true to give every condition the same source items in the same order, compared trial by trial (such as a clip against its Cosmos version)}.
           One clip per trial; every trial has the same length.
-        reported: the paper's result to compare against: [{contrast, region, direction: higher or lower, where: "Figure 2", quote}].
+        reported: the paper's result to compare against: [{contrast, region, direction: higher or lower, where: "Figure 2", quote}];
+          region is a name from regions, including a group defined there, or an atlas name.
         Run it with project_run; progress is broadcast; results come back as analyses with baselines and match or no match."""
         regs = regions   # the argument, not the module: this function never needs the module
         spec = {'conditions': conditions, 'regions': regs, 'contrasts': contrasts, 'trial': trial, 'reported': reported, 'paper_id': paper_id}
