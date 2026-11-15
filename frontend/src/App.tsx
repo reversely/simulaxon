@@ -278,7 +278,7 @@ export default function App() {
           {view === 'datasets' ? <DatasetsPage projects={projects} onOpenProject={id => { setPid(id); setView('room') }} /> : view === 'agent' ? <div className="chatwide"><h1 className="q">{sessions.find(x => x.id === openSession)?.goal ?? 'New chat with the agent'}</h1>
             <Chat sid={openSession} live={sessionTick} onStarted={id => { setOpenSession(id); loadSessions() }} onOpenProject={id => { setPid(id); setView('room') }} /></div> : <>
           <div>
-            <h1 className="q">{P.question}</h1>
+            <h1 className="q">{P.template_id && !(P as any).question_written ? P.title : P.question}</h1>
             <div className="bar" style={{ marginTop: 8 }}>
               <span className="ink2">{template?.title}</span>
               <span className="chip" title={PLAN_INFO[P.plan]}>{PLAN_ICON[P.plan] && <Icon name={PLAN_ICON[P.plan] as IconName} size={14} />}{PLAN_NAMES[P.plan] ?? P.plan}</span>
@@ -334,7 +334,7 @@ function Conversation({ P, pid, template, flowNow, narr, widen, onWiden, chips, 
   chips: { label: string; run: () => void; icon?: IconName }[]; sid: string | null; live: number; onStarted: (id: string) => void; onOpenProject: (pid: string) => void
 }) {
   const header = <>
-    <div className="msg me"><div className="who">Question</div>{P.question}</div>
+    <div className="msg me"><div className="who">Question</div>{P.template_id && !(P as any).question_written ? <span className="ink2">The agent is writing this project's question.</span> : P.question}</div>
     {template && <div className="msg">
       <div className="who">Agent</div>
       <div style={{ marginBottom: 8 }}>I started this from the template <b>{template.title}</b>. Here is how it runs.</div>
@@ -623,7 +623,7 @@ function TemplateSheet({ examples, onOpenProject, onGoal, onChat, templates, dem
         </div>)}</div>
       </> : <div style={{ maxWidth: 620, display: 'flex', flexDirection: 'column', gap: 14, marginTop: 14 }}>
         <div className="mid">{pick.title}</div>
-        <div className="q" style={{ fontSize: 22 }}>{pick.question.replace(/\{(\w+)\}/g, (_, k) => vals[k] || '…')}</div>
+        <p className="ink2" style={{ marginTop: 0 }}>{pick.title}. The agent writes the project's question from these fields when it is made.</p>
         <label className="field"><span>Project name</span><input value={title} onChange={e => setTitle(e.target.value)} /></label>
         {blanks.map(b => <label key={b} className="field"><span>{b === 'a' ? 'First condition' : b === 'b' ? 'Second condition' : b.replace(/_/g, ' ').replace(/^./, c => c.toUpperCase())}</span>{b === 'region' ? <select value={vals[b] ?? ''} onChange={e => setVals(v => ({ ...v, [b]: e.target.value }))}>
           <option value="">{atlas ? 'Choose a region' : 'Loading the atlas'}</option>

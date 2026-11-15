@@ -494,6 +494,23 @@ def register(tools, broadcast=lambda m: None):
                                                          'fetched_at': _time.strftime('%Y-%m-%d %H:%M'), 'files': []}, indent=1))
         return {'dataset_id': did, 'title': title}
 
+    @tools.tool('dataset', 'delete')
+    def dataset_delete(step, actor, dataset_id, files: bool = False):
+        """Remove a dataset's items, tags and saved views from the store in one step (undo brings them back). files: true also
+        deletes its folder on this machine, which undo cannot bring back; only for a dataset imported here."""
+        import shutil as _sh
+        n = 0
+        for kind in ('item', 'view'):
+            for r in s.list(kind):
+                if r.data.get('dataset_id') == dataset_id: s.delete(step, kind, r.id, r.version); n += 1
+        gone = False
+        if files:
+            root = dsets.dataset_dir(dataset_id); meta = root / '_dataset.json'
+            import json as _json
+            if meta.exists() and _json.loads(meta.read_text()).get('ref') != 'upload': raise ValueError(f'{dataset_id} was fetched from {meta}; only a dataset imported here can have its files deleted')
+            if root.exists(): _sh.rmtree(root); gone = True
+        return {'removed_rows': n, 'files_deleted': gone}
+
     @tools.tool('item', 'create', writes_project=False)
     def item_create(actor, dataset_id):
         """Make an item for every image, video and audio file of a dataset on this machine, with fields read off each file:
