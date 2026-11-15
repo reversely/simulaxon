@@ -218,6 +218,20 @@ def make(db: str, port: int = 8790):
         buf = io.BytesIO(); np.save(buf, np.asarray(ms[index]['map'], np.float32))
         return Response(buf.getvalue(), media_type='application/octet-stream', headers={'Cache-Control': 'no-cache'})
 
+    @app.get('/api/brain/adapter/{adapter_id}/{key}')
+    def brain_adapter(adapter_id: str, key: str):
+        """An adapter's evaluation spread over the cortex (#28): key adapter_r, tribe_v2_r or gain (adapter minus TRIBE v2), per HCP-MMP1 area (.npy, float32)."""
+        import io
+        import numpy as np
+        from fastapi import HTTPException
+        from fastapi.responses import Response
+        from . import adapter
+        row = app.state.tools.store.get('adapter', adapter_id)
+        if row is None: raise HTTPException(404, f'no adapter {adapter_id}')
+        if key not in ('adapter_r', 'tribe_v2_r', 'gain'): raise HTTPException(404, 'key is adapter_r, tribe_v2_r or gain')
+        areas = [{**a, 'gain': a['adapter_r'] - a['tribe_v2_r']} for a in row.data['areas']]
+        buf = io.BytesIO(); np.save(buf, adapter.area_map(areas, key)); return Response(buf.getvalue(), media_type='application/octet-stream', headers={'Cache-Control': 'max-age=86400'})
+
     @app.get('/api/recording/{sample_id}')
     def recording_download(sample_id: str):
         """A sample as a recording (#23, lab/recording.py): its clip, TRIBE v2 predictions, audio if any, and its regions' responses by second, zipped."""

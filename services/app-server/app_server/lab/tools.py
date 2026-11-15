@@ -393,7 +393,7 @@ def register(tools, broadcast=lambda m: None):
     def dataset_list(actor):
         """Datasets on this machine, and fetches under way: source, licence, files and size; once indexed (item_create), how
         many samples and fields each has and its media types; and the projects that use it (#22)."""
-        from . import curation
+        from . import curation, adapter
         by: dict = {}
         for r in s.list('item'): by.setdefault(r.data.get('dataset_id'), []).append(r.data)
         uses: dict = {}
@@ -406,7 +406,8 @@ def register(tools, broadcast=lambda m: None):
             items = by.get(d.get('id'), []); media: dict = {}
             for x in items: media[x.get('media_type')] = media.get(x.get('media_type'), 0) + 1
             out.append({**d, 'samples': len(items), 'fields': len(curation.schema([{'fields': x.get('fields') or {}, 'tags': x.get('tags')} for x in items])) if items else 0,
-                        'media': media, 'indexed': bool(items), 'embedded': _emb_file(d.get('id')).exists(), 'projects': uses.get(d.get('id'), [])})
+                        'media': media, 'indexed': bool(items), 'embedded': _emb_file(d.get('id')).exists(), 'projects': uses.get(d.get('id'), []),
+                        'measured': adapter.has_measured(d.get('id', '')), 'adapters': sum(1 for a in s.list('adapter') if a.data.get('dataset_id') == d.get('id'))})
         return out
 
     @tools.tool('file', 'list', writes_project=False)
@@ -516,6 +517,41 @@ def register(tools, broadcast=lambda m: None):
                 import traceback; traceback.print_exc(); broadcast({'dataset': dataset_id, 'error': str(e)[-300:]})
         _th.Thread(target=go, daemon=True).start()
         return {'queued': True, 'items': len(items)}
+
+    @tools.tool('adapter', 'create')
+    def adapter_create(step, actor, dataset_id, name: str = '', held_out_view_id: str | None = None):
+        """Fit an adapter (#28): a ridge map from TRIBE v2's predicted cortex (360 HCP-MMP1 areas) to the measured fMRI of a
+        dataset that has it (dataset_list: measured), scored only on held-out stimulus categories, beside TRIBE v2 as released,
+        shuffled labels and the noise ceiling (lab/adapter.py). held_out_view_id: hold out the categories of a saved view of the
+        dataset; without it, 10-fold over categories. Keeps the weights. A few seconds; the first fit reads every clip's
+        predictions once."""
+        import numpy as np
+        from . import adapter, curation
+        if not adapter.has_measured(dataset_id): raise ValueError(f'{dataset_id} has no measured responses here; adapters fit on {", ".join(adapter.SOURCES)}')
+        held = None
+        if held_out_view_id:
+            v = s.get('view', held_out_view_id).data
+            if v.get('dataset_id') != dataset_id: raise ValueError(f'view {held_out_view_id} belongs to {v.get("dataset_id")}, not {dataset_id}')
+            rows, _ = curation.apply(_items(dataset_id), v['stages'])
+            held = sorted({(x['fields'].get('category') or '').replace('_', ' ') for x in rows} - {''})
+            if not held: raise ValueError(f'view {held_out_view_id} has no items with a category; index the dataset (item_create) first')
+        r = adapter.fit(dataset_id, FILES / 'adapters', held, on_event=broadcast)
+        w = r.pop('weights'); n = sum(1 for a in s.list('adapter') if a.data.get('dataset_id') == dataset_id) + 1
+        title = name.strip() or f"TRIBE v2 adapter {n}, {r['source'].split(',')[0]}"
+        row = s.create(step, 'adapter', {'dataset_id': dataset_id, 'name': title, 'base': 'TRIBE v2', 'held_out_view_id': held_out_view_id, **r, 'weights': None})
+        f = FILES / 'adapters' / f'{row.id}.npz'; np.savez(f, **w)
+        return s.update(step, 'adapter', row.id, {**row.data, 'weights': f'adapters/{row.id}.npz'}, row.version)
+
+    @tools.tool('adapter', 'list', writes_project=False)
+    def adapter_list(actor, dataset_id: str | None = None):
+        """Adapters, newest first, with their dataset, split and summary (no per-area rows; adapter_get has them)."""
+        rows = [a for a in s.list('adapter') if dataset_id is None or a.data.get('dataset_id') == dataset_id]
+        return [{'id': a.id, **{k: v for k, v in a.data.items() if k != 'areas'}} for a in sorted(rows, key=lambda a: a.id, reverse=True)]
+
+    @tools.tool('adapter', 'get', writes_project=False)
+    def adapter_get(actor, adapter_id):
+        """One adapter with its evaluation per area."""
+        return s.get('adapter', adapter_id)
 
     @tools.tool('dataset', 'create', writes_project=False)
     def dataset_create(actor, title):

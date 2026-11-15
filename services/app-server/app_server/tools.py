@@ -17,7 +17,7 @@ VIEWS = {'lateral', 'ventral', 'medial', 'posterior'}
 LAYERS = {'full', 'background', 'object', 'mask', 'depth'}
 
 
-ID_KINDS = {'project_id': 'project', 'parameter_id': 'parameter', 'sample_id': 'sample', 'analysis_id': 'analysis', 'map_id': 'neural_map', 'view_id': 'view'}   # arguments that name a row, checked before a tool runs
+ID_KINDS = {'project_id': 'project', 'parameter_id': 'parameter', 'sample_id': 'sample', 'analysis_id': 'analysis', 'map_id': 'neural_map', 'view_id': 'view', 'adapter_id': 'adapter'}   # arguments that name a row, checked before a tool runs
 
 class NeedsPerson(Exception):
     pass

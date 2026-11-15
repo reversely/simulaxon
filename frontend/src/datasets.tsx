@@ -5,9 +5,10 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { call, uploadWithProgress, type Project, type Row } from './api'
 import { Icon } from './icons'
 import { RecordingView } from './recording'
+import { AdaptersView } from './adapters'
 
 type DS = { id: string; title?: string; ref?: string; licence?: string | null; fetched_at?: string; files_here?: number; gigabytes?: number
-  samples: number; fields: number; media: Record<string, number>; indexed: boolean; embedded?: boolean; projects: string[]; status?: string }
+  samples: number; fields: number; media: Record<string, number>; indexed: boolean; embedded?: boolean; projects: string[]; status?: string; measured?: boolean; adapters?: number }
 type Item = { id: string; path: string; media_type: string; media: string; thumb?: string | null; fields: Record<string, any>; tags: string[]; sources: Record<string, string> }
 type Facet = { count: number; missing: number; kind: string; min?: number; max?: number; values?: [string, number][]; distinct?: number; hist?: number[] }
 type Query = { total: number; items: Item[]; trail: { stage: string; text: string; count: number }[]; schema: { path: string; type: string; count: number }[]; facets: Record<string, Facet>; indexed: boolean }
@@ -60,7 +61,7 @@ function NewDataset({ onClose, onCreated }: { onClose: () => void; onCreated: (i
 }
 
 function DatasetView({ id, ds, projects, onBack, onOpenProject, onChanged }: { id: string; ds?: DS; projects: Row<Project>[]; onBack: () => void; onOpenProject: (id: string) => void; onChanged: () => void }) {
-  const [tab, setTab] = useState<'samples' | 'projects'>('samples'); const [stages, setStages] = useState<Stage[]>([]); const [res, setRes] = useState<Query | null>(null)
+  const [tab, setTab] = useState<'samples' | 'projects' | 'adapters'>('samples'); const [stages, setStages] = useState<Stage[]>([]); const [res, setRes] = useState<Query | null>(null)
   const [limit, setLimit] = useState(60); const [indexing, setIndexing] = useState<{ indexed: number; total: number } | null>(null); const [importing, setImporting] = useState(false)
   const [sample, setSample] = useState<Item | null>(null); const [openField, setOpenField] = useState<string | null>(null); const [err, setErr] = useState('')
   const [picked, setPicked] = useState<string[]>([]); const [tag, setTag] = useState(''); const [views, setViews] = useState<{ view_id: string; name: string; stages: Stage[]; items: number }[]>([])
@@ -95,6 +96,7 @@ function DatasetView({ id, ds, projects, onBack, onOpenProject, onChanged }: { i
       <div className="seg" role="tablist" aria-label="Dataset">
         <button role="tab" aria-selected={tab === 'samples'} className={tab === 'samples' ? 'on' : ''} onClick={() => setTab('samples')}>Samples{res?.indexed ? ` (${n(res.trail[0]?.count ?? 0)})` : ''}</button>
         <button role="tab" aria-selected={tab === 'projects'} className={tab === 'projects' ? 'on' : ''} onClick={() => setTab('projects')}>Projects ({users.length})</button>
+        {ds?.measured && <button role="tab" aria-selected={tab === 'adapters'} className={tab === 'adapters' ? 'on' : ''} onClick={() => setTab('adapters')}>Adapters ({ds.adapters ?? 0})</button>}
       </div>
       {res?.indexed && !ds?.embedded && !embedding && <button className="btn" style={{ marginLeft: 'auto' }} onClick={embed}>Compute similarity</button>}
       <button className="btn primary" style={res?.indexed && !ds?.embedded && !embedding ? undefined : { marginLeft: 'auto' }} onClick={() => setImporting(true)}><Icon name="upload" size={16} />Import</button>
@@ -102,7 +104,8 @@ function DatasetView({ id, ds, projects, onBack, onOpenProject, onChanged }: { i
     {err && <div className="dsnote">{err}</div>}
     {embedding && <div className="dsnote" role="status"><span className="spin" /> Computing V-JEPA 2 vectors for similarity: {n(embedding.done)} of {n(embedding.total)} samples.</div>}
     {indexing && <div className="dsnote" role="status"><span className="spin" /> Indexing {indexing.total ? `${n(indexing.indexed)} of ${n(indexing.total)} files` : 'the files'}: fields and filters fill in when it finishes.</div>}
-    {tab === 'projects' ? <div className="tablewrap"><table className="data dstable"><thead><tr><th>Project</th><th>Status</th></tr></thead>
+    {tab === 'adapters' ? <AdaptersView datasetId={id} views={views} onChanged={onChanged} />
+    : tab === 'projects' ? <div className="tablewrap"><table className="data dstable"><thead><tr><th>Project</th><th>Status</th></tr></thead>
       <tbody>{users.length ? users.map(p => <tr key={p.id} onClick={() => onOpenProject(p.id)} style={{ cursor: 'pointer' }}><td>{p.data.title}</td><td>{p.data.status}</td></tr>)
         : <tr><td colSpan={2} className="ink2">No project uses this dataset yet. A new project picks its datasets when it is created.</td></tr>}</tbody></table></div>
     : !res ? <div className="empty" role="status"><span className="spin" /> Reading the samples</div>

@@ -317,24 +317,28 @@ export function ClipBrain({ clip, image, predsUrl, sampleId, audio, lanes, squar
   </div>
 }
 
-const contrastCache = new Map<string, Promise<Float32Array>>()
-/** One contrast map on the cortex: values scaled by their 99th percentile of absolute values, as lab/maps.py scales them. */
-export function ContrastBrain({ projectId, index, title }: { projectId: string; index: number; title: string }) {
+const mapCache = new Map<string, Promise<Float32Array>>()
+/** Per-vertex values from a .npy URL on the cortex, signed: scaled by vmax, or by their 99th percentile of absolute
+ * values as lab/maps.py scales contrasts. */
+export function MapBrain({ url, title, vmax, low = 'Lower', high = 'Higher' }: { url: string; title: string; vmax?: number; low?: string; high?: string }) {
   const [values, setValues] = useState<Float32Array | null>(null); const [err, setErr] = useState<string | null>(null)
   useEffect(() => {
-    const url = `/api/brain/contrast/${encodeURIComponent(projectId)}/${index}`; let live = true
-    let p = contrastCache.get(url)
+    let live = true; let p = mapCache.get(url)
     if (!p) {
-      p = fetch(url).then(r => { if (!r.ok) throw new Error(`contrast map: ${r.status}`); return r.arrayBuffer() }).then(b => {
-        const { data } = parseNpy(b); const [vmax] = percentile(data.map(Math.abs), [99]); return data.map(x => Number.isFinite(x) ? x / (vmax || 1) : 0) })
-      p.catch(() => contrastCache.delete(url)); contrastCache.set(url, p)
+      p = fetch(url).then(r => { if (!r.ok) throw new Error(`brain map: ${r.status}`); return r.arrayBuffer() }).then(b => parseNpy(b).data)
+      p.catch(() => mapCache.delete(url)); mapCache.set(url, p)
     }
-    p.then(v => live && setValues(v)).catch(e => live && setErr(String(e)))
+    p.then(d => { if (!live) return; const s = vmax ?? (percentile(d.map(Math.abs), [99])[0] || 1); setValues(d.map(x => Number.isFinite(x) ? x / s : 0)) }).catch(e => live && setErr(String(e)))
     return () => { live = false }
-  }, [projectId, index])
+  }, [url, vmax])
   return <div className="brainside">
     <BrainCanvas label={`${title}, on the cortex`} values={values} signed />
-    <div className="headline"><span className="legend">Lower <span className="ramp" /> Higher</span></div>
+    <div className="headline"><span className="legend">{low} <span className="ramp" /> {high}</span></div>
     {err && <div className="ink2">{err}</div>}
   </div>
+}
+
+/** One contrast map on the cortex (Fig. 2). */
+export function ContrastBrain({ projectId, index, title }: { projectId: string; index: number; title: string }) {
+  return <MapBrain url={`/api/brain/contrast/${encodeURIComponent(projectId)}/${index}`} title={title} />
 }
