@@ -134,8 +134,34 @@ def assumptions(store, project_id: str) -> list[dict]:
     return out
 
 
+NAMES = {'isaac': 'Isaac Sim', 'cosmos': 'Cosmos 3 Nano', 'tribe': 'TRIBE v2', 'vjepa': 'V-JEPA 2'}
+
+
+def _remote_state() -> tuple[str, str]:
+    """Rendering and brain prediction where render-score runs them (the cluster's video workstation): the jobs this app has
+    in flight there, by model, or "Not running" when render-score cannot be found."""
+    from . import preview
+    from ..config import render_score_url
+    try: render_score_url()
+    except Exception: return 'Not running', 'Not running'
+    q = preview._q
+    live = [j for j in (q.jobs.values() if q else []) if j.status in ('queued', 'running')]
+    def say(prefixes):
+        js = [j for j in live if j.connector_id.split('_')[0] in prefixes]
+        if not js: return 'Idle'
+        names = list(dict.fromkeys(NAMES[j.connector_id.split('_')[0]] for j in js))
+        n = sum(j.status == 'running' for j in js)
+        return f"{', '.join(names)}: {n} running" + (f', {len(js) - n} waiting' if len(js) > n else '')
+    return say(('isaac', 'cosmos')), say(('tribe', 'vjepa'))
+
+
 def machine() -> dict:
     import subprocess
+    from . import preview
+    from .planner_agent import label
+    if preview.remote():   # the workers run in render-score, on another machine: ask the queue, not this machine's processes
+        world, brain = _remote_state()
+        return {'agent': label(), 'world_node': world, 'brain_node': brain}
     try: ps = subprocess.run(['ps', '-eo', 'args'], capture_output=True, text=True).stdout.splitlines()
     except OSError: ps = []   # an image without ps (python:3.12-slim on the cluster): no local workers to report
     jobs = []
@@ -144,7 +170,6 @@ def machine() -> dict:
         elif re.search(r'test\d+\w*\.py|tribe_worker\.py', line) and '.venv/bin/python' in line: jobs.append(('Brain node', 'TRIBE: ' + Path(line.split()[1]).stem.replace('_', ' ')))
     jobs = list(dict.fromkeys(jobs))
     world = next((j for n, j in jobs if n == 'World node'), None); brain = next((j for n, j in jobs if n == 'Brain node'), None)
-    from .planner_agent import label
     return {'agent': label(), 'world_node': world or 'Idle', 'brain_node': brain or 'Idle'}
 
 

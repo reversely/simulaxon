@@ -303,8 +303,8 @@ export default function App() {
         <button className="btn" onClick={() => setSheet('templates')}><Icon name="plus" size={16} />New project</button>
         {machine?.dashboard && <a className="btn" href="/dashboard" target="_blank" rel="noreferrer"><Icon name="gauge" size={16} />Dashboard</a>}
         {machine && <div className="status" aria-label="Machine status">
-          <span><span className={`dot ${machine.world_node !== 'Idle' ? 'busy' : ''}`} />World node {machine.world_node === 'Idle' ? 'idle' : machine.world_node}</span>
-          <span><span className={`dot ${machine.brain_node !== 'Idle' ? 'busy' : ''}`} />Brain node {machine.brain_node === 'Idle' ? 'idle' : machine.brain_node}</span>
+          <span><span className={`dot ${machine.world_node !== 'Idle' ? 'busy' : ''}`} />Rendering {machine.world_node === 'Idle' ? 'idle' : machine.world_node === 'Not running' ? 'not running' : machine.world_node}</span>
+          <span><span className={`dot ${machine.brain_node !== 'Idle' ? 'busy' : ''}`} />Brain prediction {machine.brain_node === 'Idle' ? 'idle' : machine.brain_node === 'Not running' ? 'not running' : machine.brain_node}</span>
         </div>}
         {offline && <span className="chip flag" role="status">Reconnecting to the lab server</span>}
         <nav className="tabs">{VIEWS.map(([v, n]) => <button key={v} className={`tab ${view === v ? 'on' : ''}`} onClick={() => setView(v)}><Icon name={VIEW_ICON[v]} size={16} />{n}</button>)}</nav>
