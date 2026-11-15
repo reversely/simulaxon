@@ -8,7 +8,7 @@ export type Piece = 'app' | 'planner' | 'isaac' | 'cosmos' | 'tribe' | 'vast'
 export type Go = { view: string; chat?: string | null; project?: 'experiment' | 'world'; prefer?: string[]; history?: boolean; dataset?: { id: string; tab?: 'samples' | 'adapters' } }
 export type GuideStep = { id: string; title: string; text: string; tile: number; arrow?: number; pieces: Piece[]; data: string; go: Go }
 
-const LOOP: [string, IconName][] = [['Hypothesis', 'chat'], ['Scenes', 'room'], ['Brain response', 'brain'], ['Next test', 'flask']]
+const LOOP: [string, IconName][] = [['Upload and ask', 'upload'], ['Scenes', 'room'], ['Brain response', 'brain'], ['Next test', 'flask']]
 const ARROWS = ['plan what to vary', 'TRIBE v2 predicts', 'compare conditions', 'follow up']
 
 const HUMANOID = ['project_920ddb5712']   // Isaac Sim renders against their Cosmos restyles: the whole pipeline in one project
