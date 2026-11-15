@@ -10,7 +10,7 @@ Factorial plans run every unit in every cell of the template's factors, such as 
 from __future__ import annotations
 import hashlib, json, threading
 from pathlib import Path
-from . import plans, runinfo, worlds
+from . import plans, regions, runinfo, worlds
 from .ingest import FILES
 from .preview import render_and_read, REVISION, _label
 
@@ -49,8 +49,9 @@ def start(tools, broadcast, project_id: str, actor: str):
                     vals = {**params, **change}; aid = change.get('item', '')
                     inputs = worlds.job(w['kind'], vals, assets, w); revs.add(inputs.get('renderer') or REVISION)
                     key = hashlib.sha1(json.dumps([REVISION, inputs], sort_keys=True).encode()).hexdigest()[:14]
-                    res = render_and_read(inputs, out, key, 'batch', ctx={'project': project_id, 'title': d.get('title'), 'label': _label(vals, assets), 'source': f'Run, {k + 1} of {total}', 'actor': actor}); k += 1; ev(done=k, total=total, image=f'/files/runs/clips/{key}.png')
+                    res = render_and_read(inputs, out, key, 'batch', ctx={'project': project_id, 'title': d.get('title'), 'label': _label(vals, assets), 'source': f'Run, {k + 1} of {total}', 'actor': actor}); k += 1
                     side[cond] = {'label': assets.get(aid, {}).get('label', aid), 'image': Path(res['rgb']), 'clip': Path(res['clip_on']), 'preds': Path(res['preds'])}
+                    _live(ev, k, total, f'pair {i + 1}', labels[0 if cond == 'a' else 1], side[cond]['label'], res, (0, 3))   # the trial in the live Table 2 (#20)
                 units.append({'unit': f'pair {i + 1}', **side})
             url = lambda p: '/files/' + str(Path(p).resolve().relative_to(FILES.resolve())) if p else None
             with tools.lock:
@@ -69,6 +70,17 @@ def start(tools, broadcast, project_id: str, actor: str):
             ev(stage='failed', error=str(e)[-300:])
     threading.Thread(target=go, daemon=True).start()
     return {'queued': True, 'clips': 2 * len(pairs)}
+
+
+def _live(ev, done: int, total: int, unit: str, condition: str, label: str, res: dict, window: tuple) -> None:
+    """Progress with the trial just read, its readout as the run's samples will read it, for the live Table 2 (#20)."""
+    import numpy as np
+    try:
+        o = np.load(res['preds'])[window[0]:window[1]].mean(0); readout = {r: round(v, 4) for r, v in regions.readout(o).items()}
+        img = '/files/' + str(Path(res['rgb']).resolve().relative_to(FILES.resolve()))
+    except Exception:
+        ev(done=done, total=total); return
+    ev(done=done, total=total, image=img, trial={'index': done - 1, 'unit': unit, 'condition': condition, 'label': label, 'image': img, 'readout': readout})
 
 
 def _factorial(tools, broadcast, project_id: str, actor: str):
@@ -96,7 +108,7 @@ def _factorial(tools, broadcast, project_id: str, actor: str):
                     key = hashlib.sha1(json.dumps([REVISION, inputs], sort_keys=True).encode()).hexdigest()[:14]
                     res = render_and_read(inputs, out, key, 'batch', ctx={'project': project_id, 'title': d.get('title'), 'label': _label(vals, assets),
                                                                          'source': f'Run, {done + 1} of {total}', 'actor': actor})
-                    done += 1; ev(done=done, total=total)
+                    done += 1; _live(ev, done, total, assets.get(u, {}).get('label', u), c['label'], _label(vals, assets), res, tuple(t['window_s']))   # the trial in the live Table 2 (#20)
                     cl[c['id']] = {'label': _label(vals, assets), 'image': Path(res['rgb']), 'clip': Path(res['clip_on']), 'preds': Path(res['preds'])}
                 rows.append({'unit': assets.get(u, {}).get('label', u), 'cells': cl})
             url = lambda p: '/files/' + str(Path(p).resolve().relative_to(FILES.resolve())) if p else None
