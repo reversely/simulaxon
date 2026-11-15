@@ -152,7 +152,8 @@ export function Chat({ sid, projectId, live, compact, header, footer, chips, onS
               <details><summary className="callrow"><span>{toolName(c.tool)}</span>{!compact && <span className="ink2 about">{about(c)}</span>}{c.error && <span className="chip flag">{c.internal ? 'Error' : 'Refused'}</span>}</summary>
                 <pre className="codebox">{`${c.tool}(${JSON.stringify(args(c), null, 1)})\n\n${c.result ?? 'No result yet'}`}</pre></details></li>)}</ol>}
             {made && <button className="madecard" onClick={() => onOpenProject(made.project_id!)}><span className="ink2">Set up</span><span>{String(args(made).title ?? 'Experiment')}</span><span className="ink2">Open</span></button>}
-            {t.reply === null ? <div className="ink2"><span className="spin" /> {steps.length ? toolName(steps[steps.length - 1].tool) : 'Thinking'}</div>
+            {t.reply === null && s?.status !== 'working' ? <div className="ink2">Stopped without a reply.</div>
+              : t.reply === null ? <div className="ink2"><span className="spin" /> {steps.length ? toolName(steps[steps.length - 1].tool) : 'Thinking'}</div>
               : <div className="text rich">{strip(t.reply) ? <Rich text={strip(t.reply)} /> : t.reply.trim() === 'WAITING' ? 'Started. I will report when it finishes.' : ''}</div>}
           </div>
         </div>
