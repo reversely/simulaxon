@@ -44,7 +44,12 @@
   if (typed) {
     const full = typed.dataset.typed, caret = typed.nextElementSibling;
     if (reduced) { typed.textContent = full; caret?.classList.add('done'); }
-    else { let i = 0; const id = setInterval(() => { typed.textContent = full.slice(0, ++i); if (i >= full.length) { clearInterval(id); setTimeout(() => caret?.classList.add('done'), 1400); } }, 1000 / 40); }
+    else {
+      // Hold the paragraph at its finished height while it types, so nothing below it moves.
+      const box = typed.parentElement; typed.textContent = full; box.style.minHeight = box.offsetHeight + 'px'; typed.textContent = '';
+      addEventListener('resize', () => { box.style.minHeight = ''; }, { once: true });
+      let i = 0; const id = setInterval(() => { typed.textContent = full.slice(0, ++i); if (i >= full.length) { clearInterval(id); setTimeout(() => caret?.classList.add('done'), 1400); } }, 1000 / 40);
+    }
   }
 
   // Entrances: the film's rise, played once as each block reaches the lower part of the window.
