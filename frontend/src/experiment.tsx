@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { call, fmt, regionLabel, words, type Row, type Sample } from './api'
 import { Icon } from './icons'
-import { ClipBrain, samplePreds } from './brain3d'
+import { ClipBrain, samplePreds, type Span } from './brain3d'
 
 export type Origin = { kind: 'dataset' | 'isaac' | 'file' | 'generated' | 'cosmos'; label: string; title?: string; ref?: string; licence?: string | null; dataset_id?: string; from?: Origin; prompt?: string; seeds?: number[] }
 export type Setup = {
@@ -111,12 +111,13 @@ type Course = { region: string; seconds: number; conditions: { name: string; n: 
  * their ends; moving across the chart reads every condition at that second. */
 const COURSES = new Map<string, Course>()   // each project and region's course, kept for the page's life (#30)
 
-export function ConditionCourse({ pid, region, onS }: { pid: string; region: string; onS?: number }) {
+export function ConditionCourse({ pid, region, onS, spans }: { pid: string; region: string; onS?: number; spans?: Span[] | null }) {
   const key = `${pid} ${region}`
   const [c, setC] = useState<Course | null>(() => COURSES.get(key) ?? null); const [hover, setHover] = useState<number | null>(null); const [err, setErr] = useState('')
   useEffect(() => { setC(COURSES.get(key) ?? null); setErr(''); call<Course>('course_get', { project_id: pid, region }).then(x => { COURSES.set(key, x); setC(x) }).catch(e => setErr(String(e.message ?? e))) }, [key])
   const W = 900, H = 260, L = 56, R = 150, T = 14, B = 34, PW = W - L - R, PH = H - T - B
-  const note = `TRIBE v2, mean of each condition's trials. ${onS != null ? 'Shaded: the seconds the stimulus is on screen.' : ''}`
+  const shaded = spans?.length ? spans.filter(s => s.kind === 'stimulus').map(s => [s.start_s, s.end_s]) : onS != null ? [[0, onS]] : []   // the trial's own spans (#31), else one on-screen stretch
+  const note = `TRIBE v2, mean of each condition's trials. ${shaded.length ? `Shaded: the seconds ${shaded.length > 1 ? 'each stimulus is' : 'the stimulus is'} on screen; the rest of the trial is grey.` : ''}`
   if (err) return null
   if (!c) return <div className="card course" aria-busy="true">   {/* the card at its final size, the chart's place held, while the course is read */}
     <h3>{regionLabel(region)}, second by second</h3><div className="legend" />
@@ -136,7 +137,7 @@ export function ConditionCourse({ pid, region, onS }: { pid: string; region: str
     <svg viewBox={`0 0 ${W} ${H}`} width="100%" role="img" aria-label={`${regionLabel(region)}, TRIBE response second by second, by condition`}
       onMouseMove={e => { const r = (e.currentTarget as SVGSVGElement).getBoundingClientRect(); const t = Math.round(((e.clientX - r.left) / r.width * W - L) / PW * (c.seconds - 1)); setHover(t >= 0 && t < c.seconds ? t : null) }}
       onMouseLeave={() => setHover(null)}>
-      {onS != null && <rect x={x(0)} y={T} width={x(Math.min(onS, c.seconds - 1)) - x(0)} height={PH} fill="#24211e" />}
+      {shaded.map(([a, b], i) => <rect key={i} x={x(Math.min(a, c.seconds - 1))} y={T} width={Math.max(0, x(Math.min(b, c.seconds - 1)) - x(Math.min(a, c.seconds - 1)))} height={PH} fill="#24211e" />)}
       {ticks.map(v => <g key={v}><line x1={L} x2={L + PW} y1={y(v)} y2={y(v)} stroke="#2a2622" /><text x={L - 8} y={y(v) + 5} textAnchor="end" fontSize="14" fill="#8a847b">{fmt(v, 2)}</text></g>)}
       {[0, Math.round((c.seconds - 1) / 2), c.seconds - 1].map(t => <text key={t} x={x(t)} y={H - 10} textAnchor="middle" fontSize="14" fill="#8a847b">{t} s</text>)}
       {c.conditions.map((s, i) => <polyline key={s.name} points={s.values.map((v, t) => `${x(t)},${y(v)}`).join(' ')} fill="none" stroke={SERIES[i % SERIES.length]} strokeWidth="2" strokeLinejoin="round" />)}
@@ -156,13 +157,13 @@ export function ReadoutTable({ title, readout, named, focus, bare }: { title: st
   return bare ? <div className="readouts"><div className="ink2">{title}</div><div className="tablescroll">{table}</div></div> : <div className="card"><h3>{title}</h3><div className="tablewrap">{table}</div></div>
 }
 
-export function ExperimentRoom({ pid, samples, idx, setIdx, region, onS, named = [], tag = '' }: { pid: string; samples: Row<Sample & { origin?: Origin; items?: string[]; brain_model?: string }>[]; idx: number; setIdx: (i: number) => void; region: string; onS?: number; named?: string[]; tag?: string }) {
+export function ExperimentRoom({ pid, samples, idx, setIdx, region, onS, named = [], tag = '' }: { pid: string; samples: Row<Sample & { origin?: Origin; items?: string[]; brain_model?: string; schedule?: Span[] }>[]; idx: number; setIdx: (i: number) => void; region: string; onS?: number; named?: string[]; tag?: string }) {
   const row = samples[Math.min(idx, samples.length - 1)]; const s = row?.data
   if (!s) return null
   const conds = [...new Set(samples.map(x => x.data.condition))]
   const vals = samples.map(x => x.data.readout[region] ?? 0); const lo = Math.min(...vals), hi = Math.max(...vals); const x = (v: number) => hi > lo ? 100 * (v - lo) / (hi - lo) : 50
   return <>
-    {s.clip ? <ClipBrain key={row.id} clip={s.clip} sampleId={row.id} predsUrl={samplePreds(row.id)} square><span className="stageorigin"><OriginChip o={s.origin} long /></span></ClipBrain>
+    {s.clip ? <ClipBrain key={row.id} clip={s.clip} sampleId={row.id} predsUrl={samplePreds(row.id)} schedule={s.schedule} square><span className="stageorigin"><OriginChip o={s.origin} long /></span></ClipBrain>
       : <div className="stage runstage square">{s.image && <img src={s.image} alt={s.label} />}<span className="stageorigin"><OriginChip o={s.origin} long /></span></div>}
     <div className="bar">
       <span className="mid">{s.label}</span>
@@ -173,7 +174,7 @@ export function ExperimentRoom({ pid, samples, idx, setIdx, region, onS, named =
       </span>
     </div>
     <ReadoutTable title={s.brain_model && s.brain_model !== 'TRIBE v2' ? `This trial, ${s.brain_model}, by region` : 'This trial, TRIBE value by region'} readout={s.readout} named={named} focus={region} />
-    {region ? <><ConditionCourse pid={pid} region={region} onS={onS} />
+    {region ? <><ConditionCourse pid={pid} region={region} onS={onS} spans={s.schedule} />
     <div className="card"><h3>Every trial: {regionLabel(region)}{tag && <span className="chip tiny">{tag}</span>}</h3>
       {conds.map((c, ci) => { const mine = samples.map((r, i) => ({ r, i })).filter(o => o.r.data.condition === c); const mean = mine.reduce((t, o) => t + (o.r.data.readout[region] ?? 0), 0) / mine.length
         return <div key={c} className="condstrip"><span className="ink2">{words(c)}</span><div className="strip">

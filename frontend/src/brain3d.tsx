@@ -273,20 +273,45 @@ function Timeline({ lanes, t, T, onSeek }: { lanes: Lane[]; t: number; T: number
   })}</div>
 }
 
+/** One stretch of a trial as its clip was composed (#31): a stimulus on screen, a blank between items, or the rest. */
+export type Span = { start_s: number; end_s: number; kind: 'stimulus' | 'gap' | 'rest'; label: string }
+const spanAt = (sp: Span[] | undefined, x: number) => sp?.find(s => x >= s.start_s && x < s.end_s) ?? null
+const GREY: Record<string, string> = { rest: 'Rest: the screen was grey', gap: 'Blank: the screen was grey' }
+
+/** A trial's schedule under its clip: every span labelled, the playhead on it; clicking seeks. */
+function ScheduleBar({ spans, t, T, onSeek }: { spans: Span[]; t: number; T: number; onSeek: (x: number) => void }) {
+  const pct = (x: number) => `${100 * Math.min(1, Math.max(0, x / (T || 1)))}%`
+  return <div className="schedbar" role="group" aria-label="This trial's schedule">
+    {spans.map((s, i) => <button key={i} className={`span ${s.kind}`} style={{ left: pct(s.start_s), width: `calc(${pct(s.end_s)} - ${pct(s.start_s)})` }}
+      title={`${s.label}, ${s.start_s} to ${s.end_s} s`} aria-label={`${s.label}, ${s.start_s} to ${s.end_s} s`} onClick={() => onSeek(s.start_s)}><span>{(s.end_s - s.start_s) / (T || 1) < 0.08 ? s.label.replace(/^Item /, '') : s.label}</span></button>)}
+    <i className="cursor" style={{ left: pct(t) }} />
+  </div>
+}
+
 /** A clip and its predicted brain on one clock: play, pause, speed and a scrubber; scrubbing recolours the brain at once.
- * A recording adds its audio on the same clock and a timeline with one lane per stream (#23). */
-export function ClipBrain({ clip, image, predsUrl, sampleId, audio, lanes, square, children }: { clip: string | null; image?: string | null; predsUrl: string | null; sampleId?: string
-  audio?: string | null; lanes?: Lane[]; square?: boolean; children?: ReactNode }) {
+ * A recording adds its audio on the same clock and a timeline with one lane per stream (#23). A trial's schedule (#31)
+ * labels every span under the clip; during a blank or the rest the last stimulus frame is held, dimmed and labelled,
+ * and Stimulus only loops the stimulus spans. Nothing here depends on the design: the spans say it all. */
+export function ClipBrain({ clip, image, predsUrl, sampleId, audio, lanes, schedule, square, children }: { clip: string | null; image?: string | null; predsUrl: string | null; sampleId?: string
+  audio?: string | null; lanes?: Lane[]; schedule?: Span[]; square?: boolean; children?: ReactNode }) {
+  const sched = useRef(schedule); sched.current = schedule?.length ? schedule : undefined
+  const [stimOnly, setStimOnly] = useState(false); const stimRef = useRef(false)
   const video = useRef<HTMLVideoElement>(null); const sound = useRef<HTMLAudioElement>(null); const brain = useRef<BrainGL | null>(null); const preds = useRef<Preds | null>(null)
   const buf = useRef<Float32Array | null>(null); const tRef = useRef(0); const raf = useRef(0); const last = useRef(0)
   const [t, setT] = useState(0); const [dur, setDur] = useState(0); const [playing, setPlaying] = useState(true); const [speed, setSpeed] = useState(1)
   const [state, setState] = useState<'loading' | 'ready' | 'none'>('loading'); const playingRef = useRef(true); const speedRef = useRef(1); const [mean, setMean] = useState<number[] | null>(null)
   const total = () => Math.max(dur, preds.current?.rows ?? 0)
   const paint = () => { const b = brain.current, p = preds.current; if (!b || !p) return; buf.current ??= new Float32Array(p.n); b.setValues(frameAt(p, tRef.current, buf.current), false); b.draw() }
-  const follow = (m: HTMLMediaElement | null) => { if (!m || !m.duration) return; const want = Math.min(tRef.current, m.duration - 0.02)
-    if (!playingRef.current || tRef.current >= m.duration) { if (!m.paused) m.pause(); if (Math.abs(m.currentTime - want) > 0.03) m.currentTime = want; return }
+  const held = (x: number) => {   // in a blank or the rest: the time of the last stimulus frame before it
+    const cur = spanAt(sched.current, x); if (!cur || cur.kind === 'stimulus') return null
+    const prev = sched.current!.filter(s => s.kind === 'stimulus' && s.end_s <= cur.start_s + 1e-6).pop(); return prev ? Math.max(0, prev.end_s - 0.05) : 0 }
+  const follow = (m: HTMLMediaElement | null, hold: number | null = null) => { if (!m || !m.duration) return; const want = Math.min(hold ?? tRef.current, m.duration - 0.02)
+    if (hold != null || !playingRef.current || tRef.current >= m.duration) { if (!m.paused) m.pause(); if (Math.abs(m.currentTime - want) > 0.03) m.currentTime = want; return }
     m.playbackRate = speedRef.current; if (m.paused) m.play().catch(() => {}); if (Math.abs(m.currentTime - want) > 0.25) m.currentTime = want }
-  const sync = () => { follow(video.current); follow(sound.current) }
+  const sync = () => { follow(video.current, held(tRef.current)); follow(sound.current) }
+  const onlyStim = (x: number) => {   // Stimulus only: a time outside every stimulus span moves to the next one, or back to the first
+    const sp = sched.current?.filter(s => s.kind === 'stimulus'); if (!stimRef.current || !sp?.length || spanAt(sp, x)) return x
+    return (sp.find(s => s.start_s >= x) ?? sp[0]).start_s }
   useEffect(() => {
     let live = true; setState('loading'); preds.current = null; buf.current = null; tRef.current = 0; setT(0); setMean(null)
     if (!predsUrl) { setState('none'); return }
@@ -297,18 +322,19 @@ export function ClipBrain({ clip, image, predsUrl, sampleId, audio, lanes, squar
   useEffect(() => {
     const tick = (now: number) => {
       const dt = last.current ? (now - last.current) / 1000 : 0; last.current = now
-      if (playingRef.current && (preds.current || dur)) { const T = total() || 1; tRef.current += dt * speedRef.current; if (tRef.current >= T) tRef.current = 0; paint(); sync(); setT(tRef.current) }
+      if (playingRef.current && (preds.current || dur)) { const T = total() || 1; tRef.current += dt * speedRef.current; if (tRef.current >= T) tRef.current = 0; tRef.current = onlyStim(tRef.current); paint(); sync(); setT(tRef.current) }
       raf.current = requestAnimationFrame(tick)
     }
     raf.current = requestAnimationFrame(tick); return () => cancelAnimationFrame(raf.current)
   }, [dur])
   const seek = (x: number) => { tRef.current = x; paint(); sync(); setT(x) }
   const toggle = () => { playingRef.current = !playingRef.current; setPlaying(playingRef.current); last.current = 0; sync() }
-  const T = total(); const canPlay = state === 'ready' || (state === 'none' && dur > 0)
+  const T = total(); const canPlay = state === 'ready' || (state === 'none' && dur > 0); const cur = spanAt(schedule, t)
   const allLanes = lanes && [...(mean ? [{ name: 'TRIBE v2, cortex mean', values: mean }] : []), ...lanes]
   return <div className="clipbrain">
     <div className="twoup">
-      <div className={`stage runstage ${square ? 'square' : ''}`}>
+      <div className={`stage runstage ${square ? 'square' : ''} ${cur && cur.kind !== 'stimulus' ? 'held' : ''}`}>
+        {cur && cur.kind !== 'stimulus' && <div className="greynote">{GREY[cur.kind] ?? cur.label}</div>}
         {clip ? <video ref={video} src={clip} muted playsInline preload="auto" onLoadedMetadata={e => { setDur((e.target as HTMLVideoElement).duration); sync() }} /> : image && <img src={image} alt="" />}
         {children}
       </div>
@@ -323,10 +349,12 @@ export function ClipBrain({ clip, image, predsUrl, sampleId, audio, lanes, squar
       <button className="btn" onClick={toggle} aria-label={playing ? 'Pause' : 'Play'} disabled={!canPlay}>{playing ? 'Pause' : 'Play'}</button>
       <input type="range" aria-label="Time" min={0} max={T || 1} step={0.01} value={Math.min(t, T || 1)} disabled={!canPlay} onChange={e => seek(Number(e.target.value))} />
       <span className="num ink2">{t.toFixed(1)} of {T.toFixed(0)} s</span>
+      {schedule?.some(s => s.kind !== 'stimulus') && <button className={`btn ${stimOnly ? 'on' : ''}`} aria-pressed={stimOnly} onClick={() => { stimRef.current = !stimOnly; setStimOnly(!stimOnly); seek(onlyStim(tRef.current)) }}>Stimulus only</button>}
       <div className="seg" role="group" aria-label="Speed">{SPEEDS.map(s => <button key={s} className={speed === s ? 'on' : ''} onClick={() => { speedRef.current = s; setSpeed(s); sync() }}>{s}×</button>)}</div>
       {sampleId && <a className="btn" href={`/api/recording/${encodeURIComponent(sampleId)}`} download aria-hidden={state !== 'ready'} tabIndex={state === 'ready' ? undefined : -1}
         style={state === 'ready' ? undefined : { visibility: 'hidden' }}>Download recording</a>}   {/* its place kept until the predictions are in, so the bar never reflows (#30) */}
     </div>
+    {schedule && schedule.length > 0 && <ScheduleBar spans={schedule} t={t} T={T} onSeek={x => seek(onlyStim(x))} />}
     {allLanes && allLanes.length > 0 && <Timeline lanes={allLanes} t={t} T={T} onSeek={seek} />}
     <div className="ink2 small">TRIBE v2 prediction for an average viewer at each second of the clip{T > dur + 0.5 && dur > 0 ? `; the clip ends at ${dur.toFixed(1)} s and the response runs on` : ''}. Drag the brain to turn it.</div>
   </div>

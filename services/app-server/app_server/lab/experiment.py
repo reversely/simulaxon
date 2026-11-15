@@ -130,6 +130,22 @@ def _segment(src: str | None, seconds: float) -> Path:
     return out
 
 
+def schedule(t: dict) -> list[dict]:
+    """A trial's spans in clip order, as make_clip writes them (#31): each item on screen, the blank after it when gap_s is
+    set, then the rest. {start_s, end_s, kind: stimulus, gap or rest, label}. The player draws whatever this holds, so a
+    new design only has to describe its spans; an item that alternates inside itself would add its own switches here."""
+    n, item, gap, rest = int(t.get('items_per_trial') or 1), float(t.get('item_s') or 0), float(t.get('gap_s') or 0), float(t.get('rest_s') or 0)
+    spans, at = [], 0.0
+    def add(kind, label, d):
+        nonlocal at
+        if d > 0: spans.append({'start_s': round(at, 3), 'end_s': round(at + d, 3), 'kind': kind, 'label': label}); at += d
+    for i in range(n):
+        add('stimulus', f'Item {i + 1}' if n > 1 else 'Stimulus', item)
+        add('gap', 'Blank', gap)
+    add('rest', 'Rest', rest)
+    return spans
+
+
 def make_clip(items: list[str], t: dict) -> tuple[Path, Path]:
     """A trial's clip (items in order with gaps, then rest, all on grey) and a still of its first item."""
     key = hashlib.sha1(json.dumps([items, t['item_s'], t['gap_s'], t['rest_s'], SIZE]).encode()).hexdigest()[:16]
@@ -317,7 +333,7 @@ def run(tools, broadcast, project_id: str, actor: str) -> dict:
                 rec.create(None, 'sample', {'project_id': project_id, 'index': i, 'unit': f"{tr['condition']}, trial {tr['index'] + 1}", 'condition': tr['condition'], 'brain_model': model_name,
                                             **({'fit_distance': dist.get(str(tr['preds']))} if model else {}),
                                             'label': f"{tr['condition']}, trial {tr['index'] + 1}", 'image': out_url(tr['still']), 'clip': out_url(tr['clip']), 'preds': tr['preds'],
-                                            'origin': tr['origin'], 'items': [Path(x).name for x in tr.get('sources', tr['items'])], 'sources': tr.get('sources'),
+                                            'origin': tr['origin'], 'items': [Path(x).name for x in tr.get('sources', tr['items'])], 'sources': tr.get('sources'), 'schedule': schedule(P['trial']),
                                             'readout': {_region_name(r): round(float(o[_region_mask(r)].mean()), 4) for r in P['regions']}}, depends_on=[('project', project_id)])
             for c in res['contrasts']:
                 nm = rec.create(None, 'neural_map', {'project_id': project_id, 'title': c['contrast'], 'kind': 'contrast', **c['map']}, depends_on=[('project', project_id)])

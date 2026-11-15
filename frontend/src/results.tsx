@@ -154,7 +154,7 @@ export function ResultsView({ pid, status, progress, live, focus, agentName, onP
     <figure className="card fig">
       <figcaption><b>Fig. 1.</b> Response over time by condition{plotted.length ? `, ${plotted.map(regionLabel).join(', ')}` : ''}: the mean of each condition's trials.</figcaption>
       {plotted.length ? <div className="figgrid">{plotted.map(r => <div key={r}><div className="figtag">{r === focus && !namedNames.includes(r) ? 'Your pick' : `Named by ${by(named.find(n => n.region === r)?.named_by)}`}</div>
-        <ConditionCourse pid={pid} region={r} onS={t.item_s ?? window?.[1]} /></div>)}</div>
+        <ConditionCourse pid={pid} region={r} onS={t.item_s ?? window?.[1]} spans={m.schedule} /></div>)}</div>
         : <p className="ink2">No region was named for this project. Pick one in Table 1 to plot it here.</p>}
     </figure>
 

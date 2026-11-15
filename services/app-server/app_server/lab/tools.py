@@ -254,7 +254,14 @@ def register(tools, broadcast=lambda m: None):
 
     @tools.tool('sample', 'list', writes_project=False)
     def sample_list(actor, project_id):
-        return of('sample', project_id)
+        """A project's samples in order. An experiment's trials carry their schedule (#31); runs from before schedules were
+        recorded get it from the project's trial set-up, the same spans the clips were composed from, with no rerun."""
+        import dataclasses
+        rows = of('sample', project_id); P = s.get('project', project_id)
+        t = ((P.data.get('setup') or {}).get('trial') if P and P.data.get('plan') == 'experiment' else None)
+        if not t or all('schedule' in r.data for r in rows): return rows
+        sch = experiment.schedule(t)
+        return [r if 'schedule' in r.data else dataclasses.replace(r, data={**r.data, 'schedule': sch}) for r in rows]
 
     @tools.tool('analysis', 'list', writes_project=False)
     def analysis_list(actor, project_id):
@@ -817,6 +824,7 @@ def register(tools, broadcast=lambda m: None):
         bm = next((a['result'].data['brain_model'] for a in analyses if a['result'] and a['result'].data.get('brain_model')), None)   # what produced the results (#28)
         made = {**info, 'plan': P.get('plan'), 'template_id': P.get('template_id'), 'world': (P.get('world') or {}).get('kind'),
                 'brain_model': (bm or {}).get('name', 'TRIBE v2') + ', average-viewer prediction of fMRI from the video', 'adapter': bm if (bm or {}).get('adapter_id') else None, 'trial': exp.get('trial'),
+                'schedule': experiment.schedule((P.get('setup') or {}).get('trial')) if P.get('plan') == 'experiment' and (P.get('setup') or {}).get('trial') else None,
                 'contrast_weights': [{'name': c.get('name'), 'weights': c.get('weights')} for c in (exp.get('contrasts') or []) if isinstance(c, dict)],
                 'parameters': P.get('run_values'), 'counts': P.get('counts'), 'paper_id': exp.get('paper_id')}
         out = {'project': {'id': project_id, 'title': P.get('title'), 'question': P.get('question'), 'status': P.get('status')},
