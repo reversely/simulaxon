@@ -4,7 +4,7 @@ Usage: SIMULAXON_HOME=... python -m app_server.lab.serve [--host 127.0.0.1] [--p
 
 On the cluster (fuzzball/simulaxon.fz) it listens on 0.0.0.0:8791 with SIMULAXON_HOME=/data and the store at
 /data/log/lab.duckdb. It also submits the Fuzzball runs in services/app-server/runs/ (GET /api/runs, POST
-/api/runs/{name}/start and /stop, runs.py), and /dashboard sends people to the cluster dashboard in Grafana (GRAFANA_URL).
+/api/runs/{name}/start and /stop, runs.py), and /dashboard sends people to Grafana's endpoint on the cluster.
 
 lab_main.duckdb is the main store: the lab's store as of 14 Nov 2026 with the replication harness's projects, papers,
 samples, analyses, results and maps merged in. lab.duckdb is the store before that merge; lab_harness.duckdb keeps the
@@ -162,15 +162,29 @@ def make(db: str, port: int = 8790):
         return FileResponse(dst, media_type='image/jpeg', headers={'Cache-Control': 'max-age=86400'})
 
     from .. import runs
-    from ..config import GRAFANA_URL
+
+    def _grafana_on_cluster() -> str | None:
+        """The live endpoint of the running observability workflow's Grafana. Its URL changes with every restart, so it
+        is looked up per request; the injected workflow token may list endpoints (In-Workflow API Access)."""
+        import json, subprocess
+        from ..config import FUZZBALL
+        try:
+            p = subprocess.run([FUZZBALL, 'workflow', 'endpoints', 'list', '-o', 'json'], capture_output=True, text=True, timeout=30)
+            eps = json.loads(p.stdout) if p.returncode == 0 and p.stdout.strip() else []
+        except (OSError, ValueError, subprocess.TimeoutExpired):
+            return None
+        g = [e for e in eps if e.get('serviceName') == 'grafana' and e.get('url')]
+        return g[0]['url'].rstrip('/') if g else None
 
     @app.get('/dashboard')
     def dashboard_page():
-        """The cluster dashboard is Grafana's (fuzzball/observability.fz): GPU jobs, the planner, failures, nodes."""
-        from fastapi import HTTPException
-        from fastapi.responses import RedirectResponse
-        if not GRAFANA_URL: raise HTTPException(404, 'No dashboard here: GRAFANA_URL is empty in this place')
-        return RedirectResponse(f'{GRAFANA_URL}/d/simulaxon')
+        """The cluster dashboard is Grafana's (fuzzball/observability.fz): GPU jobs, the planner, failures, nodes. It always
+        goes to Grafana's endpoint on the cluster; when none is live it says so rather than sending people elsewhere."""
+        from fastapi.responses import HTMLResponse, RedirectResponse
+        url = _grafana_on_cluster()
+        if url: return RedirectResponse(f'{url}/d/simulaxon')
+        return HTMLResponse('<!doctype html><title>Dashboard</title><p>Grafana is not running on the cluster. Start it with '
+                            '<code>fuzzball workflow start -n observability fuzzball/observability.fz</code>.</p>', status_code=503)
 
     @app.get('/api/runs')
     def runs_list():

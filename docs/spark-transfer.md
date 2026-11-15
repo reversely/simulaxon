@@ -10,7 +10,7 @@ The procedure behind this plan is the `painless-transfer` skill (`~/.claude/skil
 |---|---|
 | Freeze time | 6:00 pm Chicago, 14 Nov 2026 (00:00 UTC, 15 Nov) |
 | How | At 6:00 pm, one `git fetch` records every branch and the last commits on `main`. A **local** tag, `vast-final-2026-11-14`, marks `origin/main` as it was then |
-| Last seen before the freeze | `038e743` fix(app-server): give the lab ffmpeg on the cluster, 5:35 pm |
+| The version | `74f5a3e` fix(app-server): link the dashboard only to grafana on the cluster, 5:56 pm. Fetched at 6:00:48 pm Chicago |
 
 Pushing the tag to GitHub is the owner's call.
 
@@ -46,14 +46,14 @@ No database change: the store code changed only how Undo works, so the Spark's s
 | Data and research tools | `/data` | `~/Repos/visual-cortex-lab` | `SIMULAXON_HOME`, `SIMULAXON_DATA` |
 | Store | `/data/log/lab.duckdb` | `backend/data/lab_main.duckdb` | `--db` |
 | Address | `0.0.0.0:8791`, endpoint `simulaxon` | `127.0.0.1:8790`; the dev page on the tailnet at port 5176 | `--host`, `--port`; `LAB_API` for the dev page |
-| Dashboard, `/dashboard` | Grafana, forwarded by `fuzzball/grafana.sh` | None: the link is hidden and `/dashboard` answers 404 | `GRAFANA_URL`, set empty here |
+| Dashboard, `/dashboard` | Grafana's endpoint, found through the Fuzzball CLI | None: the link is hidden, and `/dashboard` says Grafana isn't running | Whether the Fuzzball CLI is installed |
 | Studies as workflows, `/api/runs` | Fuzzball CLI | None, since the Fuzzball CLI isn't installed | `FUZZBALL` |
 
 ## 5. Policy
 
 1. **One source of truth.** After the freeze, app work lands in this repo: `frontend/` and `services/app-server/`. The app copy in visual-cortex-lab (`archive/app_v1/`, `backend/vcl/`) is frozen for app code; research scripts stay there. Checked at 5:40 pm: that copy has nothing newer than `main`. The only differences are `main`'s own additions.
 2. **Places differ by settings, never by forked code.** Every row of § 4 is an environment variable with a default. A change made for one place reads its setting and works in the other.
-3. **No dead controls.** A control that needs a cluster-only route shows only where that place has the route. The Dashboard link shows only when `GRAFANA_URL` is set, and the Spark sets it empty; done on this branch. The lab app has no control for `/api/runs`.
+3. **No dead controls.** A control that needs a cluster-only route shows only where that place has the route. The Dashboard link shows only where the Fuzzball CLI is installed, since `/dashboard` finds Grafana through it; done on this branch. The lab app has no control for `/api/runs`.
 4. **Pulling more UI updates.** If work continues on another copy after the freeze, each commit comes over as a patch with its paths mapped (the skill, § 4), on a branch, and merges after the checks in § 6.
 5. **Never force-push, and never rewrite others' commits.** Work goes on branches with pull requests.
 
@@ -65,7 +65,7 @@ cd ~/Repos/simulaxon && git switch main && git merge --ff-only vast-final-2026-1
 cd frontend && npm ci && npx vite build
 cd ../services/app-server
 V=~/Repos/visual-cortex-lab
-SIMULAXON_HOME=$V SIMULAXON_DATA=$V/backend/data SIMULAXON_AGENT=claude GRAFANA_URL= PYTHONPATH=. \
+SIMULAXON_HOME=$V SIMULAXON_DATA=$V/backend/data SIMULAXON_AGENT=claude PYTHONPATH=. \
   $V/feasibility/.venv/bin/python -m app_server.lab.serve --port 8790 --db $V/backend/data/lab_main.duckdb
 ```
 This takes over port 8790 from the research repo's server, after these steps in order:

@@ -22,13 +22,13 @@
     "x": 0,
     "y": 0
    },
-   "id": 20,
+   "id": 1,
    "panels": []
   },
   {
    "type": "state-timeline",
    "title": "Node state",
-   "id": 21,
+   "id": 2,
    "datasource": {
     "type": "prometheus",
     "uid": "prometheus"
@@ -115,7 +115,7 @@
   {
    "type": "table",
    "title": "Nodes now",
-   "id": 22,
+   "id": 3,
    "datasource": {
     "type": "prometheus",
     "uid": "prometheus"
@@ -316,98 +316,143 @@
     "x": 0,
     "y": 13
    },
-   "id": 23,
+   "id": 4,
    "panels": []
   },
   {
-   "type": "state-timeline",
+   "id": 5,
+   "type": "table",
    "title": "Study steps",
-   "id": 24,
-   "datasource": {
-    "type": "prometheus",
-    "uid": "prometheus"
-   },
    "gridPos": {
-    "h": 12,
+    "h": 9,
     "w": 24,
     "x": 0,
     "y": 14
    },
-   "description": "Each step of the study workflows (observer) started in the last 6 hours, render tasks one by one. Rows read: first 8 characters of the workflow ID, step, task.",
+   "description": "One row per observer run from the last 6 hours, newest first (start time in UTC and the workflow's short ID), one column per step. A cell shows the worst state of the step's tasks: one failed render task makes the render cell red.",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prometheus"
+   },
    "targets": [
     {
      "datasource": {
       "type": "prometheus",
       "uid": "prometheus"
      },
-     "expr": "label_replace(max by (workflow, workflow_name, job, task) (simulaxon_step_state), \"wf\", \"$1\", \"workflow\", \"(.{8}).*\")",
-     "refId": "A",
-     "legendFormat": "{{wf}} {{job}} {{task}}"
+     "expr": "max by (run, job) ((simulaxon_step_state == 3) * 10 or simulaxon_step_state)",
+     "format": "table",
+     "instant": true,
+     "refId": "A"
+    }
+   ],
+   "transformations": [
+    {
+     "id": "organize",
+     "options": {
+      "excludeByName": {
+       "Time": true
+      }
+     }
+    },
+    {
+     "id": "groupingToMatrix",
+     "options": {
+      "rowField": "run",
+      "columnField": "job",
+      "valueField": "Value",
+      "emptyValue": "empty"
+     }
+    },
+    {
+     "id": "organize",
+     "options": {
+      "indexByName": {
+       "run\\job": 0,
+       "motions": 1,
+       "render": 2,
+       "tribe": 3,
+       "analyse": 4,
+       "maps": 5,
+       "app-dataset": 6
+      },
+      "renameByName": {
+       "run\\job": "run"
+      }
+     }
+    },
+    {
+     "id": "sortBy",
+     "options": {
+      "sort": [
+       {
+        "field": "run",
+        "desc": true
+       }
+      ]
+     }
     }
    ],
    "fieldConfig": {
     "defaults": {
+     "custom": {
+      "cellOptions": {
+       "type": "color-background"
+      },
+      "align": "center"
+     },
      "mappings": [
       {
        "type": "value",
        "options": {
         "0": {
          "text": "waiting",
-         "color": "text",
-         "index": 0
+         "color": "text"
         },
         "1": {
          "text": "running",
-         "color": "blue",
-         "index": 1
+         "color": "blue"
         },
         "2": {
          "text": "finished",
-         "color": "green",
-         "index": 2
+         "color": "green"
         },
-        "3": {
+        "30": {
          "text": "failed",
-         "color": "red",
-         "index": 3
+         "color": "red"
         },
         "4": {
          "text": "canceled",
-         "color": "#808080",
-         "index": 4
+         "color": "orange"
         }
        }
       }
-     ],
-     "color": {
-      "mode": "thresholds"
-     },
-     "thresholds": {
-      "mode": "absolute",
-      "steps": [
+     ]
+    },
+    "overrides": [
+     {
+      "matcher": {
+       "id": "byName",
+       "options": "run"
+      },
+      "properties": [
        {
-        "color": "text",
-        "value": null
+        "id": "custom.cellOptions",
+        "value": {
+         "type": "auto"
+        }
+       },
+       {
+        "id": "custom.align",
+        "value": "left"
        }
       ]
-     },
-     "custom": {
-      "fillOpacity": 80,
-      "lineWidth": 0
      }
-    },
-    "overrides": []
+    ]
    },
    "options": {
-    "showValue": "never",
-    "mergeValues": true,
-    "rowHeight": 0.8,
-    "legend": {
-     "showLegend": false
-    },
-    "tooltip": {
-     "mode": "single"
-    }
+    "showHeader": true,
+    "cellHeight": "sm"
    }
   },
   {
@@ -421,7 +466,7 @@
     "y": 26
    },
    "panels": [],
-   "id": 1
+   "id": 6
   },
   {
    "type": "table",
@@ -513,7 +558,7 @@
     "showHeader": true,
     "cellHeight": "sm"
    },
-   "id": 2
+   "id": 7
   },
   {
    "type": "row",
@@ -526,7 +571,7 @@
     "y": 37
    },
    "panels": [],
-   "id": 3
+   "id": 8
   },
   {
    "type": "timeseries",
@@ -581,7 +626,7 @@
      "refId": "A"
     }
    ],
-   "id": 4
+   "id": 9
   },
   {
    "type": "timeseries",
@@ -635,7 +680,7 @@
      "refId": "A"
     }
    ],
-   "id": 5
+   "id": 10
   },
   {
    "type": "timeseries",
@@ -690,7 +735,7 @@
      "refId": "A"
     }
    ],
-   "id": 6
+   "id": 11
   },
   {
    "type": "timeseries",
@@ -744,7 +789,7 @@
      "refId": "A"
     }
    ],
-   "id": 7
+   "id": 12
   },
   {
    "type": "table",
@@ -803,7 +848,7 @@
     "showHeader": true,
     "cellHeight": "sm"
    },
-   "id": 8
+   "id": 13
   },
   {
    "type": "row",
@@ -816,7 +861,7 @@
     "y": 63
    },
    "panels": [],
-   "id": 9
+   "id": 14
   },
   {
    "type": "timeseries",
@@ -878,7 +923,7 @@
      "refId": "B"
     }
    ],
-   "id": 10
+   "id": 15
   },
   {
    "type": "timeseries",
@@ -940,7 +985,7 @@
      "refId": "B"
     }
    ],
-   "id": 11
+   "id": 16
   },
   {
    "type": "timeseries",
@@ -995,7 +1040,7 @@
      "refId": "A"
     }
    ],
-   "id": 12
+   "id": 17
   },
   {
    "type": "timeseries",
@@ -1057,7 +1102,7 @@
      "refId": "B"
     }
    ],
-   "id": 13
+   "id": 18
   },
   {
    "type": "timeseries",
@@ -1119,7 +1164,7 @@
      "refId": "B"
     }
    ],
-   "id": 14
+   "id": 19
   },
   {
    "type": "row",
@@ -1132,7 +1177,7 @@
     "y": 80
    },
    "panels": [],
-   "id": 15
+   "id": 20
   },
   {
    "type": "table",
@@ -1189,7 +1234,7 @@
     "showHeader": true,
     "cellHeight": "sm"
    },
-   "id": 16
+   "id": 21
   },
   {
    "type": "stat",
@@ -1263,7 +1308,7 @@
     },
     "orientation": "horizontal"
    },
-   "id": 17
+   "id": 22
   },
   {
    "type": "stat",
@@ -1324,7 +1369,7 @@
     },
     "orientation": "horizontal"
    },
-   "id": 18
+   "id": 23
   },
   {
    "type": "row",
@@ -1336,13 +1381,13 @@
     "x": 0,
     "y": 97
    },
-   "id": 25,
+   "id": 24,
    "panels": []
   },
   {
    "type": "bargauge",
    "title": "Weights on the volume",
-   "id": 26,
+   "id": 25,
    "datasource": {
     "type": "prometheus",
     "uid": "prometheus"

@@ -293,10 +293,11 @@ def register(tools, broadcast=lambda m: None):
 
     @tools.tool('machine', 'get', writes_project=False)
     def machine_get(actor):
-        """What the agent, the world node and the brain node are doing now, read from running processes, and where this
-        place's dashboard is (dashboard_url is empty where there is none, such as on the Spark: GRAFANA_URL set empty)."""
-        from ..config import GRAFANA_URL
-        return {**records.machine(), 'dashboard_url': GRAFANA_URL}
+        """What the agent, the world node and the brain node are doing now, read from running processes, and whether this
+        place has a dashboard: /dashboard finds Grafana through the Fuzzball CLI, so a place without it (the Spark) has none."""
+        import shutil
+        from ..config import FUZZBALL
+        return {**records.machine(), 'dashboard': bool(shutil.which(FUZZBALL))}
 
     @tools.tool('roi', 'list', writes_project=False)
     def roi_list(actor):

@@ -107,7 +107,8 @@ def workflow_steps(w: dict) -> list[dict]:
     d = fb_json('workflow', 'describe', w['id']) or {}
     st = [s for s in d.get('status', {}).get('stages', []) if s.get('kind') == 'STAGE_KIND_JOB']
     arrays = {s['name'] for s in st if s.get('rank', 0) >= 1}
-    return [{'workflow': w['id'], 'workflow_name': w.get('name', ''), 'job': s['name'], 'task': str(s['rank']) if s['name'] in arrays else '',
+    run = f"{w.get('createTime', '')[11:16]} UTC {w['id'][:8]}"   # sorts newest last within a day; the grid reverses it
+    return [{'workflow': w['id'], 'workflow_name': w.get('name', ''), 'run': run, 'job': s['name'], 'task': str(s['rank']) if s['name'] in arrays else '',
              'node': NODE_NAMES.get(ip := ((s.get('details') or {}).get('Host') or '').split(':')[0], ip), 'state': step_state(s.get('status', ''))}
             for s in st if not (s['name'] in arrays and s.get('rank', 0) == 0)]
 
@@ -246,7 +247,7 @@ def metrics() -> str:
     out += ['# HELP simulaxon_node_running_jobs The team\'s jobs and services running on the node.', '# TYPE simulaxon_node_running_jobs gauge'] + \
            [f"simulaxon_node_running_jobs{labels(node=n['node'], ip=n['ip'])} {len(n['jobs'])}" for n in st['nodes']]
     out += ['# HELP simulaxon_step_state A study step: 0 waiting, 1 running, 2 finished, 3 failed, 4 canceled.', '# TYPE simulaxon_step_state gauge'] + \
-           [f"simulaxon_step_state{labels(**{k: s[k] for k in ('workflow', 'workflow_name', 'job', 'task', 'node', 'state')})} {STEP_STATES[s['state']]}" for s in st['steps']]
+           [f"simulaxon_step_state{labels(**{k: s[k] for k in ('workflow', 'workflow_name', 'run', 'job', 'task', 'node', 'state')})} {STEP_STATES[s['state']]}" for s in st['steps']]
     out += ['# HELP simulaxon_weights_bytes Size of each folder in /data/weights.', '# TYPE simulaxon_weights_bytes gauge'] + \
            [f"simulaxon_weights_bytes{labels(folder=k)} {v}" for k, v in st['weights'].items()]
     out += ['# HELP simulaxon_exporter_fuzzball_age_seconds Seconds since the Fuzzball state was last read.',

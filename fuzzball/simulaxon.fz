@@ -104,7 +104,6 @@ services:
       - PLANNER_URL=http://planner:8000/v1
       - PLANNER_MODEL=nvidia/nemotron-3-super
       - FUZZBALL=/data/bin/fuzzball
-      - GRAFANA_URL=http://localhost:13000   # where the app's Dashboard link goes: Grafana through sh fuzzball/grafana.sh
     script: |
       #!/bin/sh
       set -e

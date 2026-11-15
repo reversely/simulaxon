@@ -6,9 +6,6 @@
   PLANNER_MODEL     model name the planner serves (default nvidia/nemotron-3-super)
   FUZZBALL          the Fuzzball CLI; inside a workflow it reads FB_TOKEN and FB_API_HOST (default fuzzball)
   RENDER_SCORE_URL  render-score's base URL, where previews and runs render (render_score_url() finds it when unset)
-  GRAFANA_URL       Grafana as the browser reaches it, where /dashboard sends people (default http://localhost:13000,
-                    which `sh fuzzball/grafana.sh` forwards to the observability workflow). Set it empty where there is
-                    no Grafana, such as the Spark: the app then shows no Dashboard link
 """
 from __future__ import annotations
 import os
@@ -23,7 +20,6 @@ RUNS = APP / 'runs'
 PLANNER_URL = os.environ.get('PLANNER_URL', 'http://planner:8000/v1').rstrip('/')
 PLANNER_MODEL = os.environ.get('PLANNER_MODEL', 'nvidia/nemotron-3-super')
 FUZZBALL = os.environ.get('FUZZBALL', 'fuzzball')
-GRAFANA_URL = os.environ.get('GRAFANA_URL', 'http://localhost:13000').rstrip('/')
 
 
 class _RenderScore:
