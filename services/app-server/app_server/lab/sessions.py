@@ -134,7 +134,9 @@ class Session:
         rec = {'n': n, 'from': source, 'mode': mode, 'prompt': prompt, 'started': time.strftime('%H:%M:%S'), 'tool_calls': [], 'text': [], 'reply': None}
         self.d['turns'].append(rec); self.d['status'] = 'working'; self.save(); self.emit(stage='turn', n=n)
         system = SYSTEM + '\n' + MODES[mode] + (f"\nThe project for this chat, if any: {self.d['project_id']}." if self.d.get('project_id') else '')
-        if self.d.get('runtime') == 'planner': return self.turn_planner(prompt, rec, n, t0, system)   # chats from before the planner have no runtime: Claude Code
+        # Each turn runs on the agent this place has now, so a chat begun on the Spark (Claude Code) carries on on the cluster.
+        self.d['runtime'] = planner_agent.backend(); self.d['agent'] = planner_agent.label()
+        if self.d['runtime'] == 'planner': return self.turn_planner(prompt, rec, n, t0, system)
         cfg = _mcp_config(self.base)
         cmd = ['claude', '-p', prompt, '--mcp-config', cfg, '--strict-mcp-config', '--allowedTools', 'mcp__vcl',
                '--disallowedTools', 'Bash', 'Edit', 'Write', 'NotebookEdit', 'WebFetch', 'WebSearch', 'Agent', 'Read', 'Glob', 'Grep',
