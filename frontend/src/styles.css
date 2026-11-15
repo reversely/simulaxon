@@ -32,7 +32,7 @@ button { font: inherit; color: inherit; cursor: pointer; }
 input, select, textarea { font: inherit; color: inherit; }
 
 .frame { display: grid; grid-template-rows: auto minmax(0, 1fr) 46px; height: 100vh; }
-.top { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 18px; padding: 10px 20px; border-bottom: 1px solid var(--rule); background: var(--panel); }
+.top { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 14px; padding: 10px 20px; border-bottom: 1px solid var(--rule); background: var(--panel); }
 .brand { font-weight: 650; letter-spacing: 0.01em; white-space: nowrap; }
 .switch { position: relative; }
 .switch > button { display: flex; align-items: center; gap: 8px; background: var(--raise); border: 1px solid var(--rule); border-radius: 8px; padding: 6px 12px; max-width: 420px; }
@@ -507,7 +507,7 @@ aside.left .convo { padding-bottom: 28px; }
 /* tabs with icons still fit beside the project switcher at 1394 px */
 .tabs { gap: 2px; }
 .tab { padding: 6px 9px; gap: 6px; }
-@media (min-width: 761px) { .switch > button { max-width: 360px; } }   /* on a phone, the rule above keeps it within the screen */
+@media (min-width: 761px) { .switch > button { max-width: 230px; } }   /* leaves the header one row at 1440 px beside the demo page button */   /* on a phone, the rule above keeps it within the screen */
 
 /* results dashboard (#20): run header with one Download menu, numbered figures and tables */
 .dash { display: flex; flex-direction: column; gap: 16px; }
