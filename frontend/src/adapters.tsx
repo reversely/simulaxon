@@ -10,7 +10,25 @@ type Adapter = { id: string; name: string; dataset_id: string; source: string; p
   split: { kind: string; held_out: number; training: number }; input: string; target: string; summary: Record<'adapter' | 'tribe_v2' | 'shuffled' | 'ceiling', Summary>; areas?: Area[]; benchmark?: string }
 
 const ROWS: [keyof Adapter['summary'], string][] = [['adapter', 'Adapter'], ['tribe_v2', 'TRIBE v2 as released'], ['shuffled', 'Adapter, labels shuffled'], ['ceiling', 'Noise ceiling']]
-const MAPS: [string, string][] = [['adapter_r', 'Adapter'], ['tribe_v2_r', 'TRIBE v2'], ['gain', 'Adapter minus TRIBE v2']]
+const MAPS: [string, string, string][] = [   // key, button, legend
+  ['adapter_r', 'Adapter', 'r between the adapter\'s prediction and measured fMRI, per area: red to yellow where it follows the measured response, blue where it runs against it.'],
+  ['tribe_v2_r', 'TRIBE v2', 'r between TRIBE v2\'s own prediction, as released, and measured fMRI, per area: red to yellow where it follows the measured response, blue where it runs against it.'],
+  ['gain', 'Difference', 'Adapter r minus TRIBE v2 r, per area: red where the adapter is better, blue where TRIBE v2 as released is better.']]
+const BAR_LO = -0.1, BAR_HI = 0.8   // the bars' r axis: shuffled labels sit near 0, the ceiling under 0.8
+const barX = (r: number) => `${100 * (Math.min(BAR_HI, Math.max(BAR_LO, r)) - BAR_LO) / (BAR_HI - BAR_LO)}%`
+
+/** The benchmark's four medians as bars from zero, each with its 95% interval. */
+function BenchBars({ a }: { a: Adapter }) {
+  return <div className="benchbars" role="img" aria-label={`Median r: ${ROWS.map(([k, l]) => `${l} ${fmt(a.summary[k].median)}`).join(', ')}`}>
+    {ROWS.map(([k, label]) => { const s = a.summary[k], m = s.median, [lo, hi] = s.interval_95
+      return <div key={k} className={`benchbar ${k}`}>
+        <span className="lbl">{label}</span>
+        <span className="track"><i className="zero" style={{ left: barX(0) }} /><i className="fill" style={{ left: barX(Math.min(0, m)), right: `calc(100% - ${barX(Math.max(0, m))})` }} />
+          <i className="ci" style={{ left: barX(lo), right: `calc(100% - ${barX(hi)})` }} /></span>
+        <span className="num val">{fmt(m)}<span className="ink2 small"> {fmt(lo)} to {fmt(hi)}</span></span>
+      </div> })}
+  </div>
+}
 
 function AdapterCard({ a }: { a: Adapter }) {
   const [full, setFull] = useState<Adapter | null>(null); const [map, setMap] = useState('adapter_r'); const [all, setAll] = useState(false); const [sortBy, setSortBy] = useState<keyof Area>('adapter_r')
@@ -22,24 +40,27 @@ function AdapterCard({ a }: { a: Adapter }) {
   }
   const head = (k: keyof Area, label: string, num = true) => <th className={num ? 'num' : ''} onClick={() => setSortBy(k)} aria-sort={sortBy === k ? 'descending' : 'none'} style={{ cursor: 'pointer' }}>{label}{sortBy === k ? ' ↓' : ''}</th>
   return <div className="card adaptercard">
-    <h3>{a.name}</h3>
-    <div className="benchlabel"><span className="chip">Benchmark</span><span>{(a.benchmark ?? `Benchmark: held-out categories of the ${a.source.split(',')[0]}`).replace(/^Benchmark: /, '')}</span></div>
-    <p className="ink2" style={{ marginTop: 0 }}>{a.source}: {a.clips.toLocaleString()} clips in {a.categories} categories. {a.split.kind === '10-fold over categories' ? 'Scored 10-fold over categories' : `${a.split.held_out} categories held out, ${a.split.training} trained on`}; every score is on categories the fit never saw.</p>
-    <div className="tablescroll"><table className="data compact"><thead><tr><th>Model</th><th className="num">Median r</th><th className="num">95% interval</th></tr></thead>
-      <tbody>{ROWS.map(([k, label]) => <tr key={k}><td>{label}</td><td className="num">{fmt(a.summary[k].median)}</td><td className="num">{fmt(a.summary[k].interval_95[0])} to {fmt(a.summary[k].interval_95[1])}</td></tr>)}</tbody></table></div>
-    <p className="ink2 small">r between predicted and measured responses ({a.target}) across held-out categories, per area; median over {a.reliable_areas} reliable areas (noise ceiling above 0.5, somatomotor areas left out). Interval: resampling areas. Input: {a.input}.</p>
-    <div className="adaptermaps">
-      <div>
-        <div className="seg" role="group" aria-label="Map">{MAPS.map(([k, label]) => <button key={k} className={map === k ? 'on' : ''} onClick={() => setMap(k)}>{label}</button>)}</div>
-        <MapBrain url={`/api/brain/adapter/${a.id}/${map}`} title={`${a.name}: ${MAPS.find(m => m[0] === map)?.[1]} r per area`} vmax={map === 'gain' ? 0.4 : 0.8} low={map === 'gain' ? '−0.4' : 'r −0.8'} high={map === 'gain' ? '+0.4' : '+0.8'} />
+    <div className="benchlabel"><h3>{a.name}</h3><span className="chip">Benchmark</span><span>{(a.benchmark ?? `Benchmark: held-out categories of the ${a.source.split(',')[0]}`).replace(/^Benchmark: /, '')}</span></div>
+    <div className="adapterlead">
+      <div className="adaptermap">
+        <div className="seg" role="group" aria-label="Map">{MAPS.map(([k, label, legend]) => <button key={k} className={map === k ? 'on' : ''} title={legend} onClick={() => setMap(k)}>{label}</button>)}</div>
+        <MapBrain url={`/api/brain/adapter/${a.id}/${map}`} title={`${a.name}: ${map === 'gain' ? 'adapter minus TRIBE v2' : MAPS.find(m => m[0] === map)?.[1]} r per area`} vmax={map === 'gain' ? 0.4 : 0.8} low={map === 'gain' ? 'Δr −0.4' : 'r −0.8'} high={map === 'gain' ? '+0.4' : '+0.8'} />
+        <p className="ink2 small maplegend">{MAPS.find(m => m[0] === map)?.[2]}</p>
       </div>
-      <div>
-        <div className="bar"><div className="seg" role="group" aria-label="Areas"><button className={!all ? 'on' : ''} onClick={() => setAll(false)}>Reliable areas</button><button className={all ? 'on' : ''} onClick={() => setAll(true)}>All 360</button></div>
-          <button className="btn" style={{ marginLeft: 'auto' }} onClick={csv} disabled={!full}>Download CSV</button></div>
-        <div className="tablewrap tall"><table className="data compact"><thead><tr>{head('area', 'Area', false)}{head('adapter_r', 'Adapter')}{head('tribe_v2_r', 'TRIBE v2')}{head('ceiling', 'Ceiling')}</tr></thead>
-          <tbody>{areas.map(x => <tr key={x.area}><td>{x.area}</td><td className="num">{fmt(x.adapter_r)}</td><td className="num">{fmt(x.tribe_v2_r)}</td><td className="num">{fmt(x.ceiling)}</td></tr>)}</tbody></table></div>
+      <div className="adaptersum">
+        <h4>Median r over {a.reliable_areas} reliable areas</h4>
+        <BenchBars a={a} />
+        <p className="ink2 small">{a.source}: {a.clips.toLocaleString()} clips in {a.categories} categories. {a.split.kind === '10-fold over categories' ? 'Scored 10-fold over categories' : `${a.split.held_out} categories held out, ${a.split.training} trained on`}; every score is on categories the fit never saw.</p>
+        <p className="ink2 small">r between predicted and measured responses ({a.target}) across held-out categories, per area; reliable: noise ceiling above 0.5, somatomotor areas left out. Line: 95% interval, resampling areas. Input: {a.input}.</p>
       </div>
     </div>
+    <details className="adapterareas">
+      <summary>Areas: {all ? 'all 360' : `${a.reliable_areas} reliable`}, r per area</summary>
+      <div className="bar"><div className="seg" role="group" aria-label="Areas"><button className={!all ? 'on' : ''} onClick={() => setAll(false)}>Reliable areas</button><button className={all ? 'on' : ''} onClick={() => setAll(true)}>All 360</button></div>
+        <button className="btn" style={{ marginLeft: 'auto' }} onClick={csv} disabled={!full}>Download CSV</button></div>
+      <div className="tablewrap tall"><table className="data compact"><thead><tr>{head('area', 'Area', false)}{head('adapter_r', 'Adapter')}{head('tribe_v2_r', 'TRIBE v2')}{head('ceiling', 'Ceiling')}</tr></thead>
+        <tbody>{areas.map(x => <tr key={x.area}><td>{x.area}</td><td className="num">{fmt(x.adapter_r)}</td><td className="num">{fmt(x.tribe_v2_r)}</td><td className="num">{fmt(x.ceiling)}</td></tr>)}</tbody></table></div>
+    </details>
   </div>
 }
 

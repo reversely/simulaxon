@@ -102,7 +102,7 @@ function DatasetView({ id, ds, projects, onBack, onOpenProject, onChanged, initi
       <div className="seg" role="tablist" aria-label="Dataset">
         <button role="tab" aria-selected={tab === 'samples'} className={tab === 'samples' ? 'on' : ''} onClick={() => setTab('samples')}>Samples{res?.indexed ? ` (${n(res.trail[0]?.count ?? 0)})` : ''}</button>
         <button role="tab" aria-selected={tab === 'projects'} className={tab === 'projects' ? 'on' : ''} onClick={() => setTab('projects')}>Projects ({users.length})</button>
-        {ds?.measured && <button role="tab" aria-selected={tab === 'adapters'} className={tab === 'adapters' ? 'on' : ''} onClick={() => setTab('adapters')}>Adapters ({ds.adapters ?? 0})</button>}
+        {(ds?.measured || !!ds?.adapters) && <button role="tab" aria-selected={tab === 'adapters'} className={tab === 'adapters' ? 'on' : ''} onClick={() => setTab('adapters')}>Adapters ({ds.adapters ?? 0})</button>}
       </div>
       {res?.indexed && !ds?.embedded && !embedding && <button className="btn" style={{ marginLeft: 'auto' }} onClick={embed}>Compute similarity</button>}
       <button className="btn primary" style={res?.indexed && !ds?.embedded && !embedding ? undefined : { marginLeft: 'auto' }} onClick={() => setImporting(true)}><Icon name="upload" size={16} />Import</button>

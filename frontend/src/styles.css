@@ -653,10 +653,32 @@ table.data.compact td, table.data.compact th { padding: 3px 8px; font-size: 14px
 /* A dataset's adapters (#28, adapters.tsx) */
 .adapters { display: flex; flex-direction: column; gap: 12px; }
 .adapters select { background: var(--raise); color: var(--ink); border: 1px solid var(--rule-strong); border-radius: 8px; padding: 6px 10px; max-width: 100%; }
-.benchlabel { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 2px 0 8px; font-weight: 600; }
-.adaptermaps { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; align-items: start; }
-.adaptermaps > div { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
-@media (max-width: 760px) { .adaptermaps { grid-template-columns: minmax(0, 1fr); } }
+.benchlabel { display: flex; align-items: center; gap: 6px 10px; flex-wrap: wrap; margin: 0 0 10px; font-weight: 600; }
+.benchlabel h3 { margin: 0 6px 0 0; }
+.adaptermap > .seg { align-self: flex-start; }
+.adaptersum p { margin: 0; }
+/* The map leads at the card's width, the benchmark's bars beside it, then the area table folded away (#42) */
+.adapterlead { display: grid; grid-template-columns: minmax(0, 1fr) minmax(260px, 340px); gap: 20px; align-items: start; }
+.adapterlead > div { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.adaptermap .brain3dcanvas canvas { aspect-ratio: 16 / 10; }
+.adaptermap .maplegend { margin: 0; min-height: calc(2 * 1.45em); }   /* every map's legend fits its place, so switching never moves the page */
+.adaptersum h4 { margin: 0; font-size: 15px; }
+.benchbars { display: flex; flex-direction: column; gap: 10px; }
+.benchbar { display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: 'lbl val' 'track track'; gap: 2px 10px; align-items: baseline; }
+.benchbar .lbl { grid-area: lbl; }
+.benchbar .val { grid-area: val; font-weight: 600; }
+.benchbar .track { grid-area: track; position: relative; height: 14px; background: var(--raise); border-radius: 3px; }
+.benchbar .track i { position: absolute; display: block; }
+.benchbar .fill { top: 2px; bottom: 2px; background: var(--ink-3); border-radius: 2px; }
+.benchbar.adapter .fill { background: var(--accent); }
+.benchbar.tribe_v2 .fill { background: var(--b); }
+.benchbar.ceiling .fill { background: none; border: 1px dashed var(--ink-2); }
+.benchbar .ci { top: 6px; height: 2px; background: var(--ink); }
+.benchbar .zero { top: -2px; bottom: -2px; width: 1px; background: var(--ink-3); }
+.adapterareas { margin-top: 14px; border-top: 1px solid var(--rule); padding-top: 10px; }
+.adapterareas summary { cursor: pointer; font-weight: 600; padding: 4px 0; }
+.adapterareas[open] summary { margin-bottom: 8px; }
+@media (max-width: 900px) { .adapterlead { grid-template-columns: minmax(0, 1fr); } .adaptermap .maplegend { min-height: calc(4 * 1.45em); } }
 /* Demo mode (#26, guide.tsx): the guide's panel and its two diagrams, tiles with one icon and arrows with monospace labels */
 .guide { display: flex; flex-direction: column; gap: 12px; }
 .guide > .bar .gmono { font-size: 13px; }
