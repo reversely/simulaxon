@@ -81,7 +81,7 @@
 <section class="section" data-biome="cost">
   <div class="two">
     <div class="lines reveal">
-      <span class="h-ico" aria-hidden="true"><svg><use href="#i-scan"/></svg></span>
+      <div class="hd"><span class="h-ico" aria-hidden="true"><svg><use href="#i-scan"/></svg></span><h2>Every comparison costs scanner hours</h2></div>
       <p>To find out what drives a response, researchers need to vary what people see, hear, or know going into a scene.</p>
       <p>Testing those comparisons with people gets expensive fast, at <span class="tok"><svg><use href="#i-cost"/></svg>tens of thousands of dollars</span> per study.</p>
     </div>
@@ -100,24 +100,27 @@
   </div>
 </section>
 
-<!-- Develop the experiment first: the picture follows the text -->
-<section class="section" data-biome="develop">
-  <div class="stations">
-    <div class="text">
-      <div class="station"><span class="h-ico" aria-hidden="true"><svg><use href="#i-target"/></svg></span><p>Simulaxon gives researchers a way to develop the experiment before they bring in participants.</p></div>
-      <div class="station"><span class="h-ico" aria-hidden="true"><svg><use href="#i-llm"/></svg></span><p>The agent decides what to vary and what to hold fixed, generates the clips, and compares the predicted brain responses.</p></div>
-      <div class="station"><span class="h-ico" aria-hidden="true"><svg><use href="#i-flow"/></svg></span><p>It can then run a follow-up to see whether a pattern persists when another detail changes.</p></div>
-    </div>
-    <div class="pin">
-      <div>
-        <div class="frames">
-          <figure class="grab"><img src="assets/grabs/grab-chat.gif" alt="The agent's reply in the app's chat: the next control to run and what each outcome would mean"><figcaption>The agent's reply in the chat: the next control to run, and what each outcome would mean.</figcaption></figure>
-          <figure class="grab"><img src="assets/grabs/grab-trial.gif" alt="An Isaac Sim render of a G1 humanoid playing in the app beside its predicted brain"><figcaption>An Isaac Sim render in the app, beside TRIBE v2's prediction on one clock.</figcaption></figure>
-          <figure class="grab"><img src="assets/grabs/grab-chat.gif" alt="The agent's reply laying out which control to run next and what each outcome would mean"><figcaption>The agent proposing the next control, with what each outcome would mean.</figcaption></figure>
-        </div>
-        <div class="ticks" aria-hidden="true"></div>
+<!-- Develop the experiment first: three steps, scrolled sideways -->
+<section class="hscroll" data-biome="develop">
+  <div class="hs-pin">
+    <div class="hs-head hd"><span class="h-ico" aria-hidden="true"><svg><use href="#i-target"/></svg></span><h2>Develop the experiment before the first scan</h2></div>
+    <div class="hs-view">
+      <div class="hs-track">
+        <article class="hs-panel">
+          <div class="hs-text"><span class="hs-n num">1</span><p>The agent decides what to vary and what to hold fixed.</p></div>
+          <figure class="grab"><img src="assets/grabs/new-project.png" alt="The app's New project panel: chat with the agent, open a classic experiment, or start from a template"></figure>
+        </article>
+        <article class="hs-panel">
+          <div class="hs-text"><span class="hs-n num">2</span><p>It generates the clips and compares the predicted brain responses.</p></div>
+          <figure class="grab"><img src="assets/grabs/grab-trial.gif" alt="An Isaac Sim render of a G1 humanoid playing in the app beside its predicted brain"></figure>
+        </article>
+        <article class="hs-panel">
+          <div class="hs-text"><span class="hs-n num">3</span><p>It can then run a follow-up to see whether a pattern persists when another detail changes.</p></div>
+          <figure class="grab"><img src="assets/grabs/grab-chat.gif" alt="The agent's reply in the app's chat: the next control to run and what each outcome would mean"></figure>
+        </article>
       </div>
     </div>
+    <div class="ticks hs-ticks" aria-hidden="true"><i class="on"></i><i></i><i></i></div>
   </div>
 </section>
 
@@ -126,8 +129,8 @@
   <div class="two flip top">
     <figure class="paper reveal"><img src="assets/papers/tribev2.png" alt="First page of the TRIBE v2 paper"><figcaption>d'Ascoli and others, A foundation model of vision, audition, and language for in-silico neuroscience, arXiv:2605.04326, 2026.</figcaption></figure>
     <div class="lines reveal">
-      <span class="h-ico" aria-hidden="true"><svg><use href="#i-paper"/></svg></span>
-      <p>The predictions come from Meta's <span class="tok"><svg><use href="#i-brain"/></svg>TRIBE v2</span>, which trained on fMRI recordings of people watching films, television, and short videos of everyday events.</p>
+      <div class="hd"><span class="h-ico" aria-hidden="true"><svg><use href="#i-paper"/></svg></span><h2>Predictions come from Meta's TRIBE v2</h2></div>
+      <p>It trained on fMRI recordings of people watching films, television, and short videos of everyday events.</p>
       <p>In separate evaluations, it recovered known patterns of brain activity for seeing faces versus places and hearing descriptions of emotional versus physical pain.</p>
     </div>
   </div>
@@ -152,30 +155,32 @@
   <div class="inner">
     <div class="two">
       <div class="lines reveal">
-        <div class="hd"><span class="h-ico" aria-hidden="true"><svg><use href="#i-layers"/></svg></span><h2>Fitting TRIBE v2 to measured fMRI</h2></div>
+        <div class="hd"><span class="h-ico" aria-hidden="true"><svg><use href="#i-layers"/></svg></span><h2>An adapter fits TRIBE v2 to real people</h2></div>
         <p><span class="tok"><svg><use href="#i-brain"/></svg>TRIBE v2</span> predicts an average viewer it has never met. Given people's measured fMRI, one click fits an adapter: a map from <span class="tok"><svg><use href="#i-brain"/></svg>TRIBE v2</span>'s prediction for each brain area to the responses those people had.</p>
       </div>
-      <div class="fcard" data-card="adapter">
-        <div class="fc-sheet s2"></div><div class="fc-sheet s1"></div>
-        <div class="fc-card">
-          <div class="fc-head"><span>Adapters · Human Action Dataset</span><span>30 people</span></div>
-          <div class="fc-row"><span>Median r, held-out categories</span><span class="fc-btn"><span>Fit an adapter</span><span>Fitting</span><span>Fitted</span></span></div>
-          <div class="fc-bars">
-            <div class="fc-bar"><span>TRIBE v2 as released</span><span class="fc-lane"><i data-tribe style="background:#8a847b"></i><span class="fc-ceil"></span></span><span class="num">0.257</span></div>
-            <div class="fc-bar"><span><b>Adapter</b></span><span class="fc-lane"><i data-fit style="background:#7fa01c"></i><span class="fc-ceil"></span></span><span class="num" data-fit-n>0.000</span></div>
+      <div class="fit-right">
+      <figure class="mapview" data-brain-map>
+        <canvas aria-label="Where on the cortex each model predicts measured fMRI, per brain area"></canvas>
+        <figcaption>
+          <span class="choose"><button data-map="adapter_r" class="on">Adapter</button><button data-map="tribe_v2_r">TRIBE v2 as released</button><button data-map="gain">Adapter minus TRIBE v2</button></span>
+          <span data-legend></span>
+        </figcaption>
+      </figure>
+        <div class="fcard" data-card="adapter">
+          <div class="fc-sheet s2"></div><div class="fc-sheet s1"></div>
+          <div class="fc-card">
+            <div class="fc-head"><span>Adapters · Human Action Dataset</span><span>30 people</span></div>
+            <div class="fc-row"><span>Median r, held-out categories</span><span class="fc-btn"><span>Fit an adapter</span><span>Fitting</span><span>Fitted</span></span></div>
+            <div class="fc-bars">
+              <div class="fc-bar"><span>TRIBE v2 as released</span><span class="fc-lane"><i data-tribe style="background:#8a847b"></i><span class="fc-ceil"></span></span><span class="num">0.257</span></div>
+              <div class="fc-bar"><span><b>Adapter</b></span><span class="fc-lane"><i data-fit style="background:#7fa01c"></i><span class="fc-ceil"></span></span><span class="num" data-fit-n>0.000</span></div>
+            </div>
+            <div class="fc-row" style="font-size:14px"><span class="fc-muted">Line on each bar: noise ceiling 0.675</span><span class="fc-chip">+0.150 over TRIBE v2</span></div>
           </div>
-          <div class="fc-row" style="font-size:14px"><span class="fc-muted">Line on each bar: noise ceiling 0.675</span><span class="fc-chip">+0.150 over TRIBE v2</span></div>
+          <svg class="fc-cursor" viewBox="0 0 26 26" aria-hidden="true"><path d="M3 2 L3 21 L8.5 16 L12 24 L15.5 22.5 L12 15 L19 15 Z" fill="#f2efe8" stroke="#121110" stroke-width="1.6" stroke-linejoin="round"/></svg>
         </div>
-        <svg class="fc-cursor" viewBox="0 0 26 26" aria-hidden="true"><path d="M3 2 L3 21 L8.5 16 L12 24 L15.5 22.5 L12 15 L19 15 Z" fill="#f2efe8" stroke="#121110" stroke-width="1.6" stroke-linejoin="round"/></svg>
       </div>
     </div>
-    <figure class="mapview" data-brain-map>
-      <canvas aria-label="Where on the cortex each model predicts measured fMRI, per brain area"></canvas>
-      <figcaption>
-        <span class="choose"><button data-map="adapter_r" class="on">Adapter</button><button data-map="tribe_v2_r">TRIBE v2 as released</button><button data-map="gain">Adapter minus TRIBE v2</button></span>
-        <span data-legend></span>
-      </figcaption>
-    </figure>
     <div class="two top">
       <div class="lines reveal">
         <div class="hd"><span class="h-ico" aria-hidden="true"><svg><use href="#i-chart"/></svg></span><h3>Benchmark</h3></div>
@@ -196,7 +201,7 @@
 <section class="section ciq" data-biome="ciq">
 
   <div class="ciq-head">
-    <h2>Runs on CIQ</h2>
+    <div class="hd"><span class="h-ico" aria-hidden="true"><svg><use href="#i-flow"/></svg></span><h2>One round runs on two CIQ workstations</h2></div>
     <p class="lede">The app and the video pipeline together need an estimated 150 GB of memory, so Fuzzball starts them on separate 128 GB workstations and gives both access to the same VAST storage.</p>
   </div>
 
@@ -217,7 +222,7 @@
       <article class="station rs">
         <div class="rs-head"><span class="rs-ico"><svg><use href="#i-render"/></svg></span><span class="rs-n num">3</span><h3>Isaac Sim render</h3></div>
         <p><span class="tok"><svg><use href="#i-render"/></svg>Isaac Sim 6.2</span> renders a reference video.</p>
-        <figure class="grab half"><div class="crop"><video src="assets/cluster/isaac-cosmos-vase.mp4" muted loop playsinline autoplay aria-label="An Isaac Sim render of a vase on a counter"></video></div><figcaption>Isaac Sim's render of a vase on a counter, made on the cluster on 15 November.</figcaption></figure>
+        <figure class="grab half"><div class="crop"><video src="assets/cluster/isaac-cosmos-vase.mp4" muted loop playsinline autoplay aria-label="An Isaac Sim render of a vase on a counter"></video></div><figcaption>Isaac Sim's render of a vase on a counter.</figcaption></figure>
       </article>
       <article class="station rs">
         <div class="rs-head"><span class="rs-ico"><svg><use href="#i-restyle"/></svg></span><span class="rs-n num">4</span><h3>Cosmos restyle</h3></div>
@@ -318,7 +323,7 @@
 
 <!-- Measured on the cluster: three numbers -->
 <section class="section" data-biome="compute">
-  <div class="hd reveal"><span class="h-ico" aria-hidden="true"><svg><use href="#i-gauge"/></svg></span><h2>Measured on the cluster</h2></div>
+  <div class="hd reveal"><span class="h-ico" aria-hidden="true"><svg><use href="#i-gauge"/></svg></span><h2>The cluster matches the desk and fits in memory</h2></div>
   <div class="figures">
     <div class="figure reveal"><span class="h-ico sm" aria-hidden="true"><svg><use href="#i-compare"/></svg></span><span class="big num">0.9991</span><span class="meter" aria-hidden="true"><i style="width:99.91%"></i></span><b>Cluster against desk</b><p>Median per-clip correlation between the cluster's and the <span class="tok"><svg><use href="#i-node"/></svg>DGX Spark</span>'s predictions for the same clips.</p></div>
     <div class="figure reveal"><span class="h-ico sm" aria-hidden="true"><svg><use href="#i-bolt"/></svg></span><span class="big num">21.5 tokens/s</span><span class="meter" aria-hidden="true"><i class="was" style="left:44%;width:20%"></i><i style="left:85%;width:2%"></i></span><b>Planner reply speed</b><p><span class="tok"><svg><use href="#i-llm"/></svg>Nemotron Super 120B</span> with <span class="tok"><svg><use href="#i-bolt"/></svg>speculative decoding</span>, up from 11 to 16 tokens/s without it.</p></div>
@@ -328,7 +333,7 @@
 
 <!-- Workflow -->
 <section class="section" data-biome="home">
-  <div class="hd reveal"><span class="h-ico" aria-hidden="true"><svg><use href="#i-flow"/></svg></span><h2>Demo</h2></div>
+  <div class="hd reveal"><span class="h-ico" aria-hidden="true"><svg><use href="#i-flow"/></svg></span><h2>Five steps in the app</h2></div>
   <div class="steps">
     <div class="step reveal"><div><div class="hd"><span class="h-ico" aria-hidden="true"><svg><use href="#i-llm"/></svg></span><span class="n">1</span></div><p>Ask the agent to design an experiment around your hypothesis.</p></div><figure class="grab"><img src="assets/grabs/new-project.png" alt="The app's New project panel: chat with the agent, open a classic experiment, or start from a template"><figcaption>New project: chat with the agent, open a classic experiment, or start from a template.</figcaption></figure></div>
     <div class="step reveal"><div><div class="hd"><span class="h-ico" aria-hidden="true"><svg><use href="#i-upload"/></svg></span><span class="n">2</span></div><p>Upload footage or describe the scenes you want to test.</p></div><figure class="grab"><video src="assets/grabs/grab-upload.mp4" muted loop playsinline autoplay aria-label="Uploading a clip from the chat into a new dataset"></video><figcaption>Upload from the chat: the file goes into a dataset you name, and the agent sees it with your next message.</figcaption></figure></div>

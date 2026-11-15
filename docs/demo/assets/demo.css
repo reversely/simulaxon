@@ -117,7 +117,7 @@ p { margin: 0; }
 
 /* Workflow steps */
 .steps { display: grid; gap: 14vh; margin-top: 10vh; }
-.step { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 6fr); gap: clamp(28px, 5vw, 72px); align-items: center; }
+.step { display: grid; grid-template-columns: minmax(0, 4fr) minmax(0, 8fr); gap: clamp(28px, 5vw, 72px); align-items: center; }
 .step .n { font-family: var(--display); font-weight: 300; font-size: 64px; line-height: 1; color: var(--ink-3); }
 .step p { font-family: var(--display); font-weight: 300; font-size: clamp(21px, 2.3vw, 27px); line-height: 1.42; margin-top: 12px; max-width: 30ch; }
 
@@ -188,7 +188,7 @@ body.light .live { border-color: #cfc7ba; }
 .fc-lane { position: relative; height: 12px; background: #e4ddd1; border-radius: 3px; }
 .fc-lane i { position: absolute; inset: 0; border-radius: 3px; transform-origin: left center; transform: scaleX(0); }
 .fc-ceil { position: absolute; top: -6px; bottom: -6px; left: 67.5%; width: 2px; background: var(--paper-ink); }
-.fc-chip { display: inline-block; font-size: 14px; padding: 3px 10px; border-radius: 999px; background: #1f1d1a; color: var(--ink); }
+.fc-chip { display: inline-block; font-size: 14px; padding: 3px 10px; border-radius: 999px; background: #1f1d1a; color: #f2efe8; }   /* light on its dark pill in both chapters */
 .fc-cursor { position: absolute; left: 0; top: 0; width: 24px; height: 24px; opacity: 0; z-index: 3; pointer-events: none; }
 @media (max-width: 820px) { .fc-bar { grid-template-columns: 1fr 56px; } .fc-bar .fc-lane { grid-column: 1 / -1; grid-row: 2; } }
 
@@ -203,6 +203,8 @@ body.light .live { border-color: #cfc7ba; }
 
 /* The adapter's map, large: the result the fitting chapter is about */
 .mapview { margin: 0; display: grid; gap: 14px; }
+.fit-right { display: grid; gap: 22px; align-content: start; min-width: 0; }   /* the map above its card, so the chapter fits one screen */
+.fit-right .mapview canvas { height: min(40vh, 380px); }
 .mapview canvas { width: 100%; height: min(62vh, 640px); display: block; }   /* on the ivory itself: no second contrast block */
 .mapview figcaption { display: flex; justify-content: space-between; align-items: center; gap: 14px; flex-wrap: wrap; font-size: 15px; color: var(--ink-2); }
 body.light .choose button { color: var(--ink-2); } body.light .choose button.on { background: #e2dbcf; color: var(--ink); }
@@ -234,9 +236,9 @@ body.light .choose button { color: var(--ink-2); } body.light .choose button.on 
 .route .station { min-height: 88vh; gap: 18px; }
 .route .station:first-child { min-height: 70vh; }
 .rs-head { display: flex; align-items: center; gap: 12px; }
-.rs-ico { display: grid; place-items: center; width: 40px; height: 40px; flex: none; border: 1px solid var(--rule-strong); border-radius: 10px; background: var(--panel); color: var(--ink-2); transition: color 300ms, border-color 300ms; }
-.rs-ico svg { width: 22px; height: 22px; }
-.station.on .rs-ico { color: var(--ink); border-color: var(--ink-3); }
+.rs-ico { display: grid; place-items: center; width: 32px; height: 32px; flex: none; color: var(--ink-3); transition: color 300ms; }
+.rs-ico svg { width: 26px; height: 26px; }
+.station.on .rs-ico { color: var(--ink); }
 .rs-n { font-size: 15px; color: var(--ink-3); }
 .rs h3 { font-size: 24px; }
 .route .station p { font-family: var(--display); font-weight: 300; font-size: clamp(20px, 1.9vw, 24px); line-height: 1.5; max-width: 34ch; }
@@ -281,7 +283,7 @@ body.light .choose button { color: var(--ink-2); } body.light .choose button.on 
 .ar-sh { display: flex; align-items: center; gap: 7px; min-width: 0; }
 .ar-sh b { font-size: 13.5px; }
 .deploy em { font-style: normal; font-size: 11.5px; color: var(--ink-3); margin-left: auto; text-align: right; }
-.deploy p.cfg { display: flex; flex-wrap: wrap; gap: 4px; }
+.deploy .cfg, .deploy .ar-hw, .deploy .ar-nh span, .deploy .ar-env { display: none; }
 .deploy .c { display: inline-flex; align-items: center; gap: 4px; font-size: 11.5px; line-height: 1.2; padding: 2px 7px 2px 5px; border: 1px solid var(--rule-strong); border-radius: 999px; color: var(--ink-2); white-space: nowrap; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
 .deploy .c svg { width: 11px; height: 11px; flex: none; }
 .ar-mini { list-style: none; margin: 0; padding: 0; display: grid; gap: 3px; font-size: 11.5px; line-height: 1.35; color: var(--ink-3); }
@@ -319,9 +321,9 @@ body.light .choose button { color: var(--ink-2); } body.light .choose button.on 
 
 /* Icons, chips and headings across every chapter */
 .tok svg, .h-ico svg { fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
-.h-ico { display: inline-grid; place-items: center; width: 40px; height: 40px; flex: none; border: 1px solid var(--rule-strong); border-radius: 10px; background: var(--panel); color: var(--ink-2); }
-.h-ico svg { width: 22px; height: 22px; }
-.h-ico.sm { width: 34px; height: 34px; border-radius: 9px; } .h-ico.sm svg { width: 18px; height: 18px; }
+.h-ico { display: inline-grid; place-items: center; width: 32px; height: 32px; flex: none; color: var(--ink-2); }
+.h-ico svg { width: 28px; height: 28px; }
+.h-ico.sm { width: 26px; height: 26px; } .h-ico.sm svg { width: 22px; height: 22px; }
 .hd { display: flex; align-items: center; gap: 14px; }
 .brand { display: inline-flex; align-items: center; gap: 12px; }
 .lines > .h-ico, .stations .station > .h-ico { justify-self: start; }
@@ -330,9 +332,35 @@ body.light .choose button { color: var(--ink-2); } body.light .choose button.on 
 .excard .src { display: flex; flex-wrap: wrap; gap: 6px; }
 .step .hd { gap: 16px; }
 body.light .tok { background: var(--panel); }
-body.light .h-ico { background: #fbfaf7; color: var(--a); }
+body.light .h-ico { color: var(--ink-2); }
 .figure .meter { position: relative; display: block; height: 6px; border-radius: 3px; background: var(--rule); }
 .figure .meter i { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 3px; background: var(--a); }
 .figure .meter i.was { background: var(--grey); }
 .lane .ci { position: absolute; top: -5px; bottom: -5px; border: 1.5px solid var(--paper-ink); border-top: 0; border-bottom: 0; }
 .lane .ci::after { content: ""; position: absolute; left: 0; right: 0; top: 50%; border-top: 1.5px solid var(--paper-ink); }
+
+/* Section headings state the chapter's point; the icon sits bare beside them */
+.lines .hd h2 { font-size: clamp(30px, 3.6vw, 46px); }
+
+/* Develop the experiment: pinned, scrolled sideways, one panel per step (demo.js drives the track) */
+.hscroll { position: relative; }
+.hs-pin { height: 100vh; display: grid; grid-template-rows: auto minmax(0, 1fr) auto; gap: 28px; padding: 12vh 0 7vh; overflow: hidden; }
+.hs-head { padding: 0 var(--gutter); max-width: 1240px; width: 100%; margin: 0 auto; }
+.hs-view { min-height: 0; }
+.hs-track { display: flex; gap: 6vw; height: 100%; padding: 0 max(var(--gutter), calc((100vw - 1240px) / 2 + 20px)); width: max-content; }
+.hs-panel { width: min(1180px, 84vw); height: 100%; display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 8fr); gap: clamp(24px, 3.5vw, 56px); align-items: center; }
+.hs-text { display: grid; gap: 14px; align-content: center; }
+.hs-n { font-family: var(--display); font-weight: 300; font-size: 64px; line-height: 1; color: var(--ink-3); }
+.hs-text p { font-family: var(--display); font-weight: 300; font-size: clamp(21px, 2.1vw, 27px); line-height: 1.42; }
+.hs-panel .grab { height: 100%; min-height: 0; display: grid; align-items: center; justify-items: center; }
+.hs-panel .grab img { width: auto; height: auto; max-width: 100%; max-height: 100%; }
+.hs-ticks { padding: 0 var(--gutter); max-width: 1240px; width: 100%; margin: 0 auto; }
+@media (max-width: 820px), (prefers-reduced-motion: reduce) {
+  .hs-pin { height: auto; overflow: visible; padding: 14vh 0; }
+  .hs-track { flex-direction: column; width: auto; gap: 10vh; padding: 0 var(--gutter); }
+  .hs-panel { width: 100%; height: auto; grid-template-columns: minmax(0, 1fr); }
+  .hs-ticks { display: none; }
+}
+
+/* The route's head: an arrow that turns to the way it travels */
+.ar-dot { left: -7px; top: -7px; width: 14px; height: 14px; border-radius: 0; background: var(--sel); box-shadow: none; clip-path: polygon(0 0, 100% 50%, 0 100%, 22% 50%); }
