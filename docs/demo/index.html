@@ -8,6 +8,8 @@
      docs/research/pitch-claims.md and docs/film.md. Dashed frames are places for live recordings still to be taken. -->
 <link rel="stylesheet" href="./assets/demo.css">
 <script defer src="./assets/demo.js"></script>
+<script defer src="./assets/brain-data.js"></script>
+<script defer src="./assets/brain.js"></script>
 </head>
 <body>
 
@@ -19,7 +21,17 @@
       <h1>Prototype neuroscience experiments in hours.</h1>
       <p class="typed"><span data-typed="Simulaxon's AI agents turn a hypothesis into scenes they can generate, predict how the brain would respond, and use those predictions to decide what to test next."></span><span class="caret" aria-hidden="true"></span></p>
     </div>
-    <figure class="card"><img src="assets/card-title.gif" alt="The title with brain area names drifting round it"><figcaption>FFC, PH and MT, in green: the brain areas the experiments read.</figcaption></figure>
+    <figure class="player" data-brain>
+      <div class="pair">
+        <video muted loop playsinline autoplay aria-label="The trial's clip"></video>
+        <canvas aria-label="TRIBE v2's predicted response on the cortex, second by second"></canvas>
+      </div>
+      <figcaption>
+        <span class="choose"><button data-trial="highjump" class="on">High jump</button><button data-trial="piano">Playing piano</button></span>
+        <span class="clock"><span data-phase>Clip on screen</span> · <span data-clock class="num">0.0 s</span></span>
+      </figcaption>
+      <p class="note">Two trials of a real run in the app: a 2 s clip from the Human Action Dataset, then 6 s of grey, and TRIBE v2's predicted response on the cortex at each moment. Across 16 trials of each, whole-body sport predicts more response in the motion area MT than fine hand actions (+0.153); the sports clips also carry more motion, which the run's baselines flag.</p>
+    </figure>
   </div>
   <p class="scroll-cue">Scroll</p>
 </header>
@@ -185,8 +197,8 @@
 </section>
 
 <footer class="section end">
-  <h1>Prototype neuroscience experiments in hours.</h1>
-  <p class="note">Draft. Dashed frames are places for live recordings and screenshots still to be taken.</p>
+  <h2>Still to come</h2>
+  <p class="note">Live recordings for the dashed frames; Grafana screenshots once the cluster is back (#35); the adapter's live use and transfer test (#37); RLC Pro AI's container on the same weights (#36).</p>
 </footer>
 
 </body>
