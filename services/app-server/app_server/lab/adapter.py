@@ -177,7 +177,7 @@ def live_results(tools_get, rows: list, adapter_id: str) -> list[dict]:
         theirs = [r for res in tools_get(twin.id)['results'] for r in res.get('reported') or []] if twin else []
         for i, r in enumerate(mine):
             t = next((x for x in theirs if x['region'] == r['region']), theirs[i] if i < len(theirs) else None)
-            out.append({'title': p.data.get('title'), 'contrast': r['contrast'], 'region': r['region'], 'direction': r.get('direction', 'higher'), 'where': r.get('where'),
+            out.append({'title': (twin or p).data.get('title'), 'contrast': r['contrast'], 'region': r['region'], 'direction': r.get('direction', 'higher'), 'where': r.get('where'),
                         'adapter': {'project_id': p.id, 'result': r['result'], 'area_rank_pct': r.get('area_rank_pct')},
                         'released': {'project_id': twin.id, 'result': t['result'], 'area_rank_pct': t.get('area_rank_pct')} if twin and t else None})
     return out
