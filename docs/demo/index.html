@@ -35,10 +35,10 @@
         <canvas aria-label="TRIBE v2's predicted response on the cortex, second by second"></canvas>
       </div>
       <figcaption>
-        <span class="choose"><button data-trial="highjump" class="on">High jump</button><button data-trial="piano">Playing piano</button></span>
-        <span class="clock"><span data-phase>Clip on screen</span> · <span data-clock class="num">0.0 s</span></span>
+        <span class="choose"><button data-trial="isaac" class="on">Isaac Sim render</button><button data-trial="cosmos">Cosmos 3 Nano</button></span>
+        <span class="clock"><span data-phase>Render on screen</span> · <span data-clock class="num">0.0 s</span></span>
       </figcaption>
-      <p class="note">Two trials of a real run in the app: a 2 s clip from the Human Action Dataset, then 6 s of grey, and TRIBE v2's predicted response on the cortex at each moment. Across 16 trials of each, whole-body sport predicts more response in the motion area MT than fine hand actions (+0.153); the sports clips also carry more motion, which the run's baselines flag.</p>
+      <p class="note">A run in the app: a G1 humanoid in a scanned room, rendered in Isaac Sim, then the same moment restyled to photoreal by Cosmos 3 Nano. Each plays for 4 s, then 6 s of grey, beside TRIBE v2's predicted response on the cortex at each moment.</p>
     </figure>
   </div>
   <p class="scroll-cue">Scroll</p>
@@ -137,6 +137,13 @@
         <svg class="fc-cursor" viewBox="0 0 26 26" aria-hidden="true"><path d="M3 2 L3 21 L8.5 16 L12 24 L15.5 22.5 L12 15 L19 15 Z" fill="#f2efe8" stroke="#121110" stroke-width="1.6" stroke-linejoin="round"/></svg>
       </div>
     </div>
+    <figure class="mapview" data-brain-map>
+      <canvas aria-label="Where on the cortex each model predicts measured fMRI, per brain area"></canvas>
+      <figcaption>
+        <span class="choose"><button data-map="adapter_r" class="on">Adapter</button><button data-map="tribe_v2_r">TRIBE v2 as released</button><button data-map="gain">Adapter minus TRIBE v2</button></span>
+        <span data-legend></span>
+      </figcaption>
+    </figure>
     <div class="two top">
       <div class="lines reveal">
         <h3>Benchmark</h3>

@@ -219,3 +219,10 @@ body.light .live { border-color: #cfc7ba; }
 .grab figcaption { font-size: 15px; color: var(--ink-3); }
 .stations .frames .grab { height: 100%; align-content: center; }
 .stations .frames .grab img { max-height: 100%; object-fit: contain; width: auto; margin: 0 auto; }
+
+/* The adapter's map, large: the result the fitting chapter is about */
+.mapview { margin: 0; display: grid; gap: 14px; }
+.mapview canvas { width: 100%; height: min(62vh, 640px); display: block; border-radius: 16px; background: radial-gradient(70% 70% at 50% 45%, #1e1c19, #0c0b0a); }
+.mapview figcaption { display: flex; justify-content: space-between; align-items: center; gap: 14px; flex-wrap: wrap; font-size: 15px; color: var(--ink-2); }
+body.light .choose button { color: var(--ink-2); } body.light .choose button.on { background: #e2dbcf; color: var(--ink); }
+.mapview.nogl canvas { display: none; }

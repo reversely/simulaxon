@@ -51,7 +51,8 @@
     return { rows: shape[0], n: shape[1], data, lo: q(0.01), hi: q(0.99) };
   }
 
-  const RAMP = [[0, '#2a2b2e'], [0.45, '#b3261e'], [0.75, '#ff8c1a'], [1, '#fff2a8']];
+  const RAMPS = { single: [[0, '#2a2b2e'], [0.45, '#b3261e'], [0.75, '#ff8c1a'], [1, '#fff2a8']],
+    signed: [[0, '#4fd0ff'], [0.3, '#1a6bb0'], [0.5, '#2a2b2e'], [0.7, '#b3261e'], [1, '#ffd23f']] };   // the app's legend ramps
   function rampPixels(stops) {
     const rgb = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16)), px = new Uint8Array(256 * 4);
     for (let i = 0; i < 256; i++) { const x = i / 255; let j = 0; while (j < stops.length - 2 && x > stops[j + 1][0]) j++;
@@ -67,12 +68,14 @@ out vec3 vN; out float vSulc; out float vVal;
 void main() { vec3 p = mix(aPial, aInfl, uMix); vN = mat3(uView) * normalize(mix(aNPial, aNInfl, uMix)); vSulc = aSulc; vVal = aVal; gl_Position = uProj * uView * vec4(p, 1.0); }`;
   const FS = `#version 300 es
 precision highp float;
-in vec3 vN; in float vSulc; in float vVal; uniform sampler2D uRamp; out vec4 o;
+in vec3 vN; in float vSulc; in float vVal; uniform sampler2D uRamp; uniform int uSigned; out vec4 o;
 void main() {
   vec3 n = normalize(vN); if (!gl_FrontFacing) n = -n;
   float light = 0.38 + 0.62 * max(dot(n, normalize(vec3(0.25, 0.35, 1.0))), 0.0);
   vec3 base = vec3(mix(0.74, 0.36, vSulc));
-  float c = clamp((vVal - 0.6) / 0.4, 0.0, 1.0); float a = clamp(c / 0.2, 0.0, 1.0);
+  float c; float a;
+  if (uSigned == 1) { c = 0.5 + 0.5 * clamp(vVal, -1.0, 1.0); a = clamp(abs(vVal) / 0.35 - 0.15, 0.0, 1.0); }
+  else { c = clamp((vVal - 0.6) / 0.4, 0.0, 1.0); a = clamp(c / 0.2, 0.0, 1.0); }
   o = vec4(mix(base, texture(uRamp, vec2(c, 0.5)).rgb, a) * light, 1.0);
 }`;
   function persp(fovy, aspect, near, far) { const f = 1 / Math.tan(fovy / 2), nf = 1 / (near - far);
@@ -85,7 +88,8 @@ void main() {
   }
 
   class Brain {
-    constructor(canvas, mesh) {
+    constructor(canvas, mesh, signed = false) {
+      this.signed = signed;
       const gl = canvas.getContext('webgl2', { antialias: true, alpha: true, premultipliedAlpha: false });
       if (!gl) throw new Error('WebGL2 is off in this browser');
       this.gl = gl; this.canvas = canvas; this.mesh = mesh; this.mix = 0.5; this.yaw = 160; this.pitch = 16;
@@ -97,12 +101,16 @@ void main() {
       attr('aPial', mesh.pial, 3); attr('aInfl', mesh.infl, 3); attr('aNPial', mesh.nPial, 3); attr('aNInfl', mesh.nInfl, 3); attr('aSulc', mesh.sulc, 1);
       this.vals = new Float32Array(mesh.n); this.val = attr('aVal', this.vals, 1, gl.DYNAMIC_DRAW);
       const ib = gl.createBuffer(); gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, ib); gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, mesh.faces, gl.STATIC_DRAW); gl.bindVertexArray(null);
-      this.ramp = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, this.ramp); gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 256, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, rampPixels(RAMP));
+      this.ramp = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, this.ramp); gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 256, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, rampPixels(RAMPS[signed ? 'signed' : 'single']));
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
     }
     show(preds, t) {   // one moment of a prediction, rows interpolated at t seconds
       const r = Math.min(preds.rows - 1, Math.max(0, t)), i0 = Math.floor(r), i1 = Math.min(preds.rows - 1, i0 + 1), f = r - i0, span = preds.hi - preds.lo || 1;
       for (let v = 0; v < preds.n; v++) { const x = preds.data[i0 * preds.n + v] * (1 - f) + preds.data[i1 * preds.n + v] * f; this.vals[v] = Number.isFinite(x) ? Math.min(1, Math.max(0, (x - preds.lo) / span)) : 0; }
+      const gl = this.gl; gl.bindBuffer(gl.ARRAY_BUFFER, this.val); gl.bufferSubData(gl.ARRAY_BUFFER, 0, this.vals);
+    }
+    showMap(values, vmax) {   // one signed map, scaled by vmax as the app scales a contrast
+      for (let v = 0; v < values.length; v++) this.vals[v] = Number.isFinite(values[v]) ? values[v] / vmax : 0;
       const gl = this.gl; gl.bindBuffer(gl.ARRAY_BUFFER, this.val); gl.bufferSubData(gl.ARRAY_BUFFER, 0, this.vals);
     }
     draw() {
@@ -115,11 +123,30 @@ void main() {
       const proj = persp(fov, w / h, Math.max(1, dist - R * 1.6), dist + R * 1.6);
       gl.useProgram(this.prog); gl.bindVertexArray(this.vao);
       gl.uniformMatrix4fv(gl.getUniformLocation(this.prog, 'uProj'), false, proj); gl.uniformMatrix4fv(gl.getUniformLocation(this.prog, 'uView'), false, view);
-      gl.uniform1f(gl.getUniformLocation(this.prog, 'uMix'), this.mix);
+      gl.uniform1f(gl.getUniformLocation(this.prog, 'uMix'), this.mix); gl.uniform1i(gl.getUniformLocation(this.prog, 'uSigned'), this.signed ? 1 : 0);
       gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, this.ramp); gl.uniform1i(gl.getUniformLocation(this.prog, 'uRamp'), 0);
       gl.drawElements(gl.TRIANGLES, this.mesh.faces.length, gl.UNSIGNED_SHORT, 0); gl.bindVertexArray(null);
     }
   }
+
+  const npy1 = s => { const p = parseNpy(b64(s)); return p.data; };   // a single map of 20,484 values
+
+  // The adapter's map, large: where on the cortex each model predicts measured fMRI. Buttons switch the map.
+  function maps() {
+    const host = document.querySelector('[data-brain-map]'); if (!host || !window.BRAIN_DATA) return;
+    let brain; try { brain = new Brain(host.querySelector('canvas'), mesh(), true); } catch (e) { host.classList.add('nogl'); return; }
+    const M = { adapter_r: [npy1(BRAIN_DATA.adapter_r), 0.8], tribe_v2_r: [npy1(BRAIN_DATA.tribe_v2_r), 0.8], gain: [npy1(BRAIN_DATA.gain), 0.4] };
+    const legend = host.querySelector('[data-legend]');
+    const pick = k => { brain.showMap(...M[k]); host.querySelectorAll('[data-map]').forEach(b => b.classList.toggle('on', b.dataset.map === k));
+      if (legend) legend.textContent = k === 'gain' ? '−0.4 to +0.4: where the adapter beats TRIBE v2 (red) or trails it (blue)' : 'r −0.8 to +0.8 against measured fMRI, per brain area'; };
+    host.querySelectorAll('[data-map]').forEach(b => b.addEventListener('click', () => pick(b.dataset.map)));
+    pick('adapter_r'); brain.mix = 0.75; brain.pitch = 12;
+    const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const tick = now => { if (!reduced) brain.yaw = 180 + 40 * Math.sin(now / 6000); brain.draw(); requestAnimationFrame(tick); };
+    requestAnimationFrame(tick);
+  }
+
+  let MESH = null; const mesh = () => (MESH ??= parseMesh(b64(BRAIN_DATA.mesh)));
 
   // The hero: a trial's clip and the brain on one clock. Buttons switch between the trials.
   function hero() {
@@ -127,10 +154,10 @@ void main() {
     const canvas = host.querySelector('canvas'), video = host.querySelector('video'), clock = host.querySelector('[data-clock]'), phase = host.querySelector('[data-phase]');
     const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
     let brain;
-    try { brain = new Brain(canvas, parseMesh(b64(BRAIN_DATA.mesh))); } catch (e) { host.classList.add('nogl'); return; }
-    const preds = { highjump: parseNpy(b64(BRAIN_DATA.highjump)), piano: parseNpy(b64(BRAIN_DATA.piano)) };
-    const trials = { highjump: 'assets/brain/highjump.mp4', piano: 'assets/brain/piano.mp4' };
-    let cur = 'highjump';
+    try { brain = new Brain(canvas, mesh()); } catch (e) { host.classList.add('nogl'); return; }
+    const preds = { isaac: parseNpy(b64(BRAIN_DATA.isaac)), cosmos: parseNpy(b64(BRAIN_DATA.cosmos)) };
+    const trials = { isaac: 'assets/brain/isaac.mp4', cosmos: 'assets/brain/cosmos.mp4' };
+    let cur = 'isaac';
     const pick = k => { cur = k; video.src = trials[k]; video.currentTime = 0; video.play().catch(() => {});
       host.querySelectorAll('[data-trial]').forEach(b => b.classList.toggle('on', b.dataset.trial === k)); };
     host.querySelectorAll('[data-trial]').forEach(b => b.addEventListener('click', () => pick(b.dataset.trial)));
@@ -140,10 +167,11 @@ void main() {
       if (!reduced) brain.yaw = 160 + 22 * Math.sin(now / 5200);
       brain.draw();
       if (clock) clock.textContent = `${t.toFixed(1)} s`;
-      if (phase) phase.textContent = t < 2 ? 'Clip on screen' : 'Rest: the screen is grey';
+      if (phase) phase.textContent = t < 4 ? 'Render on screen' : 'Rest: the screen is grey';
       requestAnimationFrame(tick);
     };
     requestAnimationFrame(tick);
   }
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', hero); else hero();
+  const start = () => { hero(); maps(); };
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();
 })();
