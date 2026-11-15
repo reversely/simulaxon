@@ -24,12 +24,14 @@ def main():
     except ImportError:
         from mcp.server.fastmcp import FastMCP as Server
     mcp = Server('vcl')
+    from .planner_agent import describe, offered
     for t in _http('GET', '/tools'):
+        if not offered(t): continue
         def make(name):
             def run(arguments: dict | None = None) -> str:
                 return json.dumps(_http('POST', f'/tools/{name}', arguments or {}), default=str)[:60000]
             run.__name__ = name; return run
-        mcp.add_tool(make(t['name']), name=t['name'], description=f"{t['doc'] or t['name']} Arguments: {t.get('arguments') or 'none'}. Pass them as an object in \"arguments\"." + (' To change a parameter, read its current version with parameter_list first and pass it as expect_version.' if t['name'] == 'parameter_update' else ''))
+        mcp.add_tool(make(t['name']), name=t['name'], description=describe(t) + ' Pass them as an object in "arguments".')
     mcp.run()
 
 

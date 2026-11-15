@@ -154,6 +154,20 @@ def register(tools, broadcast=lambda m: None):
     def project_list(actor):
         return sorted(s.list('project'), key=lambda r: r.data.get('created_order', 0))
 
+    def _project(project_id) -> dict:
+        row = s.get('project', project_id)
+        if row is None:
+            from ..store import Missing
+            raise Missing(f'no project {project_id}; project_list lists them')
+        return row.data
+
+    def _wording_only(st: dict) -> bool:
+        """A project_update that changes only how a project is worded, such as the agent rewriting every question (#24)."""
+        if st['tool'] != 'project_update': return False
+        try: keys = set(json.loads(st['args'] or '{}'))
+        except ValueError: return False
+        return keys <= WORDING
+
     @tools.tool('project', 'create')
     def project_create_from(step, actor, question=None, template_id=None, title=None, bindings: dict | None = None, from_project_id: str | None = None, made_by: str | None = None):
         """A new draft project from a template, or a fork of an existing project. Blanks are filled from bindings.
@@ -323,16 +337,16 @@ def register(tools, broadcast=lambda m: None):
         """A region's response second by second, the mean over each condition's samples, from the saved predictions:
         {seconds, conditions: [{name, values, n}]}. Region: a name from region_search, or a list of names for a group."""
         import numpy as np
-        P = s.get('project', project_id).data   # a group the project's experiment defines is resolved by its name first (#12)
+        P = _project(project_id)   # a group the project's experiment defines is resolved by its name first (#12)
         groups = {r['name']: r['areas'] for r in ((P.get('experiment') or {}).get('regions') or []) if isinstance(r, dict)}
+        saved = [r for r in of('sample', project_id) if r.data.get('preds')]
+        if not saved: return {'region': region, 'seconds': 0, 'conditions': [], 'note': 'no saved predictions yet: the project has not been run'}
         m = regions.mask_for(groups[region] if isinstance(region, str) and region in groups else region); by: dict[str, list] = {}
-        for r in of('sample', project_id):
-            pr = r.data.get('preds')
-            if not pr: continue
-            try: v = np.load(pr)
+        for r in saved:
+            try: v = np.load(r.data['preds'])
             except Exception: continue
             by.setdefault(r.data.get('condition', ''), []).append(v[:, m].mean(1))
-        if not by: raise ValueError('no saved predictions for this project')
+        if not by: return {'region': region, 'seconds': 0, 'conditions': [], 'note': "the saved predictions could not be read from this machine's files"}
         secs = min(len(x) for xs in by.values() for x in xs)
         return {'region': region, 'seconds': secs, 'conditions': [{'name': c, 'n': len(xs), 'values': [round(float(x), 4) for x in np.mean([x[:secs] for x in xs], 0)]} for c, xs in by.items()]}
 
@@ -347,7 +361,7 @@ def register(tools, broadcast=lambda m: None):
         """Stop an experiment's run after the clip under way. Clips already read stay cached, so running it again picks up
         where it stopped. The project goes back to Draft."""
         from . import runner
-        P = s.get('project', project_id).data
+        P = _project(project_id)
         if P.get('status') != 'Running' or project_id not in runner.LIVE: return {'stopped': False, 'why': f"the project is {P.get('status')}, with no run going in this server"}
         runner.STOP[runner.LIVE[project_id]] = 'the agent' if actor == 'agent' else 'a person'
         return {'stopped': True, 'note': 'it stops after the clip under way'}
@@ -669,13 +683,13 @@ def register(tools, broadcast=lambda m: None):
 
     @tools.tool('experiment', 'get', writes_project=False)
     def experiment_get(actor, project_id):
-        """An experiment's set-up, status and, when done, every contrast with its baselines and match or no match."""
-        P = s.get('project', project_id).data
-        if P.get('plan') != 'experiment': raise ValueError(f"project {project_id} is a {P.get('plan')} project, not an experiment; read its results with analysis_list")
+        """Any project's set-up, status and results: for an experiment, its design and every contrast with its baselines and
+        match or no match; for any other plan (matched, selection, leave one out), its plan and the results of its analyses."""
+        P = _project(project_id)
         res = [{'contrast': a['analysis'].data.get('title'), 'regions': a['result'].data.get('regions'), 'baselines': a['result'].data.get('baselines'),
                 'reported': a['result'].data.get('reported'), 'note': a['result'].data.get('vjepa_note')}
                for a in analysis_list(actor, project_id) if a['result']]
-        return {'title': P.get('title'), 'question': P.get('question'), 'status': P.get('status'), 'experiment': P.get('experiment'), 'results': res}
+        return {'title': P.get('title'), 'question': P.get('question'), 'plan': P.get('plan'), 'status': P.get('status'), 'experiment': P.get('experiment'), 'results': res}
 
     @tools.tool('run', 'get', writes_project=False)
     def run_get(actor, project_id):
@@ -689,8 +703,10 @@ def register(tools, broadcast=lambda m: None):
         contrasts: one row per contrast and region. trials: one row per clip with its read-out in every region. A run from
         before runs kept this record lists in missing what could not be recovered."""
         from . import runinfo
-        P = s.get('project', project_id).data
-        if P.get('status') != 'Done': raise ValueError(f"project {project_id} has no finished run (status {P.get('status')})")
+        P = _project(project_id)
+        if P.get('status') != 'Done':   # an answer, not a refusal: the run record exists only once a run has finished
+            return {'project': {'id': project_id, 'title': P.get('title'), 'question': P.get('question'), 'status': P.get('status')},
+                    'finished': False, 'note': f"no finished run yet (status {P.get('status')}); results appear here when a run finishes"}
         info, missing = dict(P.get('run_info') or {}), []
         exp = P.get('experiment') or P.get('setup') or {}
         conds = exp.get('conditions') or []

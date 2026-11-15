@@ -43,15 +43,23 @@ def tools(base: str) -> list[dict]:
     """Every tool the agent may call, in the OpenAI function format: the same names, docs and argument lists the MCP
     proxy offers Claude Code. Person-only tools are left out, since the server refuses them to the agent."""
     with urllib.request.urlopen(f'{base}/tools', timeout=60) as r: listed = json.loads(r.read())
-    out = []
-    for t in listed:
-        if t.get('person_only'): continue
-        desc = f"{(t.get('doc') or t['name']).strip()} Arguments: {t.get('arguments') or 'none'}."
-        if t['name'] == 'parameter_update':
-            desc += ' To change a parameter, read its current version with parameter_list first and pass it as expect_version.'
-        out.append({'type': 'function', 'function': {'name': t['name'], 'description': desc[:1500],
-                                                     'parameters': {'type': 'object', 'additionalProperties': True}}})
-    return out
+    return [{'type': 'function', 'function': {'name': t['name'], 'description': describe(t),
+                                              'parameters': t.get('schema') or {'type': 'object', 'additionalProperties': True}}}
+            for t in listed if offered(t)]
+
+
+def offered(t: dict) -> bool:
+    """Whether an agent runtime offers this tool: person-only tools are refused to the agent, so no runtime offers them (#34)."""
+    return not t.get('person_only')
+
+
+def describe(t: dict) -> str:
+    """A tool's description as every agent runtime shows it, Nemotron and Claude Code alike (#34): its whole docstring,
+    never cut, and its arguments."""
+    desc = f"{(t.get('doc') or t['name']).strip()} Arguments: {t.get('arguments') or 'none'}."
+    if t['name'] == 'parameter_update':
+        desc += ' To change a parameter, read its current version with parameter_list first and pass it as expect_version.'
+    return desc
 
 
 def chat(messages: list[dict], tool_list: list[dict]) -> dict:

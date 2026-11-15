@@ -37,9 +37,9 @@ class RunRecord(unittest.TestCase):
         r = self.t.call('run_get', 'person', project_id=_project(self.t, [], {'region': 'the parahippocampal place area'}))
         self.assertEqual([x['region'] for x in r['regions_named']], ['PPA'])
 
-    def test_unfinished_refused(self):
+    def test_unfinished_answers(self):   # an answer saying there is no finished run yet, never a refusal (#34)
         s = self.t.store; st = s.begin('agent', 'project_create', {}); p = s.create(st, 'project', {'title': 'x', 'status': 'Draft'})
-        with self.assertRaises(ValueError): self.t.call('run_get', 'person', project_id=p.id)
+        self.assertFalse(self.t.call('run_get', 'person', project_id=p.id)['finished'])
 
 
 if __name__ == '__main__':

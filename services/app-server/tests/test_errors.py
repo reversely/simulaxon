@@ -22,8 +22,11 @@ class Errors(unittest.TestCase):
         r = self.post('project_get', project_id='no_such_project')
         self.assertEqual(r.status_code, 422); self.assertIn('no project no_such_project', r.text)
 
-    def test_an_argument_the_tool_does_not_take_is_refused_plainly(self):
-        r = self.post('project_get', project_id=self.sel.id, bogus=1)
+    def test_a_read_passes_an_argument_it_does_not_take(self):   # the answer is the same without it (#34)
+        self.assertEqual(self.post('project_get', project_id=self.sel.id, bogus=1).status_code, 200)
+
+    def test_a_write_refuses_an_argument_it_does_not_take_plainly(self):
+        r = self.post('project_create', question='Does it?', bogus=1)
         self.assertEqual(r.status_code, 422); self.assertIn('takes no argument bogus', r.text); self.assertNotIn('<locals>', r.text)
 
     def test_a_fault_inside_a_tool_is_a_500_naming_it(self):

@@ -28,11 +28,23 @@ def create_app(store: Store | None = None) -> FastAPI:
     @app.get('/tools')
     def list_tools():
         import inspect
+        def schema(fn) -> dict:
+            """The tool's arguments as JSON Schema, from its signature, so every agent runtime is offered the same names, types
+            and required arguments (#34)."""
+            props, need = {}, []
+            for n, p in inspect.signature(fn).parameters.items():
+                if n in ('step', 'actor'): continue
+                a = str(p.annotation).replace(' ', '')
+                kind = next((j for k, j in (('dict', 'object'), ('list', 'array'), ('bool', 'boolean'), ('int', 'integer'), ('float', 'number'), ('str', 'string')) if k in a), None)
+                props[n] = {'type': kind} if kind else {}
+                if p.default is inspect.Parameter.empty: need.append(n)
+                elif p.default is not None: props[n]['default'] = p.default
+            return {'type': 'object', 'properties': props, 'required': need}
         def sig(fn):
             ps = [p for n, p in inspect.signature(fn).parameters.items() if n not in ('step', 'actor')]
             return ', '.join(n.name + ('' if n.default is inspect.Parameter.empty else f'={n.default!r}') for n in ps)
         return [{'name': t.name, 'resource': t.resource, 'verb': t.verb, 'writes_step': t.writes_project and t.verb not in ('get', 'list', 'search', 'query'),
-                 'person_only': t.person_only, 'doc': (t.fn.__doc__ or '').strip(), 'arguments': sig(t.fn)} for t in tools.registry.values()]
+                 'person_only': t.person_only, 'doc': (t.fn.__doc__ or '').strip(), 'arguments': sig(t.fn), 'schema': schema(t.fn)} for t in tools.registry.values()]
 
     @app.post('/tools/{name}')
     async def call_tool(name: str, body: dict, x_actor: str = Header('person')):

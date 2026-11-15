@@ -270,6 +270,7 @@ def make(db: str, port: int = 8790):
         T = app.state.tools
         try: rec = T.call('run_get', 'person', project_id=project_id)
         except Exception as e: raise HTTPException(404, str(e))
+        if rec.get('finished') is False: raise HTTPException(404, rec['note'])
         fs = export.files(rec, export.contrast_maps(T.store, project_id)); folder = _re.sub(r'[^A-Za-z0-9]+', '_', rec['project']['title']).strip('_')[:60] or project_id
         if name == 'all.zip':
             return Response(export.zipped(fs, folder), media_type='application/zip', headers={'Content-Disposition': f'attachment; filename="{folder}.zip"'})

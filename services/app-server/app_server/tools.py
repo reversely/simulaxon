@@ -55,7 +55,10 @@ class Tools:
         sig = inspect.signature(t.fn); ps = {k: p for k, p in sig.parameters.items() if k not in ('step', 'actor')}
         if not any(p.kind == p.VAR_KEYWORD for p in ps.values()):
             extra = [k for k in args if k not in ps]
-            if extra: raise ValueError(f"{name} takes no argument {', '.join(extra)}; it takes {', '.join(ps) or 'none'}")
+            reads = not t.writes_project or t.verb in ('get', 'list', 'search', 'query')
+            if extra and reads:   # a read answers the same without them: pass the call, never refuse it (#34)
+                for k in extra: args.pop(k)
+            elif extra: raise ValueError(f"{name} takes no argument {', '.join(extra)}; it takes {', '.join(ps) or 'none'}")
         needed = [k for k, p in ps.items() if p.default is p.empty and p.kind not in (p.VAR_KEYWORD, p.VAR_POSITIONAL) and k not in args]
         if needed: raise ValueError(f"{name} needs {', '.join(needed)}")
         for arg, kind in ID_KINDS.items():
