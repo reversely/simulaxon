@@ -526,12 +526,14 @@ def register(tools, broadcast=lambda m: None):
             if ad.get('kind') != 'paired': other.append({'kind': ad.get('kind'), 'title': ad.get('title'), 'result': {k: v for k, v in r.items() if k not in ('analysis_id', 'project_id')}}); continue
             for row in r.get('regions') or []:
                 n = row.get('n'); ci = row.get('interval_95') or [None, None]; sh = row.get('shuffled_labels_95') or [None, None]
+                exp_ = next((x for x in (r.get('reported') or []) if x.get('region') == row.get('region') and x.get('contrast') in (None, ad.get('title'))), None)
                 contrasts.append({'contrast': ad.get('title'), 'region': row.get('region'), 'named_by': by_of.get(row.get('region')), 'value': row.get('value'),
                                   'ci_low': ci[0], 'ci_high': ci[1], 'n': sum(n.values()) if isinstance(n, dict) else n,
                                   'n_by_condition': n if isinstance(n, dict) else None, 'units_positive': row.get('units_positive'),
                                   'area_rank_pct': row.get('area_rank_pct'), 'shuffled_low': sh[0], 'shuffled_high': sh[1],
                                   'shuffled_at_least_as_far': row.get('shuffled_at_least_as_far'), 'vjepa_random_map': row.get('vjepa_random_map'),
-                                  'pairs_needed': row.get('pairs_needed'), 'window_s': ad.get('window_s'), 'units': ad.get('units'), 'design': ad.get('design')})
+                                  'pairs_needed': row.get('pairs_needed'), 'window_s': ad.get('window_s'), 'units': ad.get('units'), 'design': ad.get('design'),
+                                  'expected': {'direction': exp_.get('direction'), 'source': exp_.get('where')} if exp_ else None})
         trials = [{'index': x.get('index'), 'unit': x.get('unit'), 'condition': x.get('condition'), 'label': x.get('label'), 'clip': x.get('clip'), 'image': x.get('image'),
                    'origin': (x.get('origin') or {}).get('label'), 'readout': x.get('readout') or {}} for x in samples]
         from . import export

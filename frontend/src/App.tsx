@@ -395,7 +395,7 @@ function RoomView({ P, template, unit, units, unitIdx, setUnitIdx, variant, setV
     </div>
     <div className="headline">
       <span className="big">{fmt(diff(unit))}</span>
-      <span className="ink2">{unit.labels[0]} minus {unit.labels[1] ?? 'the reference'}{region ? <> · {regionLabel(region)}{tag && <span className="chip tiny">{tag}</span>}</> : ' · pick a region under Regions'}</span>
+      <span className="ink2">{unit.labels[0]} minus {unit.labels[1] ?? 'the reference'}{region ? <> in {regionLabel(region)}{tag && <span className="chip tiny">{tag}</span>}</> : '. Pick a region under Regions to plot it.'}</span>
     </div>
     <div className="card">
       <h3>{isLoo ? 'Every object' : `Every ${unitWord}`}{region ? `: ${regionLabel(region)}` : ''}</h3>
@@ -670,7 +670,7 @@ function History({ pid, agent, tick, onUndo, onClose }: { pid: string; agent: st
           <div className="histrow">
             <span className="what">{r.text}{r.steps.length > 1 ? ` ${r.steps.length} times` : ''}{s.undone_by && <span className="chip tiny">Undone</span>}</span>
             <button className="iconbtn" aria-label={`More actions: ${r.text}`} aria-haspopup="menu" aria-expanded={menu === s.step_id} onClick={() => setMenu(m => m === s.step_id ? null : s.step_id)}>⋯</button>
-            <span className="ink2 small">{r.who} · <span title={new Date(Number(s.ts) * 1000).toLocaleString()}>{ago(s.ts)}</span></span>
+            <span className="ink2 small">{r.who}, <span title={new Date(Number(s.ts) * 1000).toLocaleString()}>{ago(s.ts)}</span></span>
           </div>
           {menu === s.step_id && <div className="rowmenu" role="menu">
             {canUndo && <button role="menuitem" onClick={async () => { setMenu(null); await onUndo(s.step_id); load() }}><Icon name="undo" size={15} />Undo</button>}

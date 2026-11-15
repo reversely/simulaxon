@@ -13,7 +13,7 @@ type Contrast = {
   contrast: string; region: string; named_by?: string | null; value: number; ci_low: number | null; ci_high: number | null; n: number | null
   n_by_condition?: Record<string, number> | null; units_positive?: number | null; area_rank_pct?: number | null
   shuffled_low?: number | null; shuffled_high?: number | null; shuffled_at_least_as_far?: number | null; vjepa_random_map?: number | null
-  window_s?: [number, number] | null
+  window_s?: [number, number] | null; expected?: { direction?: string; source?: string } | null
 }
 export type LiveTrial = { index: number; unit: string; condition: string; label: string; image?: string; clip?: string; readout: Record<string, number> }
 type Trial = LiveTrial & { origin?: string }
@@ -132,19 +132,19 @@ export function ResultsView({ pid, status, progress, live, focus, agentName, onP
 
   return <div className="dash">
     <div className="card runhead">
-      <div className="runid"><span className="k">Run</span><span className="num">{m.run_id ?? 'ID not recorded'}</span></div>
+      <h3 className="runid">{m.run_id ? <>Run <span className="num">{m.run_id}</span></> : 'Last run'}</h3>
       <span className="chip">Finished</span>
       <div className="runfacts">
-        <span><span className="k">Started</span> {when(m.started_at)}{m.started_by ? `, by ${by(m.started_by)}` : ''}</span>
-        <span><span className="k">Took</span> {m.minutes != null ? `${m.minutes} min` : 'Not recorded'}</span>
+        {m.started_at && <span><span className="k">Started</span> {when(m.started_at)}{m.started_by ? `, by ${by(m.started_by)}` : ''}</span>}
+        {m.minutes != null && <span><span className="k">Took</span> {m.minutes} min</span>}
         <span><span className="k">Trials</span> {rec.trials.length}</span>
         <span><span className="k">Model</span> TRIBE v2, average subject{tribe ? ` (${tribe.version}${tribe.recorded === false ? ', current' : ''})` : ''}</span>
-        <span><span className="k">Stimuli</span> {sources.join('; ') || 'Not recorded'}</span>
-        <span><span className="k">Seed</span> {seed ?? 'Not recorded'}</span>
+        {sources.length > 0 && <span><span className="k">Stimuli</span> {sources.join('; ')}</span>}
+        {seed != null && <span><span className="k">Seed</span> {seed}</span>}
       </div>
       <Download pid={pid} names={rec.downloads} figures={rec.figures} />
     </div>
-    {rec.missing.length > 0 && <p className="muted" style={{ margin: 0 }}>This run is older than run records, so it did not record {rec.missing.join(', ')}.</p>}
+    {(rec.missing.length > 0 || !m.started_at || seed == null) && <p className="muted" style={{ margin: 0 }}>Not recorded by this run: {[...(m.started_at ? [] : ['its start and duration']), ...(m.run_id ? [] : ['a run ID']), ...rec.missing, ...(seed == null ? ['a seed'] : [])].join(', ')}.</p>}
 
     <figure className="card fig">
       <figcaption><b>Fig. 1.</b> Response over time by condition{plotted.length ? `, ${plotted.map(regionLabel).join(', ')}` : ''}. TRIBE v2, average subject; mean over each condition's trials.</figcaption>
@@ -173,12 +173,12 @@ export function ResultsView({ pid, status, progress, live, focus, agentName, onP
         </div>}
       </div>
       <div className="tablewrap"><table className="data contrasts">
-        <thead><tr>{head('contrast', 'Contrast', false)}{head('region', 'Region', false)}<th>Named by</th>{head('value', 'TRIBE value', true, 'Mean difference over the read-out window')}
+        <thead><tr>{head('contrast', 'Contrast', false)}{head('region', 'Region', false)}<th>Named by</th>{has('expected') && <th>Expected</th>}{head('value', 'TRIBE value', true, 'Mean difference over the read-out window')}
           {head('ci_low', '95% interval')}<th aria-hidden />{head('n', 'n')}{has('units_positive') && head('units_positive', 'Above zero')}
           {has('area_rank_pct') && head('area_rank_pct', 'Rank among 360 areas')}{has('shuffled_high') && head('shuffled_high', 'Shuffled labels, 95%')}
           {has('shuffled_at_least_as_far') && head('shuffled_at_least_as_far', 'Shuffles as far')}{has('vjepa_random_map') && head('vjepa_random_map', 'Video features only', true, 'V-JEPA 2 features through a fixed random map: no brain mapping')}</tr></thead>
         <tbody>{rows.map((r, i) => <tr key={`${r.contrast}|${r.region}|${i}`} className={r.region === focus ? 'on' : ''} onClick={() => onPickRegion(r.region)} style={{ cursor: 'pointer' }}>
-          <td>{r.contrast}</td><td title={r.region}>{regionLabel(r.region)}</td><td className="ink2">{r.named_by ? by(r.named_by) : '–'}</td>
+          <td>{r.contrast}</td><td title={r.region}>{regionLabel(r.region)}</td><td className="ink2">{r.named_by ? by(r.named_by) : '–'}</td>{has('expected') && <td>{r.expected ? `${(r.expected.direction ?? '').replace(/^./, c => c.toUpperCase())} (${r.expected.source ?? 'recorded before the run'})` : '–'}</td>}
           <td className="num">{fmt(r.value)}</td><td className="num">{r.ci_low == null ? '–' : `${fmt(r.ci_low)} to ${fmt(r.ci_high!)}`}</td>
           <td>{r.ci_low != null && <MiniInterval value={r.value} interval={[r.ci_low, r.ci_high!]} scale={scale} />}</td>
           <td className="num" title={r.n_by_condition ? Object.entries(r.n_by_condition).map(([k, v]) => `${k}: ${v}`).join(', ') : undefined}>{r.n ?? '–'}</td>
@@ -189,7 +189,8 @@ export function ResultsView({ pid, status, progress, live, focus, agentName, onP
           {has('vjepa_random_map') && <td className="num">{r.vjepa_random_map == null ? '–' : fmt(r.vjepa_random_map)}</td>}</tr>)}</tbody>
       </table></div>
       <div className="tablenote">
-        <p>Units: TRIBE v2 output, z-scored BOLD of the average subject, mean over seconds {window ? `${window[0]} to ${window[1]}` : 'on screen'} of each clip. Click a row to highlight its region.</p>
+        <p>TRIBE v2 is Meta's model that predicts an average viewer's fMRI response from video. Values are its output (z-scored BOLD), the mean over seconds {window ? `${window[0]} to ${window[1]}` : 'on screen'} of each clip. Click a row to highlight its region.</p>
+        <p>Expected: the direction recorded before the run, from the paper or the project's question. Rank among 360 areas: where the value falls among TRIBE's 360 HCP-MMP1 areas (Glasser et al., 2016). Shuffled labels: the same contrast with the condition labels shuffled, and the share of shuffles at least as far from zero. Video features only: V-JEPA 2 video features through a fixed random map, with no brain mapping.</p>
         {named.length ? named.map(n => <p key={n.region}><b>{n.region}</b>, named by {by(n.named_by)}: {n.definition}.</p>) : <p>No region was named for this project; every region read is listed.</p>}
       </div>
     </section>
