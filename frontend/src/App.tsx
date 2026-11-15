@@ -10,7 +10,7 @@ import { SelectionView } from './selection'
 import { ResultsView, type LiveTrial } from './results'
 import { DatasetsPage } from './datasets'
 import { ClipBrain, samplePreds } from './brain3d'
-import { GuidePanel, GUIDE } from './guide'
+import { GuidePanel, GUIDE, IntroSlide } from './guide'
 import { Skeleton } from './wait'
 import { ExperimentalPage } from './experimental'
 import { ProjectsPage, Markers, ago } from './projects'
@@ -307,7 +307,7 @@ export default function App() {
         <nav className="tabs">{VIEWS.map(([v, n]) => <button key={v} className={`tab ${view === v ? 'on' : ''}`} onClick={() => setView(v)}><Icon name={VIEW_ICON[v]} size={16} />{n}</button>)}</nav>
       </header>
 
-      <div className={`body ${widen ? 'wideconvo' : ''} ${view === 'agent' ? 'chatonly' : ''} ${guide !== null ? 'guided' : ''}`}>
+      <div className={`body ${widen ? 'wideconvo' : ''} ${view === 'agent' ? 'chatonly' : ''} ${guide ? 'guided' : ''}`}>
         {view !== 'agent' && <aside className="col left">
           <Conversation P={P} pid={pid!} template={template} flowNow={flowNow} steps={steps} narr={demo.demo ? narr.filter(n => n.demo === demo.demo) : []} widen={widen} onWiden={() => setWiden(w => !w)}
             chips={chipsFor()} onUndo={async id => { await call('step_undo', { step_id: id }); refreshProjects(); loadProject(pid!) }}
@@ -358,8 +358,9 @@ export default function App() {
           {WIDE.includes(view) && <div className="muted">Escape returns to the {lastCentre.current}</div>}
         </main>
 
-        {guide !== null && <aside className="guidefloat"><GuidePanel step={guide} onStep={guideTo} onClose={() => setGuide(null)}>{GUIDE[guide].id === 'ask' && P && !opening && <GuideProject P={P} />}</GuidePanel></aside>}
-        {guide !== null ? <aside className="col guidegap" aria-hidden="true" /> : !WIDE.includes(view) && <aside className="col right">
+        {guide === 0 && <IntroSlide onStep={guideTo} onClose={() => setGuide(null)} />}
+        {guide !== null && guide > 0 && <aside className="guidefloat"><GuidePanel step={guide} onStep={guideTo} onClose={() => setGuide(null)}>{GUIDE[guide].id === 'ask' && P && !opening && <GuideProject P={P} />}</GuidePanel></aside>}
+        {guide ? <aside className="col guidegap" aria-hidden="true" /> : !WIDE.includes(view) && <aside className="col right">
           <Inspector P={P} pid={pid!} template={template} projects={projects} paired={paired} needed={needed} objects={objects} perObject={perObject} region={region} setRegion={pickRegion} picked={picked} named={named} onAsk={send}
             unit={unit} diff={diff} units={units} samples={samples} onFork={(c) => template && createFromTemplate(template, `${P.title}: ${c}`, { ...(P.bindings as Record<string, string>), control: c }, pid!)}
             onOpenProject={setPid} onPickObject={k => { pickUnitByKey(k); setView('room') }} template_analyses={template?.analyses ?? []} analyses={analyses} />

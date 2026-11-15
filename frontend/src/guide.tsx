@@ -85,33 +85,60 @@ export function PlacementDiagram({ pieces, data }: { pieces: Piece[]; data: stri
   </svg>
 }
 
+/** The guide's first page: one slide over the app. The loop as four stages joined by arrows, each naming the model that
+ * does it and its maker, then where it all runs. A stage opens the guide at its first step. */
+const STAGES: { label: string; icon: IconName; does: string; by: string }[] = [
+  { label: 'Hypothesis', icon: 'chat', does: 'Plans what to vary', by: 'Nemotron Super 120B, NVIDIA' },
+  { label: 'Scenes', icon: 'room', does: 'Renders each trial and restyles it', by: 'Isaac Sim and Cosmos 3 Nano, NVIDIA' },
+  { label: 'Brain response', icon: 'brain', does: 'Predicts fMRI second by second', by: 'TRIBE v2, Meta' },
+  { label: 'Next test', icon: 'flask', does: 'Compares conditions and picks a follow-up', by: 'Nemotron Super 120B, NVIDIA' },
+]
+
+export function IntroSlide({ onStep, onClose }: { onStep: (i: number) => void; onClose: () => void }) {
+  useEffect(() => { const k = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }; addEventListener('keydown', k); return () => removeEventListener('keydown', k) }, [onClose])
+  const first = (t: number) => GUIDE.findIndex(g => g.id !== 'intro' && g.tile === t)
+  return <div className="gslide-scrim" onClick={e => { if (e.target === e.currentTarget) onClose() }}>
+    <section className="gslide" role="dialog" aria-modal="true" aria-labelledby="gslide-title">
+      <button className="iconbtn gslide-x" aria-label="Close the guide" onClick={onClose}><Icon name="close" size={18} /></button>
+      <h2 id="gslide-title">How Simulaxon works</h2>
+      <p className="gslide-lede">A question about the brain becomes rendered scenes, predicted fMRI and a next test.</p>
+      <div className="gloop">
+        <ol className="gstages">
+          {STAGES.map((st, i) => <li key={st.label}>
+            <button className="gstage" onClick={() => onStep(first(i))}>
+              <Icon name={st.icon} size={22} /><b>{st.label}</b><span className="gdoes">{st.does}</span><span className="gby">{st.by}</span>
+            </button>
+            {i < STAGES.length - 1 && <svg className="garr" viewBox="0 0 28 12" aria-hidden="true"><path d="M1 6H25M20 1l5 5-5 5" /></svg>}
+          </li>)}
+        </ol>
+        <div className="greturn" aria-hidden="true"><svg viewBox="0 0 12 10"><path d="M1 9l5-7 5 7" /></svg><span>follow up</span></div>
+      </div>
+      <p className="gslide-run">Runs on <b>Fuzzball</b> by CIQ, across two workstations that share one <b>VAST</b> volume.</p>
+      <div className="gslide-nav">
+        <button className="btn" onClick={onClose}>Close</button>
+        <button className="btn primary" onClick={() => onStep(1)}>Start</button>
+      </div>
+    </section>
+  </div>
+}
+
 /** The guide's panel: the step, its two diagrams, and Back and Next. */
 export function GuidePanel({ step, onStep, onClose, children }: { step: number; onStep: (i: number) => void; onClose: () => void; children?: ReactNode }) {
   const s = GUIDE[step]; const top = useRef<HTMLElement>(null)
   useEffect(() => { top.current?.scrollIntoView({ block: 'start' }) }, [step])   // each step opens at its title, never mid-diagram where Next was
   return <section className="guide" aria-label="Guide" ref={top}>
     <div className="bar">
-      <span className="gmono ink2">Guide, step {step + 1} of {GUIDE.length}</span>
+      <span className="gmono ink2">Guide, step {step} of {GUIDE.length - 1}</span>
       <button className="iconbtn" style={{ marginLeft: 'auto' }} aria-label="Close the guide" onClick={onClose}><Icon name="close" size={18} /></button>
     </div>
     <h2 className="section-title" style={{ margin: 0 }}>{s.title}</h2>
     <p style={{ margin: 0 }}>{s.text}</p>
-    {s.id === 'intro' ? <>
-      <h3 className="gh">Roadmap</h3>
-      <ol className="groad">{GUIDE.slice(1).map((g, i) => <li key={g.id}><button onClick={() => onStep(i + 1)}><span className="gn">{i + 1}</span><span><b>{g.title}</b><span className="ink2">{g.text.split('. ')[0].replace(/\.$/, '')}.</span></span></button></li>)}</ol>
-      <h3 className="gh">The loop</h3>
-      <LoopDiagram tile={s.tile} />
-      <h3 className="gh">Architecture</h3>
-      <PlacementDiagram pieces={s.pieces} data={s.data} />
-      <p className="ink2 small" style={{ margin: 0 }}>Fuzzball starts the app and the video pipeline on two workstations of CIQ's cluster, which share one VAST volume. On the Spark, the same code runs from spark/start.sh.</p>
-    </> : <>
-      {children}
-      <LoopDiagram tile={s.tile} arrow={s.arrow} />
-      <PlacementDiagram pieces={s.pieces} data={s.data} />
-    </>}
+    {children}
+    <LoopDiagram tile={s.tile} arrow={s.arrow} />
+    <PlacementDiagram pieces={s.pieces} data={s.data} />
     <div className="bar gnav">
-      <button className="btn" disabled={step === 0} onClick={() => onStep(step - 1)}>Back</button>
-      <ol className="gdots" aria-label="Steps">{GUIDE.map((g, i) => <li key={g.id}><button className={i === step ? 'on' : ''} aria-label={`Step ${i + 1}: ${g.title}`} aria-current={i === step ? 'step' : undefined} onClick={() => onStep(i)} /></li>)}</ol>
+      <button className="btn" onClick={() => onStep(step - 1)}>Back</button>
+      <ol className="gdots" aria-label="Steps">{GUIDE.map((g, i) => i > 0 && <li key={g.id}><button className={i === step ? 'on' : ''} aria-label={`Step ${i}: ${g.title}`} aria-current={i === step ? 'step' : undefined} onClick={() => onStep(i)} /></li>)}</ol>
       {step < GUIDE.length - 1 ? <button className="btn primary" style={{ marginLeft: 'auto' }} onClick={() => onStep(step + 1)}>Next</button>
         : <button className="btn primary" style={{ marginLeft: 'auto' }} onClick={onClose}>Finish</button>}
     </div>
