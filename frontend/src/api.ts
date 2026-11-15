@@ -127,5 +127,9 @@ export function describeStep(s: Step, byId: Record<string, Step> = {}): string {
 }
 /** Who took a step, as the header names them: never the stored value "person" or "agent". */
 export const whoName = (actor: string, agent: string) => actor === 'person' ? 'You' : actor === 'agent' ? (agent === 'the agent' ? 'The agent' : agent) : 'The app'
+/** A stored contrast or condition name as words (#39): "faces_vs_objects" reads "Faces against objects". Names with a
+ * space are the project's own wording and show as written. */
+export const words = (name?: string | null) => { const s = String(name ?? ''); if (!s.includes('_') || /\s/.test(s)) return s
+  const w = s.replace(/_(vs|versus|minus|against)_/gi, ' against ').replace(/_+/g, ' ').trim(); return w.charAt(0).toUpperCase() + w.slice(1) }
 /** The agent as the page names it (#40), from machine_get's agent name; a missing or runtime name ("Claude Code") reads "the agent". */
 export const agentName = (name?: string | null) => !name || /claude/i.test(name) ? 'the agent' : name

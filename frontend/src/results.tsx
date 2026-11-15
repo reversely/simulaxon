@@ -4,7 +4,7 @@
 // same record. Names appear as written. No region is promoted: regions named at set-up are labelled with who named
 // them, and a person's pick only highlights a row.
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { call, fmt, regionLabel } from './api'
+import { call, fmt, regionLabel, words } from './api'
 import { Icon } from './icons'
 import { MiniInterval } from './charts'
 import { ConditionCourse } from './experiment'
@@ -51,7 +51,7 @@ function Download({ pid, names, figures }: { pid: string; names: string[]; figur
     if (n.startsWith('table2')) return 'Table 2, trials (CSV)'
     if (n.startsWith('fig3')) return 'Fig. 3, the 360 areas by contrast (CSV)'
     const m = n.match(/^fig2_map(\d+)_.*?(?:_(left|right|ventral|posterior))?\.(npy|png)$/)
-    if (m) { const f = figures[Number(m[1]) - 1]?.title ?? `Map ${m[1]}`; return m[3] === 'npy' ? `Fig. 2, ${f}: values per vertex, fsaverage5 (.npy)` : `Fig. 2, ${f}: ${VIEW_NAMES[m[2]] ?? m[2]} view (PNG)` }
+    if (m) { const f = words(figures[Number(m[1]) - 1]?.title) || `Map ${m[1]}`; return m[3] === 'npy' ? `Fig. 2, ${f}: values per vertex, fsaverage5 (.npy)` : `Fig. 2, ${f}: ${VIEW_NAMES[m[2]] ?? m[2]} view (PNG)` }
     return n
   }
   const groups: [string, string[]][] = [['Tables', names.filter(n => n.startsWith('table'))], ['Figures', names.filter(n => n.startsWith('fig'))],
@@ -74,7 +74,7 @@ function AreaRanks({ fig, named }: { fig: Figure; named: Named[] }) {
   return <div className="figpanel">
     <div className="legend"><span><i style={{ background: 'var(--a)' }} />Areas in the named regions</span><span><i style={{ background: 'var(--ink-3)' }} />Other areas</span>
       {hover != null && <span className="num"><b>{a[hover].area}</b> {fmt(a[hover].value)}, rank {a[hover].rank} of {a.length}</span>}</div>
-    <svg viewBox={`0 0 ${W} ${H}`} width="100%" role="img" aria-label={`${fig.title}: all ${a.length} HCP areas ranked`} onMouseLeave={() => setHover(null)}>
+    <svg viewBox={`0 0 ${W} ${H}`} width="100%" role="img" aria-label={`${words(fig.title)}: all ${a.length} HCP areas ranked`} onMouseLeave={() => setHover(null)}>
       <line x1={L} x2={W - 8} y1={y(0)} y2={y(0)} stroke="var(--rule-strong)" />
       {[hi, 0, lo].filter((v, i, xs) => xs.indexOf(v) === i).map(v => <text key={v} x={L - 6} y={y(v) + 4} textAnchor="end" className="axis">{fmt(v, 2)}</text>)}
       {a.map((x, i) => <rect key={x.area} x={L + i * bw} y={Math.min(y(x.value), y(0))} width={Math.max(1, bw - 0.6)} height={Math.max(1, Math.abs(y(x.value) - y(0)))}
@@ -111,7 +111,7 @@ export function ResultsView({ pid, status, progress, live, focus, agentName, onP
         <span className="ink2">{progress?.stage === 'comparing' ? 'Every trial is in; computing the contrasts, baselines and maps' : 'The figures and Table 1 are computed once every trial is in'}</span></div>
       <section className="card"><h3>Table 2. Trials so far</h3>
         {live?.length ? <div className="tablewrap tall"><table className="data"><thead><tr><th>Trial</th><th>Stimulus</th><th>Condition</th>{regs.map(r => <th key={r} className="num" title={r}>{regionLabel(r)}</th>)}</tr></thead>
-          <tbody>{live.map(t => <tr key={t.index}><td className="num">{t.index + 1}</td><td>{t.image && <img className="thumbcell" src={thumb(t.image)} alt={t.label} />}</td><td>{t.condition}</td>
+          <tbody>{live.map(t => <tr key={t.index}><td className="num">{t.index + 1}</td><td>{t.image && <img className="thumbcell" src={thumb(t.image)} alt={t.label} />}</td><td>{words(t.condition)}</td>
             {regs.map(r => <td key={r} className="num">{fmt(t.readout[r])}</td>)}</tr>)}</tbody></table></div>
           : <p className="ink2">Trials appear here as TRIBE reads each one.</p>}
       </section>
@@ -159,12 +159,12 @@ export function ResultsView({ pid, status, progress, live, focus, agentName, onP
 
     {rec.figures.length > 0 && <figure className="card fig">
       <figcaption><b>Fig. 2.</b> Each contrast over the whole cortex, unthresholded. Read over seconds {window ? `${window[0]} to ${window[1]}` : 'on screen'}. Drag a brain to turn it; Download has the same maps drawn by TRIBE v2's plotter.</figcaption>
-      <div className="brainfigs">{rec.figures.map((f, i) => <div key={f.title}><div className="mid">{f.title}</div><ContrastBrain projectId={pid} index={i} title={f.title} /></div>)}</div>
+      <div className="brainfigs">{rec.figures.map((f, i) => <div key={f.title}><div className="mid">{words(f.title)}</div><ContrastBrain projectId={pid} index={i} title={words(f.title)} /></div>)}</div>
     </figure>}
 
     {rec.figures.length > 0 && <figure className="card fig">
       <figcaption><b>Fig. 3.</b> All {rec.figures[0].areas.length} HCP-MMP1 areas for each contrast, ranked by value.</figcaption>
-      {rec.figures.map(f => <div key={f.title}><div className="mid">{f.title}</div><AreaRanks fig={f} named={named} /></div>)}
+      {rec.figures.map(f => <div key={f.title}><div className="mid">{words(f.title)}</div><AreaRanks fig={f} named={named} /></div>)}
     </figure>}
 
     <section className="card">
@@ -181,10 +181,10 @@ export function ResultsView({ pid, status, progress, live, focus, agentName, onP
           {has('area_rank_pct') && head('area_rank_pct', 'Rank among 360 areas')}{has('shuffled_high') && head('shuffled_high', 'Shuffled labels, 95%')}
           {has('shuffled_at_least_as_far') && head('shuffled_at_least_as_far', 'Shuffles as far')}{has('vjepa_random_map') && head('vjepa_random_map', 'Video features only', true, 'V-JEPA 2 features through a fixed random map: no brain mapping')}</tr></thead>
         <tbody>{rows.map((r, i) => <tr key={`${r.contrast}|${r.region}|${i}`} className={r.region === focus ? 'on' : ''} onClick={() => onPickRegion(r.region)} style={{ cursor: 'pointer' }}>
-          <td>{r.contrast}</td><td title={r.region}>{regionLabel(r.region)}</td><td className="ink2">{r.named_by ? by(r.named_by) : '–'}</td>{has('expected') && <td>{r.expected ? `${(r.expected.direction ?? '').replace(/^./, c => c.toUpperCase())} (${r.expected.source ?? 'recorded before the run'})` : '–'}</td>}
+          <td>{words(r.contrast)}</td><td title={r.region}>{regionLabel(r.region)}</td><td className="ink2">{r.named_by ? by(r.named_by) : '–'}</td>{has('expected') && <td>{r.expected ? `${(r.expected.direction ?? '').replace(/^./, c => c.toUpperCase())} (${r.expected.source ?? 'recorded before the run'})` : '–'}</td>}
           <td className="num">{fmt(r.value)}</td><td className="num">{r.ci_low == null ? '–' : `${fmt(r.ci_low)} to ${fmt(r.ci_high!)}`}</td>
           <td>{r.ci_low != null && <MiniInterval value={r.value} interval={[r.ci_low, r.ci_high!]} scale={scale} />}</td>
-          <td className="num" title={r.n_by_condition ? Object.entries(r.n_by_condition).map(([k, v]) => `${k}: ${v}`).join(', ') : undefined}>{r.n ?? '–'}</td>
+          <td className="num" title={r.n_by_condition ? Object.entries(r.n_by_condition).map(([k, v]) => `${words(k)}: ${v}`).join(', ') : undefined}>{r.n ?? '–'}</td>
           {has('units_positive') && <td className="num">{r.units_positive == null ? '–' : `${r.units_positive} of ${r.n}`}</td>}
           {has('area_rank_pct') && <td className="num">{r.area_rank_pct == null ? '–' : `Above ${r.area_rank_pct}%`}</td>}
           {has('shuffled_high') && <td className="num">{r.shuffled_low == null ? '–' : `${fmt(r.shuffled_low)} to ${fmt(r.shuffled_high!)}`}</td>}
@@ -204,7 +204,7 @@ export function ResultsView({ pid, status, progress, live, focus, agentName, onP
         <thead><tr><th>Trial</th><th>Stimulus</th><th>Condition</th><th>Unit</th>{trialRegions.map(r => <th key={r} className="num" title={r}>{regionLabel(r)}</th>)}</tr></thead>
         <tbody>{rec.trials.map((x, i) => <tr key={i} onClick={() => onOpenTrial(i, x.unit)} style={{ cursor: 'pointer' }}>
           <td className="num">{(x.index ?? i) + 1}</td><td>{x.image && <img className="thumbcell" src={thumb(x.image)} alt={x.label} loading="lazy" />}</td>
-          <td>{x.condition}</td><td className="ink2">{x.unit}</td>{trialRegions.map(r => <td key={r} className="num">{fmt(x.readout[r])}</td>)}</tr>)}</tbody>
+          <td>{words(x.condition)}</td><td className="ink2">{x.unit}</td>{trialRegions.map(r => <td key={r} className="num">{fmt(x.readout[r])}</td>)}</tr>)}</tbody>
       </table></div>
       <div className="tablenote"><p>One row per clip; TRIBE v2 value per region, in Table 1's units. Click a row to open the trial.</p></div>
     </section>

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { call, fmt, regionLabel, type Row, type Sample } from './api'
+import { call, fmt, regionLabel, words, type Row, type Sample } from './api'
 import { Icon } from './icons'
 import { ClipBrain, samplePreds } from './brain3d'
 
@@ -47,7 +47,7 @@ export function ExperimentSetup({ setup, paper, onRun, onAsk, running, progress 
     <section className="paper entries">
       <h3>Conditions</h3>
       {setup.conditions.map(c => <div key={c.name} className="entryrow">
-        <span className="letter">{letter[c.name]}</span><b>{c.name}</b>
+        <span className="letter">{letter[c.name]}</span><b>{words(c.name)}</b>
         <span className="routechips"><OriginChip o={c.origin} long />{c.origin.kind === 'cosmos' && <span className="origin cosmos">Cosmos, seeds {c.origin.seeds?.join(' and ')}</span>}<span className="arrow" aria-hidden>→</span><span className="origin stagechip">TRIBE v2</span></span>
         <span className="ink2 num count">{c.files_available} files, {c.trials} trials</span>
       </div>)}
@@ -73,9 +73,9 @@ export function ExperimentSetup({ setup, paper, onRun, onAsk, running, progress 
       {setup.contrasts.map(ct => { const pos = Object.keys(ct.weights).filter(k => ct.weights[k] > 0), neg = Object.keys(ct.weights).filter(k => ct.weights[k] < 0)
         return <div key={ct.name} className="entryrow">
           {pos.map(k => <span key={k} className="letter">{letter[k]}</span>)}<span className="ink2">against</span>{neg.map(k => <span key={k} className="letter b">{letter[k]}</span>)}
-          <span>{ct.name}</span>
+          <span>{words(ct.name)}</span>
         </div> })}
-      {setup.reported.map((r, i) => <div key={i} className="entryrow reportedrow"><span className="ink2">Paper</span><span>{regionLabel(r.region)} {r.direction ?? 'higher'} for {r.contrast}</span><span className="ink2">{r.where}</span></div>)}
+      {setup.reported.map((r, i) => <div key={i} className="entryrow reportedrow"><span className="ink2">Paper</span><span>{regionLabel(r.region)} {r.direction ?? 'higher'} for {words(r.contrast)}</span><span className="ink2">{r.where}</span></div>)}
       {!running && <button className="addentry" onClick={() => onAsk('Suggest another comparison for this experiment. Set it up only if I agree.')}><Icon name="plus" size={16} />Add comparison</button>}
 
       <div className="entryfoot">
@@ -95,7 +95,7 @@ export function ReportedCard({ items }: { items: Reported[] }) {
   if (!items.length) return null
   return <div className="card paper"><h3>Against the paper</h3>
     {items.map((r, i) => <div key={i} className="reported">
-      <div><b>{regionLabel(r.region)}</b> <span className="ink2">{r.direction ?? 'higher'} for {r.contrast}</span>{r.where && <span className="ink2">, {r.where}</span>}</div>
+      <div><b>{regionLabel(r.region)}</b> <span className="ink2">{r.direction ?? 'higher'} for {words(r.contrast)}</span>{r.where && <span className="ink2">, {r.where}</span>}</div>
       <div className="big">{fmt(r.tribe_value)}</div>
       <div className="ink2 num">Interval {fmt(r.tribe_interval_95?.[0])} to {fmt(r.tribe_interval_95?.[1])}</div>
       {r.area_rank_pct != null && <div className="ink2 num">Above {r.area_rank_pct}% of the 360 areas</div>}
@@ -131,7 +131,7 @@ export function ConditionCourse({ pid, region, onS }: { pid: string; region: str
   const labelY = Object.fromEntries(ends.map(e => [e.i, e.y]))
   return <div className="card course">
     <h3>{regionLabel(region)}, second by second</h3>
-    <div className="legend">{c.conditions.map((s, i) => <span key={s.name}><i style={{ background: SERIES[i % SERIES.length] }} />{s.name}{hover != null && <b className="num"> {fmt(s.values[hover])}</b>}</span>)}
+    <div className="legend">{c.conditions.map((s, i) => <span key={s.name}><i style={{ background: SERIES[i % SERIES.length] }} />{words(s.name)}{hover != null && <b className="num"> {fmt(s.values[hover])}</b>}</span>)}
       {hover != null && <span className="ink2 num">second {hover}</span>}</div>
     <svg viewBox={`0 0 ${W} ${H}`} width="100%" role="img" aria-label={`${regionLabel(region)}, TRIBE response second by second, by condition`}
       onMouseMove={e => { const r = (e.currentTarget as SVGSVGElement).getBoundingClientRect(); const t = Math.round(((e.clientX - r.left) / r.width * W - L) / PW * (c.seconds - 1)); setHover(t >= 0 && t < c.seconds ? t : null) }}
@@ -140,7 +140,7 @@ export function ConditionCourse({ pid, region, onS }: { pid: string; region: str
       {ticks.map(v => <g key={v}><line x1={L} x2={L + PW} y1={y(v)} y2={y(v)} stroke="#2a2622" /><text x={L - 8} y={y(v) + 5} textAnchor="end" fontSize="14" fill="#8a847b">{fmt(v, 2)}</text></g>)}
       {[0, Math.round((c.seconds - 1) / 2), c.seconds - 1].map(t => <text key={t} x={x(t)} y={H - 10} textAnchor="middle" fontSize="14" fill="#8a847b">{t} s</text>)}
       {c.conditions.map((s, i) => <polyline key={s.name} points={s.values.map((v, t) => `${x(t)},${y(v)}`).join(' ')} fill="none" stroke={SERIES[i % SERIES.length]} strokeWidth="2" strokeLinejoin="round" />)}
-      {c.conditions.length <= 4 && c.conditions.map((s, i) => <text key={s.name} x={x(c.seconds - 1) + 10} y={labelY[i] + 5} fontSize="14" fill="#f2efe8">{s.name}</text>)}
+      {c.conditions.length <= 4 && c.conditions.map((s, i) => <text key={s.name} x={x(c.seconds - 1) + 10} y={labelY[i] + 5} fontSize="14" fill="#f2efe8">{words(s.name)}</text>)}
       {hover != null && <line x1={x(hover)} x2={x(hover)} y1={T} y2={T + PH} stroke="#b9b2a7" strokeDasharray="3 3" />}
     </svg>
     <div className="ink2">{note}</div>
@@ -176,7 +176,7 @@ export function ExperimentRoom({ pid, samples, idx, setIdx, region, onS, named =
     {region ? <><ConditionCourse pid={pid} region={region} onS={onS} />
     <div className="card"><h3>Every trial: {regionLabel(region)}{tag && <span className="chip tiny">{tag}</span>}</h3>
       {conds.map((c, ci) => { const mine = samples.map((r, i) => ({ r, i })).filter(o => o.r.data.condition === c); const mean = mine.reduce((t, o) => t + (o.r.data.readout[region] ?? 0), 0) / mine.length
-        return <div key={c} className="condstrip"><span className="ink2">{c}</span><div className="strip">
+        return <div key={c} className="condstrip"><span className="ink2">{words(c)}</span><div className="strip">
           {mine.map(o => <button key={o.i} className={`dot ${o.i === idx ? 'sel' : ''}`} style={{ left: `${x(o.r.data.readout[region] ?? 0)}%`, background: o.i === idx ? undefined : SERIES[ci % SERIES.length] }} onClick={() => setIdx(o.i)} aria-label={o.r.data.label} />)}
           <span className="mean" style={{ left: `${x(mean)}%` }} /></div><span className="num">{fmt(mean)}</span></div> })}
     </div></> : <p className="ink2">Pick a region under Regions to plot it over time and across trials.</p>}

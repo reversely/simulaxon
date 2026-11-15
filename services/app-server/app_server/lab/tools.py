@@ -466,6 +466,7 @@ def register(tools, broadcast=lambda m: None):
           Add cosmos: {prompt, seeds: [0, 1], control: edge} to a condition to restyle each stimulus with Cosmos before TRIBE reads it
           (about 4 min per 4 s clip; a held image becomes a short clip first). Its origin then reads "Cosmos, from ...".
         regions: names from region_search, or {name, areas: [names]} for a group.
+        Name conditions and contrasts in words, as a reader sees them: "Faces", "Faces against objects", never faces_vs_objects.
         contrasts: [{name, weights: {condition: weight}}], weights summing to zero; default first condition against second.
         trial: {design: block or event, item_s, gap_s, items_per_trial, trials_per_condition, rest_s, read_s: [first, last] seconds of
           TRIBE's output to average (second 0 is onset; default the seconds on screen, since TRIBE's output has the blood-flow lag removed), seed,
@@ -477,6 +478,9 @@ def register(tools, broadcast=lambda m: None):
         Run it with project_run; progress is broadcast; results come back as analyses with baselines and match or no match."""
         conditions = [_from_view(c) if isinstance(c, dict) and c.get('view_id') else c for c in conditions]   # curated stimuli (#22)
         regs = regions   # the argument, not the module: this function never needs the module
+        snake = [n for n in [c.get('name') for c in conditions if isinstance(c, dict)] + [c.get('name') for c in (contrasts or []) if isinstance(c, dict)]
+                 if isinstance(n, str) and '_' in n and not any(ch.isspace() for ch in n)]
+        if snake: raise ValueError(f'name conditions and contrasts in words, as the page shows them ("Faces against objects"), not {", ".join(snake)}')   # #39
         spec = {'conditions': conditions, 'regions': regs, 'contrasts': contrasts, 'trial': trial, 'reported': reported, 'paper_id': paper_id}
         P = experiment.plan(spec)
         origins = sorted({tr['origin']['label'] for tr in P['trials']})

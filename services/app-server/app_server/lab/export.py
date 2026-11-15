@@ -16,6 +16,15 @@ from .ingest import FILES
 _cache: dict[tuple, list[dict]] = {}
 
 
+def words(name) -> str:
+    """A stored contrast or condition name as words (#39), as the page shows it (api.ts words): faces_vs_objects reads
+    "Faces against objects"; a name with a space is the project's own wording."""
+    s = str(name or '')
+    if '_' not in s or re.search(r'\s', s): return s
+    w = re.sub(r'_+', ' ', re.sub(r'_(vs|versus|minus|against)_', ' against ', s, flags=re.I)).strip()
+    return w[:1].upper() + w[1:]
+
+
 def _slug(s: str) -> str:
     return re.sub(r'[^A-Za-z0-9]+', '_', s).strip('_')[:60] or 'contrast'
 
@@ -74,16 +83,16 @@ def files(record: dict, maps: list[dict]) -> dict[str, bytes | Path]:
         'table1_regions_and_contrasts.csv': _csv(['contrast', 'region', 'named_by', 'tribe_value', 'ci95_low', 'ci95_high', 'n', 'n_by_condition', 'units_above_zero',
                                                  'rank_among_360_areas_pct', 'shuffled_labels_ci95_low', 'shuffled_labels_ci95_high', 'shuffles_at_least_as_far',
                                                  'video_features_random_map', 'window_start_s', 'window_end_s'],
-                                                [[r['contrast'], r['region'], r.get('named_by') or '', r['value'], r['ci_low'], r['ci_high'], r['n'],
-                                                  '; '.join(f'{k}: {v}' for k, v in (r.get('n_by_condition') or {}).items()), r['units_positive'], r['area_rank_pct'],
+                                                [[words(r['contrast']), r['region'], r.get('named_by') or '', r['value'], r['ci_low'], r['ci_high'], r['n'],
+                                                  '; '.join(f'{words(k)}: {v}' for k, v in (r.get('n_by_condition') or {}).items()), r['units_positive'], r['area_rank_pct'],
                                                   r['shuffled_low'], r['shuffled_high'], r['shuffled_at_least_as_far'], r['vjepa_random_map'],
                                                   (r.get('window_s') or [None, None])[0], (r.get('window_s') or [None, None])[1]] for r in c]),
         'table2_trials.csv': _csv(['trial', 'unit', 'condition', 'label', 'source', 'clip', *regs],
-                                  [[x['index'], x['unit'], x['condition'], x['label'], x.get('origin') or '', x.get('clip') or '', *[x['readout'].get(r) for r in regs]] for x in t]),
+                                  [[x['index'], x['unit'], words(x['condition']), x['label'], x.get('origin') or '', x.get('clip') or '', *[x['readout'].get(r) for r in regs]] for x in t]),
         'run_settings.json': json.dumps({k: record[k] for k in ('project', 'made', 'stimuli', 'regions_named', 'missing')}, indent=1, default=str).encode(),
     }
     if maps:
-        out['fig3_areas_by_contrast.csv'] = _csv(['contrast', 'area', 'value', 'rank'], [[m['title'], a['area'], a['value'], a['rank']] for m in maps for a in areas(m['map'])])
+        out['fig3_areas_by_contrast.csv'] = _csv(['contrast', 'area', 'value', 'rank'], [[words(m['title']), a['area'], a['value'], a['rank']] for m in maps for a in areas(m['map'])])
     for i, m in enumerate(maps, 1):
         buf = io.BytesIO(); np.save(buf, m['map']); out[f'fig2_map{i}_{_slug(m["title"])}.npy'] = buf.getvalue()
         for v, p in (m.get('views') or {}).items():

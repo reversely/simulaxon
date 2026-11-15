@@ -1,5 +1,5 @@
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { call, count, fmt, regionLabel, describeStep, whoName, agentName, type Step, PLAN_NAMES, PLAN_INFO, PLAN_ICON, ROLE_NAMES, type AnalysisItem, type MapRow, type Project, type Region, type Row, type Sample, type Template } from './api'
+import { call, count, fmt, regionLabel, describeStep, whoName, agentName, words, type Step, PLAN_NAMES, PLAN_INFO, PLAN_ICON, ROLE_NAMES, type AnalysisItem, type MapRow, type Project, type Region, type Row, type Sample, type Template } from './api'
 import { Icon, type IconName } from './icons'
 import { DotStrip, MiniInterval, SignedBars, TimeCourse } from './charts'
 import { FindingsView, SearchView, SourcesView } from './views'
@@ -204,7 +204,7 @@ export default function App() {
     }
     const g = new Map<string, Row<Sample>[]>()
     samples.forEach(s => g.set(s.data.unit, [...(g.get(s.data.unit) ?? []), s]))
-    return [...g.entries()].map(([k, v]) => ({ key: k, label: v.length === 2 && v[0].data.label !== v[1].data.label ? `${v[0].data.label} and ${v[1].data.label}` : v[0].data.label, variants: v, labels: v.map(x => x.data.condition) }))
+    return [...g.entries()].map(([k, v]) => ({ key: k, label: v.length === 2 && v[0].data.label !== v[1].data.label ? `${v[0].data.label} and ${v[1].data.label}` : v[0].data.label, variants: v, labels: v.map(x => words(x.data.condition)) }))
   }, [samples, P?.plan])
   const named = namedRegions(analyses, samples, P)
   const regionTag = !region ? '' : picked ? 'Your pick' : named.includes(region) ? 'Named at set-up' : ''
@@ -479,14 +479,14 @@ function SamplesView({ samples, region, units, isaac, onOpen }: { samples: Row<S
   const locate = (s: Row<Sample>) => { for (let i = 0; i < units.length; i++) { const v = units[i].variants.findIndex(x => x.id === s.id); if (v >= 0) return [i, v]; } return [0, 0] }
   return <>
     <div className="bar">
-      <div className="seg" role="group" aria-label="Condition">{conds.map(c => <button key={c} className={group === c ? 'on' : ''} onClick={() => setGroup(c)}>{c}</button>)}</div>
+      <div className="seg" role="group" aria-label="Condition">{conds.map(c => <button key={c} className={group === c ? 'on' : ''} onClick={() => setGroup(c)}>{words(c)}</button>)}</div>
       <div className="seg" role="group" aria-label="Sort"><button className={sort === 'order' ? 'on' : ''} onClick={() => setSort('order')}>In order</button><button className={sort === 'high' ? 'on' : ''} onClick={() => setSort('high')}>Highest first</button><button className={sort === 'low' ? 'on' : ''} onClick={() => setSort('low')}>Lowest first</button></div>
       <span className="ink2 num">{count(list.length, 'sample')}{region ? `, ${regionLabel(region)}` : ''}</span>
     </div>
     <div className="grid">
       {list.map(s => <button key={s.id} className="tile" onClick={() => { const [u, v] = locate(s); onOpen(u, v) }}>
         {s.data.image && <img src={s.data.image.startsWith('/files/') ? '/thumb/' + s.data.image.slice(7) : s.data.image} alt={s.data.label} loading="lazy" />}
-        <div className="cap"><span>{s.data.label}</span><span className="num">{region ? fmt(s.data.readout[region]) : ''}</span><span className="ink2">{s.data.label.startsWith(s.data.condition) ? '' : s.data.condition}</span><OriginChip o={(s.data as any).origin ?? (isaac ? { kind: 'isaac', label: 'Rendered in Isaac Sim' } : null)} /></div>
+        <div className="cap"><span>{s.data.label}</span><span className="num">{region ? fmt(s.data.readout[region]) : ''}</span><span className="ink2">{s.data.label.startsWith(s.data.condition) ? '' : words(s.data.condition)}</span><OriginChip o={(s.data as any).origin ?? (isaac ? { kind: 'isaac', label: 'Rendered in Isaac Sim' } : null)} /></div>
       </button>)}
     </div>
   </>
@@ -523,11 +523,11 @@ function BrainView({ P, unit, variant, objects, analyses, course, region }: { P:
       {busy && <span className="ink2"><span className="spin" /> Drawing the map</span>}
     </div>
     {playable && sample?.data.clip ? <ClipBrain key={sample.id} clip={sample.data.clip} sampleId={sample.id} predsUrl={samplePreds(sample.id)} /> : map && <>
-      <div className="headline"><span className="mid">{map.title}</span><span className="legend">{map.kind === 'contrast' ? <>Lower <span className="ramp" /> Higher</> : <>Low <span className="ramp single" /> High</>}</span></div>
+      <div className="headline"><span className="mid">{words(map.title)}</span><span className="legend">{map.kind === 'contrast' ? <>Lower <span className="ramp" /> Higher</> : <>Low <span className="ramp single" /> High</>}</span></div>
       <div className="brains">{Object.entries(map.views).map(([v, url]) => <figure key={v}><img src={`/files/${url}`} alt={`${map.title}, ${VIEW_NAMES[v] ?? v}`} /><figcaption>{VIEW_NAMES[v] ?? v}</figcaption></figure>)}</div>
       <div className="ink2">TRIBE v2 prediction for an average viewer, over the seconds the stimulus is on screen.</div>
     </>}
-    {tc && <div className="card"><h3>Response by second, {region}</h3><TimeCourse a={tc.a} b={tc.b} labels={course!.analysis.data.labels} window={course!.analysis.data.window_s} /></div>}
+    {tc && <div className="card"><h3>Response by second, {region}</h3><TimeCourse a={tc.a} b={tc.b} labels={course!.analysis.data.labels?.map(words) as [string, string]} window={course!.analysis.data.window_s} /></div>}
   </>
 }
 
@@ -653,7 +653,7 @@ function TemplateSheet({ examples, onOpenProject, onOpenDataset, onGoal, onChat,
         <div className="excards">{examples.filter(e => e.kind === k).map(e => <article key={e.id} className="excard">
           {(e.media.length > 0 || e.brain) && <div className={`pics ${e.brain ? 'split' : ''}`}>
             <div className="stim">{e.media.map(src => src.endsWith('.mp4') ? <video key={src} src={src} autoPlay muted loop playsInline preload="metadata" aria-label={`${e.title}, the stimulus`} /> : <img key={src} src={src} alt="" />)}</div>
-            {e.brain && <figure className="exbrain"><img src={e.brain.image} alt={`Predicted brain response: ${e.brain.title}`} /><figcaption>{e.brain.title}</figcaption></figure>}
+            {e.brain && <figure className="exbrain"><img src={e.brain.image} alt={`Predicted brain response: ${words(e.brain.title)}`} /><figcaption>{words(e.brain.title)}</figcaption></figure>}
           </div>}
           <div className="exbody">
             <h3>{e.title}</h3>
@@ -781,7 +781,7 @@ function GuideProject({ P }: { P: Project }) {
     <span className="gmono ink2">This project</span>
     <p className="gq">{P.question}</p>
     {conds.length > 0 && <><span className="gmono ink2">The plan the agent made from it</span>
-      <ul>{conds.map(c => <li key={c.name}><b>{c.name}</b>{c.origin?.label ? `: ${c.origin.label.replace(/^Rendered in /, 'rendered in ').replace(/^Cosmos, from rendered in isaac sim$/i, 'the Isaac Sim render, restyled by Cosmos 3 Nano')}` : ''}</li>)}
+      <ul>{conds.map(c => <li key={c.name}><b>{words(c.name)}</b>{c.origin?.label ? `: ${c.origin.label.replace(/^Rendered in /, 'rendered in ').replace(/^Cosmos, from rendered in isaac sim$/i, 'the Isaac Sim render, restyled by Cosmos 3 Nano')}` : ''}</li>)}
         {prov[1] && <li>{prov[1]}</li>}{prov[3] && <li>Reads {prov[3]}</li>}</ul></>}
   </div>
 }
