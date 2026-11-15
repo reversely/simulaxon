@@ -104,8 +104,12 @@ export default function App() {
   const guideTo = (i: number) => {
     const g = GUIDE[i].go; setGuide(i)
     const ok = (p?: Row<Project>) => !!p && p.data.status === 'Done' && (g.project === 'experiment' ? p.data.plan === 'experiment' && (p.data.counts?.clips ?? 0) > 0 : !!(p.data as any).world)
+    // The guide shows the pipeline: stimuli from Cosmos first, then Isaac Sim; fetched datasets only when nothing else has run.
+    const made = (p: Row<Project>) => { const o = (((p.data as any).setup?.conditions ?? []) as any[]).map(c => `${c.origin?.kind ?? ''} ${c.origin?.label ?? ''}`).join(' ').toLowerCase()
+      return (/cosmos/.test(o) ? 2 : 0) + (/isaac/.test(o) || (p.data as any).world ? 1 : 0) }
     const cur = projects.find(p => p.id === pid)
-    if (g.project && !ok(cur)) { const p = projects.find(x => ok(x)); if (p) setPid(p.id) }
+    if (g.project) { const best = projects.filter(ok).sort((a, b) => made(b) - made(a))[0]
+      if (best && (!ok(cur) || made(cur!) < made(best))) setPid(best.id) }
     setHist(!!g.history); setDsShow(g.view === 'datasets' ? g.dataset ?? { id: '' } : null); setView(g.view as View)
   }
 
@@ -374,6 +378,8 @@ function provShort(s: string): string {
   m = s.match(/^([\d.]+) s (?:on screen|of motion), then ([\d.]+) s grey$/); if (m) return `${m[1]} s on, ${m[2]} s grey`
   if (/^TRIBE v2\b/.test(s)) return 'TRIBE v2'
   if (/^Isaac Sim\b/.test(s)) return 'Isaac Sim'
+  if (/ and /.test(s) && /isaac|cosmos|dataset/i.test(s))   // the stimuli's origins, one per condition: each by its source's name
+    return [...new Set(s.split(' and ').map(o => o.split(', ')[0].replace(/^Rendered in /i, '')))].join(' and ')
   return s.split(', ')[0]
 }
 const regionCount = (rs: string[]) => ({ text: `${rs.length} ${rs.length === 1 ? 'region' : 'regions'}`, title: rs.map(regionLabel).join(', ') })
