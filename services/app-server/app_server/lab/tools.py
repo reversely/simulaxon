@@ -23,7 +23,9 @@ def register(tools, broadcast=lambda m: None):
         if msg.get('preview') and msg.get('stage') in ('done', 'failed'): player.notify('preview', msg['preview'])
         if msg.get('run') and msg.get('stage') in ('done', 'failed'): player.notify('run', msg['run'])
         if msg.get('run'):   # kept, so a page opened mid-run shows where the run is instead of waiting for the next event
-            cur = progress.get(msg['run'], {}); progress[msg['run']] = {**cur, **{k: msg[k] for k in ('done', 'total', 'stage') if k in msg}}
+            cur = progress.get(msg['run'], {})
+            if cur.get('stage') == 'failed' and 'done' in msg: cur = {}   # a new run of a project that failed or was stopped: its old outcome goes
+            progress[msg['run']] = {**cur, **{k: msg[k] for k in ('done', 'total', 'stage') if k in msg}}
             if msg.get('stage') == 'done': progress.pop(msg['run'], None)
             if msg.get('stage') == 'failed': progress[msg['run']] = {'stage': 'failed', 'error': msg.get('error', '')}   # kept until it runs again
         raw(msg)
